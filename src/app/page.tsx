@@ -21,8 +21,12 @@ export interface ImageFile {
   preview: string;
   metadata: {
     description: string;
-    author: string;
+    author: string; // Keep for backwards compatibility, will be generated from username/fullname
+    authorUsername?: string;
+    authorFullName?: string;
     date: string;
+    time?: string; // Time portion (HH:MM:SS)
+    dateFromExif?: boolean; // Indicates if date came from EXIF data
     source: string;
     license: string;
     categories: string[];
@@ -45,6 +49,7 @@ export interface ImageFile {
     };
     // Music-specific fields
     musicEvent?: MusicEventMetadata;
+    selectedBand?: string; // Band name selected for this specific image
   };
 }
 
@@ -190,6 +195,7 @@ export default function Home() {
                   onImageUpdate={handleImageUpdate}
                   onImageRemove={handleImageRemove}
                   onImageClick={handleImageClick}
+                  musicEventData={musicEventData}
                 />
               </>
             )}
