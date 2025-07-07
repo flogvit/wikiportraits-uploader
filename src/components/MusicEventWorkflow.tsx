@@ -167,14 +167,14 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
 
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-        <Music className="w-6 h-6 mr-2 text-purple-600" />
+    <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+      <h3 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
+        <Music className="w-6 h-6 mr-2 text-primary" />
         Music Event Setup
       </h3>
 
       {/* Step Navigation */}
-      <div className="flex mb-8 border-b border-gray-200">
+      <div className="flex mb-8 border-b border-border">
         {[
           { key: 'type', label: 'Event Type', icon: Music },
           { key: 'details', label: 'Event Details', icon: Calendar }
@@ -194,10 +194,10 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               disabled={!eventType && step.key !== 'type'}
               className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
                 isActive
-                  ? 'border-purple-500 text-purple-600'
+                  ? 'border-primary text-primary'
                   : isCompleted
-                  ? 'border-purple-300 text-purple-500 hover:text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 disabled:text-gray-300'
+                  ? 'border-primary/60 text-primary/80 hover:text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground disabled:text-muted-foreground/50'
               }`}
             >
               <Icon className="w-4 h-4 mr-2" />
@@ -210,19 +210,19 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
       {/* Event Type Selection */}
       {currentStep === 'type' && (
         <div className="space-y-4">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Select Event Type</h4>
+          <h4 className="text-lg font-medium text-card-foreground mb-4">Select Event Type</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={() => handleEventTypeSelect('festival')}
               className={`p-6 border-2 rounded-lg text-left transition-colors ${
                 eventType === 'festival'
-                  ? 'border-purple-500 bg-purple-50'
-                  : 'border-gray-200 hover:border-purple-300'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
               }`}
             >
-              <Users className="w-8 h-8 text-purple-600 mb-3" />
-              <h5 className="text-lg font-medium text-gray-900 mb-2">Festival</h5>
-              <p className="text-sm text-gray-600">
+              <Users className="w-8 h-8 text-primary mb-3" />
+              <h5 className="text-lg font-medium text-card-foreground mb-2">Festival</h5>
+              <p className="text-sm text-muted-foreground">
                 Multi-band event with festival category and band subcategories
               </p>
             </button>
@@ -231,13 +231,13 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               onClick={() => handleEventTypeSelect('concert')}
               className={`p-6 border-2 rounded-lg text-left transition-colors ${
                 eventType === 'concert'
-                  ? 'border-purple-500 bg-purple-50'
-                  : 'border-gray-200 hover:border-purple-300'
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
               }`}
             >
-              <Mic className="w-8 h-8 text-purple-600 mb-3" />
-              <h5 className="text-lg font-medium text-gray-900 mb-2">Concert</h5>
-              <p className="text-sm text-gray-600">
+              <Mic className="w-8 h-8 text-primary mb-3" />
+              <h5 className="text-lg font-medium text-card-foreground mb-2">Concert</h5>
+              <p className="text-sm text-muted-foreground">
                 Single artist/band performance with direct categorization
               </p>
             </button>
@@ -247,7 +247,7 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setCurrentStep('details')}
-                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
               >
                 Next: Event Details
               </button>
@@ -259,10 +259,10 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
       {/* Event Details */}
       {currentStep === 'details' && eventType === 'festival' && (
         <div className="space-y-4">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Festival Details</h4>
+          <h4 className="text-lg font-medium text-card-foreground mb-4">Festival Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Festival Name
               </label>
               <input
@@ -270,12 +270,12 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={festivalData.festival.name}
                 onChange={(e) => handleFestivalChange('name', e.target.value)}
                 placeholder="e.g., Jærnåttå"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Year
               </label>
               <input
@@ -283,14 +283,14 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={festivalData.festival.year}
                 onChange={(e) => handleFestivalChange('year', e.target.value)}
                 placeholder="e.g., 2025"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4 inline mr-1" />
                 Location
               </label>
@@ -299,12 +299,12 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={festivalData.festival.location}
                 onChange={(e) => handleFestivalChange('location', e.target.value)}
                 placeholder="City or venue"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Country
               </label>
               <CountrySelector
@@ -317,7 +317,7 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
 
           {/* Band Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Band/Artist for this upload session *
             </label>
             <ArtistSelector
@@ -342,12 +342,12 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               currentLanguage={currentLanguage}
             />
             {festivalData.selectedBands[0] && (
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Selected: <strong>{festivalData.selectedBands[0].name}</strong>
               </p>
             )}
             {currentLanguage !== 'en' && festivalData.festival.country && (
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-primary mt-1">
                 🌐 Search language auto-set to {currentLanguage.toUpperCase()} for {festivalData.festival.country}
               </p>
             )}
@@ -356,7 +356,7 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
           {/* Author fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Username (optional)
               </label>
               <input
@@ -364,11 +364,11 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={festivalData.authorUsername || ''}
                 onChange={(e) => handleAuthorUsernameChange(e.target.value)}
                 placeholder="YourUsername"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Full Name (optional)
               </label>
               <input
@@ -376,11 +376,11 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={festivalData.authorFullName || ''}
                 onChange={(e) => handleAuthorFullNameChange(e.target.value)}
                 placeholder="Your Full Name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Will be formatted as [[User:Username|Full Name]] in Commons
           </p>
 
@@ -390,9 +390,9 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               id="wikiPortraitsFestival"
               checked={festivalData.addToWikiPortraitsConcerts}
               onChange={(e) => handleWikiPortraitsToggle(e.target.checked)}
-              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              className="rounded border-border text-accent focus:ring-accent"
             />
-            <label htmlFor="wikiPortraitsFestival" className="text-sm text-gray-700">
+            <label htmlFor="wikiPortraitsFestival" className="text-sm text-muted-foreground">
               Add to &quot;Category:WikiPortraits at Concerts&quot; as subcategory
             </label>
           </div>
@@ -400,14 +400,14 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
           <div className="flex justify-between mt-6">
             <button
               onClick={() => setCurrentStep('type')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-border text-muted-foreground rounded-md hover:bg-muted"
             >
               Back: Event Type
             </button>
             <button
               onClick={() => {/* Complete setup */}}
               disabled={!festivalData.festival.name || !festivalData.festival.year || !festivalData.selectedBands.length}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90 disabled:bg-muted disabled:cursor-not-allowed"
             >
               Complete Setup
             </button>
@@ -418,10 +418,10 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
       {/* Concert Details */}
       {currentStep === 'details' && eventType === 'concert' && (
         <div className="space-y-4">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Concert Details</h4>
+          <h4 className="text-lg font-medium text-card-foreground mb-4">Concert Details</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 <Calendar className="w-4 h-4 inline mr-1" />
                 Concert Date
               </label>
@@ -429,12 +429,12 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 type="date"
                 value={concertData.concert.date}
                 onChange={(e) => handleConcertChange('date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4 inline mr-1" />
                 Venue
               </label>
@@ -443,14 +443,14 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={concertData.concert.venue}
                 onChange={(e) => handleConcertChange('venue', e.target.value)}
                 placeholder="Venue name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 City
               </label>
               <input
@@ -458,12 +458,12 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={concertData.concert.city}
                 onChange={(e) => handleConcertChange('city', e.target.value)}
                 placeholder="City"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Country
               </label>
               <CountrySelector
@@ -475,7 +475,7 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Tour (optional)
             </label>
             <input
@@ -483,13 +483,13 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               value={concertData.concert.tour || ''}
               onChange={(e) => handleConcertChange('tour', e.target.value)}
               placeholder="Tour name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
 
           {/* Artist Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">
               Artist/Band *
             </label>
             <ArtistSelector
@@ -510,7 +510,7 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               currentLanguage={currentLanguage}
             />
             {currentLanguage !== 'en' && concertData.concert.country && (
-              <p className="text-xs text-blue-600 mt-1">
+              <p className="text-xs text-primary mt-1">
                 🌐 Search language auto-set to {currentLanguage.toUpperCase()} for {concertData.concert.country}
               </p>
             )}
@@ -519,7 +519,7 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
           {/* Author fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Username (optional)
               </label>
               <input
@@ -527,11 +527,11 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={concertData.authorUsername || ''}
                 onChange={(e) => handleAuthorUsernameChange(e.target.value)}
                 placeholder="YourUsername"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Full Name (optional)
               </label>
               <input
@@ -539,11 +539,11 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
                 value={concertData.authorFullName || ''}
                 onChange={(e) => handleAuthorFullNameChange(e.target.value)}
                 placeholder="Your Full Name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Will be formatted as [[User:Username|Full Name]] in Commons
           </p>
 
@@ -553,9 +553,9 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               id="wikiPortraitsConcert"
               checked={concertData.addToWikiPortraitsConcerts}
               onChange={(e) => handleWikiPortraitsToggle(e.target.checked)}
-              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              className="rounded border-border text-accent focus:ring-accent"
             />
-            <label htmlFor="wikiPortraitsConcert" className="text-sm text-gray-700">
+            <label htmlFor="wikiPortraitsConcert" className="text-sm text-muted-foreground">
               Add to &quot;Category:WikiPortraits at Concerts&quot; as subcategory
             </label>
           </div>
@@ -563,14 +563,14 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
           <div className="flex justify-between mt-6">
             <button
               onClick={() => setCurrentStep('type')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-border text-muted-foreground rounded-md hover:bg-muted"
             >
               Back: Event Type
             </button>
             <button
               onClick={() => {/* Complete setup */}}
               disabled={!concertData.concert.venue || !concertData.concert.date || !concertData.concert.artist.name}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-accent text-accent-foreground rounded-md hover:bg-accent/90 disabled:bg-muted disabled:cursor-not-allowed"
             >
               Complete Setup
             </button>
