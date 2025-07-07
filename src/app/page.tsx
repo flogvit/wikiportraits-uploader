@@ -10,6 +10,8 @@ import ImageModal from '@/components/ImageModal';
 import LoginButton from '@/components/LoginButton';
 import UploadTypeSelector, { UploadType } from '@/components/UploadTypeSelector';
 import CategoryCreationModal from '@/components/CategoryCreationModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import WikimediaWorkflow from '@/components/WikimediaWorkflow';
 import { SoccerMatchMetadata, SoccerPlayer } from '@/components/SoccerMatchWorkflow';
 import { getCategoriesToCreate, CategoryCreationInfo } from '@/utils/soccer-categories';
 import { MusicEventMetadata } from '@/types/music';
@@ -68,24 +70,6 @@ export default function Home() {
 
   const handleImagesAdded = (newImages: ImageFile[]) => {
     setImages(prev => [...prev, ...newImages]);
-    
-    // If this is a soccer upload and we have match data, check for categories to create
-    if (uploadType === 'soccer' && soccerMatchData && soccerMatchData.homeTeam && soccerMatchData.awayTeam) {
-      const categories = getCategoriesToCreate(soccerMatchData, selectedPlayers);
-      if (categories.length > 0) {
-        setCategoriesToCreate(categories);
-        setShowCategoryModal(true);
-      }
-    }
-    
-    // If this is a music upload and we have event data, check for categories to create
-    if (uploadType === 'music' && musicEventData) {
-      const categories = getMusicCategoriesToCreate(musicEventData);
-      if (categories.length > 0) {
-        setCategoriesToCreate(categories);
-        setShowCategoryModal(true);
-      }
-    }
   };
 
   const handleSoccerDataUpdate = (matchData: SoccerMatchMetadata, players: SoccerPlayer[]) => {
@@ -150,20 +134,23 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <header className="mb-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                <h1 className="text-4xl font-bold text-foreground mb-2">
                   WikiPortraits Bulk Uploader
                 </h1>
-                <p className="text-lg text-gray-600">
+                <p className="text-lg text-muted-foreground">
                   Upload and tag portrait images for Wikimedia Commons
                 </p>
               </div>
-              <LoginButton />
+              <div className="flex items-center gap-4">
+                <ThemeToggle />
+                <LoginButton />
+              </div>
             </div>
           </header>
 
@@ -173,32 +160,22 @@ export default function Home() {
               selectedType={uploadType}
             />
             
-            <ImageUploader 
-              onImagesAdded={handleImagesAdded} 
-              existingImages={images}
+            <WikimediaWorkflow
+              images={images}
+              soccerMatchData={soccerMatchData}
+              selectedPlayers={selectedPlayers}
+              musicEventData={musicEventData}
               uploadType={uploadType}
+              onImagesAdded={handleImagesAdded}
+              onImageUpdate={handleImageUpdate}
+              onImageRemove={handleImageRemove}
               onSoccerDataUpdate={handleSoccerDataUpdate}
               onMusicEventUpdate={handleMusicEventUpdate}
+              onExportMetadata={handleExportMetadata}
+              onBulkEdit={handleBulkEdit}
+              onScrollToImage={handleScrollToImage}
+              onImageClick={handleImageClick}
             />
-            
-            {images.length > 0 && (
-              <>
-                <UploadQueue 
-                  images={images}
-                  onExportMetadata={handleExportMetadata}
-                  onBulkEdit={handleBulkEdit}
-                  onScrollToImage={handleScrollToImage}
-                />
-                
-                <ImageGrid 
-                  images={images}
-                  onImageUpdate={handleImageUpdate}
-                  onImageRemove={handleImageRemove}
-                  onImageClick={handleImageClick}
-                  musicEventData={musicEventData}
-                />
-              </>
-            )}
           </div>
         </div>
       </div>
