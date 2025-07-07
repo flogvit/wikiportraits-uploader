@@ -8,13 +8,7 @@ export interface SoccerCategoryOptions {
   includeMatchCategories?: boolean;
 }
 
-export interface CategoryCreationInfo {
-  categoryName: string;
-  shouldCreate: boolean;
-  parentCategory?: string;
-  description?: string;
-  teamName?: string;
-}
+export type { CategoryCreationInfo } from '@/types/categories';
 
 export function generateSoccerCategories({
   matchData,

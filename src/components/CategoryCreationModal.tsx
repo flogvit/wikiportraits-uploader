@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, Plus, Check, AlertTriangle, Loader } from 'lucide-react';
-import { CategoryCreationInfo } from '@/utils/soccer-categories';
+import { CategoryCreationInfo } from '@/types/categories';
 
 interface CategoryCreationModalProps {
   isOpen: boolean;
@@ -156,8 +156,8 @@ export default function CategoryCreationModal({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="mb-4">
             <p className="text-gray-600 mb-4">
-              The following categories will help organize your soccer match photos. 
-              Select which categories you'd like to create on Wikimedia Commons:
+              The following categories will help organize your photos. 
+              Select which categories you&apos;d like to create on Wikimedia Commons:
             </p>
           </div>
 
