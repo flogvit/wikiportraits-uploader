@@ -24,3 +24,48 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Global input styling to ensure proper contrast */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+input[type="search"],
+textarea,
+select {
+  color: #374151 !important; /* Force dark gray text */
+  background-color: #ffffff !important; /* Force white background */
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="search"]::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important; /* Force gray placeholder text */
+}
+
+/* Dark mode input styling */
+@media (prefers-color-scheme: dark) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="date"],
+  input[type="number"],
+  input[type="search"],
+  textarea,
+  select {
+    color: #1f2937 !important; /* Dark gray text for readability */
+    background-color: #f9fafb !important; /* Light gray background */
+    border-color: #d1d5db !important; /* Light border */
+  }
+  
+  input[type="text"]::placeholder,
+  input[type="email"]::placeholder,
+  input[type="password"]::placeholder,
+  input[type="search"]::placeholder,
+  textarea::placeholder {
+    color: #6b7280 !important; /* Medium gray placeholder */
+  }
+}
