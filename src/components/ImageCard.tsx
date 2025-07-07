@@ -58,7 +58,7 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
   };
 
   return (
-    <div id={`image-card-${image.id}`} className="bg-white rounded-lg shadow-lg overflow-hidden">
+    <div id={`image-card-${image.id}`} className="bg-card rounded-lg shadow-lg overflow-hidden">
       <div className="relative">
         <img
           src={image.preview}
@@ -69,7 +69,7 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
         />
         <button
           onClick={() => onRemove(image.id)}
-          className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+          className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -82,12 +82,12 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
 
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-900 truncate">
+          <h3 className="font-semibold text-card-foreground truncate">
             {generateFilename(image, index)}
           </h3>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center text-sm text-gray-500 hover:text-gray-700"
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground"
           >
             {isExpanded ? (
               <>
@@ -106,21 +106,21 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
         {isExpanded && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-card-foreground mb-1">
                 Description *
               </label>
               <textarea
                 value={image.metadata.description}
                 onChange={(e) => handleMetadataChange('description', e.target.value)}
                 placeholder="Describe the portrait (e.g., 'Portrait of John Doe at WikiConference 2025')"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 rows={2}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-card-foreground mb-1">
                   Username
                 </label>
                 <input
@@ -141,12 +141,12 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                     handleMetadataChange('author', formattedAuthor);
                   }}
                   placeholder="YourUsername"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-card-foreground mb-1">
                   Full Name
                 </label>
                 <input
@@ -167,14 +167,14 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                     handleMetadataChange('author', formattedAuthor);
                   }}
                   placeholder="Your Full Name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
               </div>
             </div>
           
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-card-foreground mb-1">
                   Date {image.metadata.dateFromExif && <span className="text-xs text-green-600">(from EXIF)</span>}
                 </label>
                 <input
@@ -184,7 +184,7 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                     handleMetadataChange('date', e.target.value);
                     handleMetadataChange('dateFromExif', false); // Mark as manually edited
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
                 {image.metadata.dateFromExif && (
                   <p className="text-xs text-green-600 mt-1">
@@ -194,7 +194,7 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-card-foreground mb-1">
                   Time {image.metadata.dateFromExif && image.metadata.time && <span className="text-xs text-green-600">(from EXIF)</span>}
                 </label>
                 <input
@@ -207,13 +207,13 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                       handleMetadataChange('dateFromExif', false); // Mark as manually edited
                     }
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                   placeholder="HH:MM:SS"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-card-foreground mb-1">
                   Source
                 </label>
                 <input
@@ -221,19 +221,19 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                   value={image.metadata.source}
                   onChange={(e) => handleMetadataChange('source', e.target.value)}
                   placeholder="own work"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-card-foreground mb-1">
                 License
               </label>
               <select
                 value={image.metadata.license}
                 onChange={(e) => handleMetadataChange('license', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
               >
                 {LICENSE_OPTIONS.map(option => (
                   <option key={option.value} value={option.value}>
@@ -245,7 +245,7 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
 
             {musicEventData?.eventType === 'festival' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-card-foreground mb-1">
                   Band/Artist
                 </label>
                 <input
@@ -253,13 +253,13 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                   value={image.metadata.selectedBand || ''}
                   onChange={(e) => handleMetadataChange('selectedBand', e.target.value)}
                   placeholder="Band or artist name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-card-foreground mb-1">
                 Categories
               </label>
               <div className="flex space-x-2">
@@ -269,11 +269,11 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                   onChange={(e) => setCategoryInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addCategory()}
                   placeholder="Add category"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                  className="flex-1 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
                 <button
                   onClick={addCategory}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                   Add
                 </button>
@@ -282,12 +282,12 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
                 {image.metadata.categories.map((category, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
                   >
                     {category}
                     <button
                       onClick={() => removeCategory(category)}
-                      className="ml-1 text-gray-500 hover:text-gray-700"
+                      className="ml-1 text-muted-foreground hover:text-foreground"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -296,7 +296,7 @@ export default function ImageCard({ image, index, onUpdate, onRemove, onImageCli
               </div>
             </div>
 
-            <div className="pt-4 border-t border-gray-200">
+            <div className="pt-4 border-t border-border">
               <CommonsPreview image={image} index={index} />
             </div>
           </div>

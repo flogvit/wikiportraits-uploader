@@ -131,29 +131,29 @@ export default function CountrySelector({
           onClick={handleInputClick}
           onFocus={handleInputFocus}
           placeholder={placeholder}
-          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-gray-900 bg-white"
+          className="w-full px-3 py-2 pr-10 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent text-foreground bg-card"
           autoComplete="off"
         />
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
+          className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
         >
           <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-md shadow-lg max-h-60 overflow-auto">
           {search && (
-            <div className="flex items-center px-3 py-2 text-sm text-gray-500 border-b border-gray-100">
+            <div className="flex items-center px-3 py-2 text-sm text-muted-foreground border-b border-border">
               <Search className="w-4 h-4 mr-2" />
               Searching for &quot;{search}&quot;
             </div>
           )}
           
           {filteredCountries.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-500">
+            <div className="px-3 py-2 text-sm text-muted-foreground">
               No countries found
             </div>
           ) : (
@@ -165,21 +165,21 @@ export default function CountrySelector({
                   e.preventDefault();
                   selectCountry(country);
                 }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
-                  index === highlightedIndex ? 'bg-purple-50 text-purple-700' : 'text-gray-900'
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-muted focus:bg-muted focus:outline-none ${
+                  index === highlightedIndex ? 'bg-accent/10 text-accent' : 'text-foreground'
                 }`}
                 onMouseEnter={() => setHighlightedIndex(index)}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium">{country.name}</span>
                   {country.language && (
-                    <span className="text-xs text-gray-500 uppercase">
+                    <span className="text-xs text-muted-foreground uppercase">
                       {country.language}
                     </span>
                   )}
                 </div>
                 {/* Show flag emoji if available */}
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="text-xs text-muted-foreground mt-1">
                   {country.code} • {country.searchTerms.slice(0, 3).join(', ')}
                 </div>
               </button>
@@ -190,7 +190,7 @@ export default function CountrySelector({
 
       {/* Show selected country info */}
       {selectedCountry && !isOpen && (
-        <div className="mt-1 text-xs text-gray-500">
+        <div className="mt-1 text-xs text-muted-foreground">
           {selectedCountry.language && (
             <span>🌐 Wikipedia language: {selectedCountry.language.toUpperCase()}</span>
           )}

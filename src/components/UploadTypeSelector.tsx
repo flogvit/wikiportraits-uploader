@@ -16,28 +16,28 @@ const uploadTypes = [
     title: 'General Upload',
     description: 'Standard WikiPortraits upload with basic metadata',
     icon: FileImage,
-    color: 'bg-gray-100 hover:bg-gray-200 border-gray-300'
+    color: 'bg-muted hover:bg-muted/80 border-border'
   },
   {
     id: 'soccer' as UploadType,
     title: 'Soccer Match',
     description: 'Upload players from a soccer match with team tagging',
     icon: Users,
-    color: 'bg-green-100 hover:bg-green-200 border-green-300'
+    color: 'bg-success/20 hover:bg-success/30 border-success/40'
   },
   {
     id: 'music' as UploadType,
     title: 'Music Event',
     description: 'Upload musicians and performers from an event',
     icon: Music,
-    color: 'bg-purple-100 hover:bg-purple-200 border-purple-300'
+    color: 'bg-accent hover:bg-accent/80 border-accent/40'
   },
   {
     id: 'portraits' as UploadType,
     title: 'Portrait Session',
     description: 'Upload portrait photos with enhanced metadata',
     icon: Camera,
-    color: 'bg-blue-100 hover:bg-blue-200 border-blue-300'
+    color: 'bg-primary/20 hover:bg-primary/30 border-primary/40'
   }
 ];
 
@@ -51,7 +51,7 @@ export default function UploadTypeSelector({ onTypeSelect, selectedType }: Uploa
 
   return (
     <div className="mb-8">
-      <h2 className="text-2xl font-semibold text-gray-900 mb-4">Choose Upload Type</h2>
+      <h2 className="text-2xl font-semibold text-foreground mb-4">Choose Upload Type</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {uploadTypes.map((type) => {
           const Icon = type.icon;
@@ -64,7 +64,7 @@ export default function UploadTypeSelector({ onTypeSelect, selectedType }: Uploa
               className={`
                 p-6 rounded-lg border-2 transition-all duration-200 text-left
                 ${isSelected 
-                  ? 'border-blue-500 bg-blue-50 shadow-md' 
+                  ? 'border-primary bg-primary/10 shadow-md' 
                   : `${type.color} shadow-sm`
                 }
               `}
@@ -72,22 +72,22 @@ export default function UploadTypeSelector({ onTypeSelect, selectedType }: Uploa
               <div className="flex items-center mb-3">
                 <Icon 
                   className={`w-8 h-8 ${
-                    isSelected ? 'text-blue-600' : 'text-gray-600'
+                    isSelected ? 'text-primary' : 'text-muted-foreground'
                   }`} 
                 />
                 {isSelected && (
-                  <div className="ml-auto w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                  <div className="ml-auto w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                     <div className="w-2 h-2 bg-white rounded-full"></div>
                   </div>
                 )}
               </div>
               <h3 className={`font-semibold text-lg mb-2 ${
-                isSelected ? 'text-blue-900' : 'text-gray-900'
+                isSelected ? 'text-primary' : 'text-foreground'
               }`}>
                 {type.title}
               </h3>
               <p className={`text-sm ${
-                isSelected ? 'text-blue-700' : 'text-gray-600'
+                isSelected ? 'text-primary/80' : 'text-muted-foreground'
               }`}>
                 {type.description}
               </p>

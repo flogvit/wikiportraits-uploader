@@ -106,26 +106,26 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h4 className="text-lg font-medium text-gray-900">
+        <h4 className="text-lg font-medium text-foreground">
           Select Players ({selectedPlayers.length})
         </h4>
         
         {hasTeams && (
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search players..."
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              className="pl-10 pr-4 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
             />
           </div>
         )}
       </div>
 
       {!hasTeams ? (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-muted-foreground">
           <User className="w-12 h-12 mx-auto mb-2 opacity-50" />
           <p>Please select teams first to see available players</p>
         </div>
@@ -139,9 +139,9 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
           {/* Available Players */}
           <div className="space-y-3">
             <h5 className="font-medium text-gray-900">Available Players</h5>
-            <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+            <div className="max-h-80 overflow-y-auto border border-border rounded-lg">
               {filteredPlayers.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
+                <div className="p-4 text-center text-muted-foreground">
                   <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No players found</p>
                 </div>
@@ -161,7 +161,7 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
                           <div className="font-medium text-gray-900">
                             {player.name}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             {player.team}
                           </div>
                         </div>
@@ -172,7 +172,7 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
                           className={`p-1 rounded-full transition-colors ${
                             isSelected
                               ? 'bg-green-100 text-green-600 cursor-not-allowed'
-                              : 'text-gray-400 hover:text-green-600 hover:bg-green-50'
+                              : 'text-muted-foreground hover:text-green-600 hover:bg-green-50'
                           }`}
                         >
                           <Plus className="w-4 h-4" />
@@ -188,9 +188,9 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
           {/* Selected Players */}
           <div className="space-y-3">
             <h5 className="font-medium text-gray-900">Selected Players</h5>
-            <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+            <div className="max-h-80 overflow-y-auto border border-border rounded-lg">
               {selectedPlayers.length === 0 ? (
-                <div className="p-4 text-center text-gray-500">
+                <div className="p-4 text-center text-muted-foreground">
                   <User className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No players selected</p>
                 </div>
@@ -205,7 +205,7 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
                         <div className="font-medium text-gray-900">
                           {player.name}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-muted-foreground">
                           {player.team}
                           {player.position && ` • ${player.position}`}
                           {player.number && ` • #${player.number}`}

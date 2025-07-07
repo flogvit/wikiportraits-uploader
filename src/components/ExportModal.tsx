@@ -63,21 +63,21 @@ export default function ExportModal({ images, isOpen, onClose }: ExportModalProp
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
+      <div className="bg-card rounded-lg shadow-xl max-w-2xl w-full mx-4">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-xl font-semibold text-card-foreground">
             Export Metadata ({images.length} images)
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6">
-          <p className="text-gray-600 mb-6">
+          <p className="text-muted-foreground mb-6">
             Choose a format to export your image metadata. This is useful for backup, 
             sharing with collaborators, or preparing data for upload.
           </p>
@@ -88,26 +88,26 @@ export default function ExportModal({ images, isOpen, onClose }: ExportModalProp
                 key={option.id}
                 onClick={() => handleExport(option)}
                 disabled={selectedFormat === option.id}
-                className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full p-4 border border-border rounded-lg hover:border-primary/50 hover:bg-primary/10 transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-start space-x-3">
-                  <div className="text-blue-500 mt-0.5">
+                  <div className="text-primary mt-0.5">
                     {option.icon}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900">
+                      <h3 className="font-medium text-card-foreground">
                         {option.name}
                       </h3>
                       {selectedFormat === option.id ? (
-                        <span className="text-sm text-green-600 font-medium">
+                        <span className="text-sm text-success font-medium">
                           Downloaded!
                         </span>
                       ) : (
-                        <Download className="w-4 h-4 text-gray-400" />
+                        <Download className="w-4 h-4 text-muted-foreground" />
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {option.description}
                     </p>
                   </div>
@@ -116,9 +116,9 @@ export default function ExportModal({ images, isOpen, onClose }: ExportModalProp
             ))}
           </div>
 
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h4 className="font-medium text-blue-900 mb-2">Export Tips:</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
+          <div className="mt-6 p-4 bg-primary/10 rounded-lg">
+            <h4 className="font-medium text-primary mb-2">Export Tips:</h4>
+            <ul className="text-sm text-primary/80 space-y-1">
               <li>• <strong>JSON:</strong> Best for importing back into this tool</li>
               <li>• <strong>CSV:</strong> Great for spreadsheet analysis and editing metadata in bulk</li>
               <li>• <strong>Wikitext:</strong> Copy-paste ready for Commons file pages</li>
@@ -127,10 +127,10 @@ export default function ExportModal({ images, isOpen, onClose }: ExportModalProp
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className="flex justify-end space-x-3 p-6 border-t border-border">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            className="px-4 py-2 text-muted-foreground hover:text-foreground"
           >
             Close
           </button>

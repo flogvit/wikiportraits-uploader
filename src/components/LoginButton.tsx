@@ -8,9 +8,9 @@ export default function LoginButton() {
 
   if (status === 'loading') {
     return (
-      <div className="flex items-center space-x-2 px-4 py-2 bg-gray-100 rounded-lg">
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-        <span className="text-sm text-gray-600">Loading...</span>
+      <div className="flex items-center space-x-2 px-4 py-2 bg-muted rounded-lg">
+        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-muted-foreground"></div>
+        <span className="text-sm text-muted-foreground">Loading...</span>
       </div>
     )
   }
@@ -18,18 +18,18 @@ export default function LoginButton() {
   if (session) {
     return (
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2 px-3 py-2 bg-green-100 rounded-lg">
-          <User className="h-4 w-4 text-green-600" />
-          <span className="text-sm font-medium text-green-800">
+        <div className="flex items-center space-x-2 px-3 py-2 bg-success/20 rounded-lg">
+          <User className="h-4 w-4 text-success" />
+          <span className="text-sm font-medium text-success">
             {session.user?.name}
           </span>
         </div>
         <button
           onClick={() => signOut()}
-          className="flex items-center space-x-2 px-3 py-2 bg-red-100 hover:bg-red-200 rounded-lg transition-colors"
+          className="flex items-center space-x-2 px-3 py-2 bg-destructive/20 hover:bg-destructive/30 rounded-lg transition-colors"
         >
-          <LogOut className="h-4 w-4 text-red-600" />
-          <span className="text-sm font-medium text-red-800">Sign Out</span>
+          <LogOut className="h-4 w-4 text-destructive" />
+          <span className="text-sm font-medium text-destructive">Sign Out</span>
         </button>
       </div>
     )

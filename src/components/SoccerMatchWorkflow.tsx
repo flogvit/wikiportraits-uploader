@@ -70,14 +70,14 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-        <Trophy className="w-6 h-6 mr-2 text-green-600" />
+    <div className="bg-card rounded-lg shadow-sm border border-border p-6 mb-6">
+      <h3 className="text-xl font-semibold text-card-foreground mb-6 flex items-center">
+        <Trophy className="w-6 h-6 mr-2 text-success" />
         Soccer Match Setup
       </h3>
 
       {/* Step Navigation */}
-      <div className="flex mb-8 border-b border-gray-200">
+      <div className="flex mb-8 border-b border-border">
         {[
           { key: 'match', label: 'Match Info', icon: Calendar },
           { key: 'teams', label: 'Teams', icon: Users },
@@ -95,10 +95,10 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
               onClick={() => setCurrentStep(step.key as any)}
               className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
                 isActive
-                  ? 'border-green-500 text-green-600'
+                  ? 'border-success text-success'
                   : isCompleted
-                  ? 'border-green-300 text-green-500 hover:text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-success/60 text-success/80 hover:text-success'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               <Icon className="w-4 h-4 mr-2" />
@@ -113,7 +113,7 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 <Calendar className="w-4 h-4 inline mr-1" />
                 Match Date
               </label>
@@ -121,12 +121,12 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
                 type="date"
                 value={matchData.date}
                 onChange={(e) => handleMatchDataChange('date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-success"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 <MapPin className="w-4 h-4 inline mr-1" />
                 Venue
               </label>
@@ -135,14 +135,14 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
                 value={matchData.venue}
                 onChange={(e) => handleMatchDataChange('venue', e.target.value)}
                 placeholder="Stadium name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-success"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 <Trophy className="w-4 h-4 inline mr-1" />
                 Competition
               </label>
@@ -151,12 +151,12 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
                 value={matchData.competition}
                 onChange={(e) => handleMatchDataChange('competition', e.target.value)}
                 placeholder="e.g., Premier League, Champions League"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-success"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted-foreground mb-2">
                 Result (optional)
               </label>
               <input
@@ -164,7 +164,7 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
                 value={matchData.result || ''}
                 onChange={(e) => handleMatchDataChange('result', e.target.value)}
                 placeholder="e.g., 2-1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-success"
               />
             </div>
           </div>
@@ -173,7 +173,7 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
             <button
               onClick={() => setCurrentStep('teams')}
               disabled={!matchData.date || !matchData.venue}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-success text-success-foreground rounded-md hover:bg-success/90 disabled:bg-muted disabled:cursor-not-allowed"
             >
               Next: Select Teams
             </button>
@@ -207,14 +207,14 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
           <div className="flex justify-between">
             <button
               onClick={() => setCurrentStep('match')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-border text-muted-foreground rounded-md hover:bg-muted"
             >
               Back: Match Info
             </button>
             <button
               onClick={() => setCurrentStep('players')}
               disabled={!matchData.homeTeam || !matchData.awayTeam}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-success text-success-foreground rounded-md hover:bg-success/90 disabled:bg-muted disabled:cursor-not-allowed"
             >
               Next: Select Players
             </button>
@@ -237,13 +237,13 @@ export default function SoccerMatchWorkflow({ onMatchDataUpdate, onPlayersUpdate
           <div className="flex justify-between">
             <button
               onClick={() => setCurrentStep('teams')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 border border-border text-muted-foreground rounded-md hover:bg-muted"
             >
               Back: Teams
             </button>
             <button
               onClick={() => {/* Complete setup */}}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              className="px-4 py-2 bg-success text-success-foreground rounded-md hover:bg-success/90"
             >
               Complete Setup
             </button>

@@ -31,7 +31,7 @@ export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
     return (
       <button
         onClick={() => setShowPreview(true)}
-        className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800"
+        className="flex items-center space-x-2 text-sm text-primary hover:text-primary/80"
       >
         <Eye className="w-4 h-4" />
         <span>Preview Commons Page</span>
@@ -42,35 +42,35 @@ export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="font-medium text-gray-900">Commons File Page Preview</h4>
+        <h4 className="font-medium text-foreground">Commons File Page Preview</h4>
         <button
           onClick={() => setShowPreview(false)}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-muted-foreground hover:text-foreground"
         >
           Hide Preview
         </button>
       </div>
 
-      <div className="bg-yellow-50 p-3 rounded-md border border-yellow-200">
-        <p className="text-sm text-yellow-800">
+      <div className="bg-warning/10 p-3 rounded-md border border-warning/20">
+        <p className="text-sm text-warning">
           <strong>Suggested filename:</strong> {suggestedFilename}
         </p>
       </div>
 
-      <div className="border border-gray-200 rounded-md">
-        <div className="flex items-center justify-between bg-gray-50 px-3 py-2 border-b border-gray-200">
+      <div className="border border-border rounded-md">
+        <div className="flex items-center justify-between bg-muted px-3 py-2 border-b border-border">
           <div className="flex items-center space-x-2">
-            <Code className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Wikitext</span>
+            <Code className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Wikitext</span>
           </div>
           <button
             onClick={copyToClipboard}
-            className="flex items-center space-x-1 text-sm text-gray-600 hover:text-gray-800"
+            className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-foreground"
           >
             {copied ? (
               <>
-                <Check className="w-4 h-4 text-green-500" />
-                <span className="text-green-500">Copied!</span>
+                <Check className="w-4 h-4 text-success" />
+                <span className="text-success">Copied!</span>
               </>
             ) : (
               <>
@@ -81,15 +81,15 @@ export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
           </button>
         </div>
         <div className="p-3">
-          <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono">
+          <pre className="text-xs text-foreground whitespace-pre-wrap font-mono">
             {wikitext}
           </pre>
         </div>
       </div>
 
-      <div className="bg-blue-50 p-3 rounded-md border border-blue-200">
-        <h5 className="font-medium text-blue-900 mb-2">How this will appear on Commons:</h5>
-        <div className="text-sm text-blue-800 space-y-1">
+      <div className="bg-primary/10 p-3 rounded-md border border-primary/20">
+        <h5 className="font-medium text-primary mb-2">How this will appear on Commons:</h5>
+        <div className="text-sm text-primary/80 space-y-1">
           <p><strong>Description:</strong> {image.metadata.description}</p>
           <p><strong>Author:</strong> {image.metadata.author}</p>
           <p><strong>Date:</strong> {image.metadata.date}</p>
