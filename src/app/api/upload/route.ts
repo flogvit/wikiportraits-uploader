@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { fetchCSRFToken, uploadFileInChunks } from '@/utils/commons-api';
-import { generateCommonsTemplate } from '@/utils/commons-template';
+import { generateCommonsTemplate, generateFilename } from '@/utils/commons-template';
+import type { ImageFile } from '@/app/page';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,9 @@ export async function POST(request: NextRequest) {
 
     // Generate Commons filename
     const extension = file.name.split('.').pop()?.toLowerCase();
-    const sanitizedName = metadata.filename || file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const imageFile = { file, metadata } as ImageFile;
+    const smartFilename = generateFilename(imageFile);
+    const sanitizedName = metadata.filename || smartFilename || file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const commonsFilename = `File:${sanitizedName}${extension ? '.' + extension : ''}`;
 
     // Generate Commons page content
