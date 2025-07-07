@@ -1,8 +1,6 @@
 export interface MusicArtist {
   id: string;
   name: string;
-  genre?: string;
-  country?: string;
   wikipediaUrl?: string;
 }
 
@@ -37,11 +35,15 @@ export interface FestivalMetadata {
   festival: Festival;
   selectedBands: Band[];
   addToWikiPortraitsConcerts: boolean;
+  authorUsername?: string;
+  authorFullName?: string;
 }
 
 export interface ConcertMetadata {
   concert: Concert;
   addToWikiPortraitsConcerts: boolean;
+  authorUsername?: string;
+  authorFullName?: string;
 }
 
 export type MusicEventType = 'festival' | 'concert';

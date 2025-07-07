@@ -21,13 +21,7 @@ export interface MusicCategoryOptions {
   includeWikiPortraitsIntegration?: boolean;
 }
 
-export interface CategoryCreationInfo {
-  categoryName: string;
-  shouldCreate: boolean;
-  parentCategory?: string;
-  description?: string;
-  eventName?: string;
-}
+export type { CategoryCreationInfo } from '@/types/categories';
 
 export function generateMusicCategories({
   eventData,
@@ -106,15 +100,6 @@ function generateFestivalCategories(
           categories.add(`${band.name} at ${festival.name} ${festival.year}`);
         }
 
-        // Genre-based category
-        if (band.genre) {
-          categories.add(`${band.genre} bands`);
-        }
-
-        // Country-based band category
-        if (band.country) {
-          categories.add(`Musical groups from ${band.country}`);
-        }
       }
     });
   }
@@ -141,15 +126,6 @@ function generateConcertCategories(
   if (options.includeBandCategories && concert.artist.name) {
     categories.add(concert.artist.name);
 
-    // Genre-based category
-    if (concert.artist.genre) {
-      categories.add(`${concert.artist.genre} concerts`);
-    }
-
-    // Country-based artist category
-    if (concert.artist.country) {
-      categories.add(`Musical groups from ${concert.artist.country}`);
-    }
   }
 
   // Concert-specific categories
@@ -240,7 +216,7 @@ function getFestivalCategoriesToCreate(festivalData: FestivalMetadata): Category
         categoriesToCreate.push({
           categoryName: band.name,
           shouldCreate: true,
-          description: `[[${bandWikipediaName}]]${band.genre ? `, ${band.genre} band` : ''}${band.country ? ` from ${band.country}` : ''}.`,
+          description: `[[${bandWikipediaName}]].`,
           eventName: festival.name
         });
       }
@@ -261,7 +237,7 @@ function getConcertCategoriesToCreate(concertData: ConcertMetadata): CategoryCre
       categoryName: concert.artist.name,
       shouldCreate: true,
       parentCategory: addToWikiPortraitsConcerts ? 'WikiPortraits at Concerts' : undefined,
-      description: `[[${artistWikipediaName}]]${concert.artist.genre ? `, ${concert.artist.genre} artist` : ''}${concert.artist.country ? ` from ${concert.artist.country}` : ''}.`,
+      description: `[[${artistWikipediaName}]].`,
       eventName: concert.artist.name
     });
 
@@ -321,7 +297,7 @@ export function generateEventDescription(eventData: MusicEventMetadata): string 
     if (selectedBands.length > 0) {
       const bandNames = selectedBands.map(band => band.name).filter(Boolean);
       if (bandNames.length > 0) {
-        description += `. Featured bands: ${bandNames.join(', ')}`;
+        description += `. Featured band: ${bandNames.join(', ')}`;
       }
     }
     
@@ -359,16 +335,52 @@ export function generateEventDescription(eventData: MusicEventMetadata): string 
   return 'Music event photos.';
 }
 
+export function generateImageCategories(
+  musicEventData: MusicEventMetadata, 
+  selectedBand?: string
+): string[] {
+  const categories: Set<string> = new Set();
+
+  // Base WikiPortraits category
+  categories.add('WikiPortraits');
+
+  if (musicEventData.eventType === 'festival' && musicEventData.festivalData) {
+    const { festival, addToWikiPortraitsConcerts } = musicEventData.festivalData;
+    
+    // WikiPortraits at Concerts integration
+    if (addToWikiPortraitsConcerts) {
+      categories.add('WikiPortraits at Concerts');
+    }
+
+    if (festival.name && festival.year) {
+      // Main festival category: "WikiPortraits at Jærnåttå 2025"
+      categories.add(`WikiPortraits at ${festival.name} ${festival.year}`);
+      
+      // If a band is selected for this image, add band-specific category
+      if (selectedBand) {
+        // Band at festival category: "FordRekord at Jærnåttå 2025"
+        categories.add(`${selectedBand} at ${festival.name} ${festival.year}`);
+      }
+    }
+  } else if (musicEventData.eventType === 'concert' && musicEventData.concertData) {
+    const { concert, addToWikiPortraitsConcerts } = musicEventData.concertData;
+    
+    // WikiPortraits at Concerts integration
+    if (addToWikiPortraitsConcerts) {
+      categories.add('WikiPortraits at Concerts');
+    }
+
+    // Artist category
+    if (concert.artist.name) {
+      categories.add(concert.artist.name);
+    }
+  }
+
+  return Array.from(categories).sort();
+}
+
 export function generateArtistDescription(artist: MusicArtist, eventData?: MusicEventMetadata): string {
   let description = artist.name;
-  
-  if (artist.genre) {
-    description += `, ${artist.genre} artist`;
-  }
-  
-  if (artist.country) {
-    description += ` from ${artist.country}`;
-  }
   
   if (eventData?.eventType === 'festival' && eventData.festivalData) {
     const festival = eventData.festivalData.festival;
