@@ -2,9 +2,9 @@ import { ImageFile } from '@/app/page';
 import { generateCommonsWikitext, generateFilename } from './commons-template';
 
 export function exportMetadataAsJSON(images: ImageFile[]): void {
-  const exportData = images.map(image => ({
+  const exportData = images.map((image, index) => ({
     filename: image.file.name,
-    suggestedCommonsName: generateFilename(image),
+    suggestedCommonsName: generateFilename(image, index + 1),
     metadata: image.metadata,
     size: image.file.size,
     type: image.file.type,
@@ -40,9 +40,9 @@ export function exportMetadataAsCSV(images: ImageFile[]): void {
     'File Type'
   ];
 
-  const rows = images.map(image => [
+  const rows = images.map((image, index) => [
     image.file.name,
-    generateFilename(image),
+    generateFilename(image, index + 1),
     image.metadata.description,
     image.metadata.author,
     image.metadata.date,
@@ -71,8 +71,8 @@ export function exportMetadataAsCSV(images: ImageFile[]): void {
 
 export function exportCommonsWikitext(images: ImageFile[]): void {
   const wikitextContent = images
-    .map(image => {
-      const filename = generateFilename(image);
+    .map((image, index) => {
+      const filename = generateFilename(image, index + 1);
       const wikitext = generateCommonsWikitext(image);
       return `=== ${filename} ===\n\n${wikitext}\n\n${'='.repeat(50)}\n`;
     })
@@ -105,8 +105,8 @@ export function generateQuickStatementsCommands(images: ImageFile[]): string {
   // For now, return template that users can fill in with Q-IDs
   
   return images
-    .map(image => {
-      const filename = generateFilename(image);
+    .map((image, index) => {
+      const filename = generateFilename(image, index + 1);
       return `QXXXXX|P18|${filename}`;
     })
     .join('\n');
