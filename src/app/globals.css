@@ -3,20 +3,75 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --border: #e5e7eb;
+  --input: #f9fafb;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #374151;
+  --accent: #f3f4f6;
+  --accent-foreground: #374151;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --ring: #2563eb;
+  --muted: #f9fafb;
+  --muted-foreground: #6b7280;
+}
+
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #171717;
+  --card-foreground: #ededed;
+  --border: #374151;
+  --input: #1f2937;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1f2937;
+  --secondary-foreground: #d1d5db;
+  --accent: #374151;
+  --accent-foreground: #e5e7eb;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --ring: #3b82f6;
+  --muted: #1f2937;
+  --muted-foreground: #9ca3af;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-ring: var(--ring);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
@@ -25,17 +80,19 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Global input styling to ensure proper contrast */
+/* Global input styling for proper contrast in both modes */
 input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
 input[type="number"],
 input[type="search"],
+input[type="time"],
 textarea,
 select {
-  color: #374151 !important; /* Force dark gray text */
-  background-color: #ffffff !important; /* Force white background */
+  color: var(--foreground) !important;
+  background-color: var(--background) !important;
+  border-color: var(--border) !important;
 }
 
 input[type="text"]::placeholder,
@@ -43,29 +100,14 @@ input[type="email"]::placeholder,
 input[type="password"]::placeholder,
 input[type="search"]::placeholder,
 textarea::placeholder {
-  color: #9ca3af !important; /* Force gray placeholder text */
+  color: var(--muted-foreground) !important;
 }
 
-/* Dark mode input styling */
-@media (prefers-color-scheme: dark) {
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="date"],
-  input[type="number"],
-  input[type="search"],
-  textarea,
-  select {
-    color: #1f2937 !important; /* Dark gray text for readability */
-    background-color: #f9fafb !important; /* Light gray background */
-    border-color: #d1d5db !important; /* Light border */
-  }
-  
-  input[type="text"]::placeholder,
-  input[type="email"]::placeholder,
-  input[type="password"]::placeholder,
-  input[type="search"]::placeholder,
-  textarea::placeholder {
-    color: #6b7280 !important; /* Medium gray placeholder */
-  }
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
 }
