@@ -1,16 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Music, Calendar, MapPin, Users, Mic } from 'lucide-react';
-import { MusicEventMetadata, MusicEventType, FestivalMetadata, ConcertMetadata, Festival, Concert, Band, MusicArtist } from '../types/music';
+import { MusicEventMetadata, MusicEventType, FestivalMetadata, ConcertMetadata, Festival, Concert } from '../types/music';
+import { getLanguageForCountry } from '../utils/country-language-mapping';
 import ArtistSelector from './ArtistSelector';
+import CountrySelector from './CountrySelector';
 
 interface MusicEventWorkflowProps {
   onMusicEventUpdate: (eventData: MusicEventMetadata) => void;
 }
 
+// Helper functions for localStorage
+const getStoredAuthor = () => {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('wikimedia-author');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return { username: '', fullName: '' };
+      }
+    }
+  }
+  return { username: '', fullName: '' };
+};
+
+const storeAuthor = (username: string, fullName: string) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('wikimedia-author', JSON.stringify({ username, fullName }));
+  }
+};
+
 export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWorkflowProps) {
   const [eventType, setEventType] = useState<MusicEventType | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<string>('en');
+  const storedAuthor = getStoredAuthor();
+  
   const [festivalData, setFestivalData] = useState<FestivalMetadata>({
     festival: {
       id: '',
@@ -20,7 +46,9 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
       country: ''
     },
     selectedBands: [],
-    addToWikiPortraitsConcerts: false
+    addToWikiPortraitsConcerts: false,
+    authorUsername: storedAuthor.username,
+    authorFullName: storedAuthor.fullName
   });
   
   const [concertData, setConcertData] = useState<ConcertMetadata>({
@@ -35,10 +63,28 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
       city: '',
       country: ''
     },
-    addToWikiPortraitsConcerts: false
+    addToWikiPortraitsConcerts: false,
+    authorUsername: storedAuthor.username,
+    authorFullName: storedAuthor.fullName
   });
 
-  const [currentStep, setCurrentStep] = useState<'type' | 'details' | 'artists'>('type');
+  const [currentStep, setCurrentStep] = useState<'type' | 'details'>('type');
+
+  // Update language when festival country changes
+  useEffect(() => {
+    if (eventType === 'festival' && festivalData.festival.country) {
+      const newLanguage = getLanguageForCountry(festivalData.festival.country);
+      setCurrentLanguage(newLanguage);
+    }
+  }, [eventType, festivalData.festival.country]);
+
+  // Update language when concert country changes
+  useEffect(() => {
+    if (eventType === 'concert' && concertData.concert.country) {
+      const newLanguage = getLanguageForCountry(concertData.concert.country);
+      setCurrentLanguage(newLanguage);
+    }
+  }, [eventType, concertData.concert.country]);
 
   const handleEventTypeSelect = (type: MusicEventType) => {
     setEventType(type);
@@ -78,18 +124,6 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
     onMusicEventUpdate(eventData);
   };
 
-  const handleArtistChange = (field: keyof MusicArtist, value: string) => {
-    const updatedArtist = { ...concertData.concert.artist, [field]: value };
-    const updatedConcert = { ...concertData.concert, artist: updatedArtist };
-    const updatedData = { ...concertData, concert: updatedConcert };
-    setConcertData(updatedData);
-    
-    const eventData: MusicEventMetadata = {
-      eventType: 'concert',
-      concertData: updatedData
-    };
-    onMusicEventUpdate(eventData);
-  };
 
   const handleWikiPortraitsToggle = (checked: boolean) => {
     if (eventType === 'festival') {
@@ -103,34 +137,34 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
     }
   };
 
-  const addBandToFestival = () => {
-    const newBand: Band = {
-      id: `band-${Date.now()}`,
-      name: '',
-      genre: '',
-      country: ''
-    };
-    const updatedBands = [...festivalData.selectedBands, newBand];
-    const updatedData = { ...festivalData, selectedBands: updatedBands };
-    setFestivalData(updatedData);
-    onMusicEventUpdate({ eventType: 'festival', festivalData: updatedData });
+  const handleAuthorUsernameChange = (username: string) => {
+    if (eventType === 'festival') {
+      const updatedData = { ...festivalData, authorUsername: username };
+      setFestivalData(updatedData);
+      onMusicEventUpdate({ eventType: 'festival', festivalData: updatedData });
+      storeAuthor(username, festivalData.authorFullName || '');
+    } else if (eventType === 'concert') {
+      const updatedData = { ...concertData, authorUsername: username };
+      setConcertData(updatedData);
+      onMusicEventUpdate({ eventType: 'concert', concertData: updatedData });
+      storeAuthor(username, concertData.authorFullName || '');
+    }
   };
 
-  const removeBandFromFestival = (bandId: string) => {
-    const updatedBands = festivalData.selectedBands.filter(band => band.id !== bandId);
-    const updatedData = { ...festivalData, selectedBands: updatedBands };
-    setFestivalData(updatedData);
-    onMusicEventUpdate({ eventType: 'festival', festivalData: updatedData });
+  const handleAuthorFullNameChange = (fullName: string) => {
+    if (eventType === 'festival') {
+      const updatedData = { ...festivalData, authorFullName: fullName };
+      setFestivalData(updatedData);
+      onMusicEventUpdate({ eventType: 'festival', festivalData: updatedData });
+      storeAuthor(festivalData.authorUsername || '', fullName);
+    } else if (eventType === 'concert') {
+      const updatedData = { ...concertData, authorFullName: fullName };
+      setConcertData(updatedData);
+      onMusicEventUpdate({ eventType: 'concert', concertData: updatedData });
+      storeAuthor(concertData.authorUsername || '', fullName);
+    }
   };
 
-  const updateBand = (bandId: string, field: keyof Band, value: string) => {
-    const updatedBands = festivalData.selectedBands.map(band =>
-      band.id === bandId ? { ...band, [field]: value } : band
-    );
-    const updatedData = { ...festivalData, selectedBands: updatedBands };
-    setFestivalData(updatedData);
-    onMusicEventUpdate({ eventType: 'festival', festivalData: updatedData });
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -143,25 +177,20 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
       <div className="flex mb-8 border-b border-gray-200">
         {[
           { key: 'type', label: 'Event Type', icon: Music },
-          { key: 'details', label: 'Event Details', icon: Calendar },
-          { key: 'artists', label: eventType === 'festival' ? 'Bands' : 'Artist', icon: eventType === 'festival' ? Users : Mic }
+          { key: 'details', label: 'Event Details', icon: Calendar }
         ].map((step) => {
           const Icon = step.icon;
           const isActive = currentStep === step.key;
           const isCompleted = (step.key === 'type' && eventType) ||
                              (step.key === 'details' && eventType && (
-                               (eventType === 'festival' && festivalData.festival.name && festivalData.festival.year) ||
-                               (eventType === 'concert' && concertData.concert.venue && concertData.concert.date)
-                             )) ||
-                             (step.key === 'artists' && (
-                               (eventType === 'festival' && festivalData.selectedBands.length > 0) ||
-                               (eventType === 'concert' && concertData.concert.artist.name)
+                               (eventType === 'festival' && festivalData.festival.name && festivalData.festival.year && festivalData.selectedBands.length > 0) ||
+                               (eventType === 'concert' && concertData.concert.venue && concertData.concert.date && concertData.concert.artist.name)
                              ));
           
           return (
             <button
               key={step.key}
-              onClick={() => setCurrentStep(step.key as 'type' | 'details' | 'artists')}
+              onClick={() => setCurrentStep(step.key as 'type' | 'details')}
               disabled={!eventType && step.key !== 'type'}
               className={`flex items-center px-4 py-3 border-b-2 transition-colors ${
                 isActive
@@ -278,15 +307,82 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Country
               </label>
+              <CountrySelector
+                value={festivalData.festival.country}
+                onChange={(country) => handleFestivalChange('country', country)}
+                placeholder="Type to search countries (e.g., 'nor' for Norway)..."
+              />
+            </div>
+          </div>
+
+          {/* Band Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Band/Artist for this upload session *
+            </label>
+            <ArtistSelector
+              onArtistSelect={(artist) => {
+                const newBand = {
+                  id: `band-${Date.now()}`,
+                  name: artist.name,
+                  wikipediaUrl: artist.wikipediaUrl
+                };
+                const updatedData = { 
+                  ...festivalData, 
+                  selectedBands: [newBand] // Only one band at a time
+                };
+                setFestivalData(updatedData);
+                onMusicEventUpdate({ eventType: 'festival', festivalData: updatedData });
+              }}
+              selectedArtist={festivalData.selectedBands[0] || { id: '', name: '' }}
+              placeholder="Search for band/artist..."
+              label=""
+              type="band"
+              defaultLanguage={currentLanguage}
+              currentLanguage={currentLanguage}
+            />
+            {festivalData.selectedBands[0] && (
+              <p className="text-sm text-gray-600 mt-1">
+                Selected: <strong>{festivalData.selectedBands[0].name}</strong>
+              </p>
+            )}
+            {currentLanguage !== 'en' && festivalData.festival.country && (
+              <p className="text-xs text-blue-600 mt-1">
+                🌐 Search language auto-set to {currentLanguage.toUpperCase()} for {festivalData.festival.country}
+              </p>
+            )}
+          </div>
+
+          {/* Author fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username (optional)
+              </label>
               <input
                 type="text"
-                value={festivalData.festival.country}
-                onChange={(e) => handleFestivalChange('country', e.target.value)}
-                placeholder="Country"
+                value={festivalData.authorUsername || ''}
+                onChange={(e) => handleAuthorUsernameChange(e.target.value)}
+                placeholder="YourUsername"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name (optional)
+              </label>
+              <input
+                type="text"
+                value={festivalData.authorFullName || ''}
+                onChange={(e) => handleAuthorFullNameChange(e.target.value)}
+                placeholder="Your Full Name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
             </div>
           </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Will be formatted as [[User:Username|Full Name]] in Commons
+          </p>
 
           <div className="flex items-center space-x-2 mt-4">
             <input
@@ -309,11 +405,11 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               Back: Event Type
             </button>
             <button
-              onClick={() => setCurrentStep('artists')}
-              disabled={!festivalData.festival.name || !festivalData.festival.year}
+              onClick={() => {/* Complete setup */}}
+              disabled={!festivalData.festival.name || !festivalData.festival.year || !festivalData.selectedBands.length}
               className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              Next: Select Bands
+              Complete Setup
             </button>
           </div>
         </div>
@@ -370,12 +466,10 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Country
               </label>
-              <input
-                type="text"
+              <CountrySelector
                 value={concertData.concert.country}
-                onChange={(e) => handleConcertChange('country', e.target.value)}
-                placeholder="Country"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                onChange={(country) => handleConcertChange('country', country)}
+                placeholder="Type to search countries (e.g., 'ger' for Germany)..."
               />
             </div>
           </div>
@@ -392,6 +486,66 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
           </div>
+
+          {/* Artist Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Artist/Band *
+            </label>
+            <ArtistSelector
+              onArtistSelect={(artist) => {
+                const updatedArtist = { ...concertData.concert.artist, ...artist };
+                const updatedConcert = { ...concertData.concert, artist: updatedArtist };
+                const updatedData = { ...concertData, concert: updatedConcert };
+                setConcertData(updatedData);
+                
+                const eventData = { eventType: 'concert' as const, concertData: updatedData };
+                onMusicEventUpdate(eventData);
+              }}
+              selectedArtist={concertData.concert.artist}
+              placeholder="Search for artist or band..."
+              label=""
+              type="artist"
+              defaultLanguage={currentLanguage}
+              currentLanguage={currentLanguage}
+            />
+            {currentLanguage !== 'en' && concertData.concert.country && (
+              <p className="text-xs text-blue-600 mt-1">
+                🌐 Search language auto-set to {currentLanguage.toUpperCase()} for {concertData.concert.country}
+              </p>
+            )}
+          </div>
+
+          {/* Author fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username (optional)
+              </label>
+              <input
+                type="text"
+                value={concertData.authorUsername || ''}
+                onChange={(e) => handleAuthorUsernameChange(e.target.value)}
+                placeholder="YourUsername"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name (optional)
+              </label>
+              <input
+                type="text"
+                value={concertData.authorFullName || ''}
+                onChange={(e) => handleAuthorFullNameChange(e.target.value)}
+                placeholder="Your Full Name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Will be formatted as [[User:Username|Full Name]] in Commons
+          </p>
 
           <div className="flex items-center space-x-2 mt-4">
             <input
@@ -414,174 +568,16 @@ export default function MusicEventWorkflow({ onMusicEventUpdate }: MusicEventWor
               Back: Event Type
             </button>
             <button
-              onClick={() => setCurrentStep('artists')}
-              disabled={!concertData.concert.venue || !concertData.concert.date}
+              onClick={() => {/* Complete setup */}}
+              disabled={!concertData.concert.venue || !concertData.concert.date || !concertData.concert.artist.name}
               className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              Next: Artist Details
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Festival Bands */}
-      {currentStep === 'artists' && eventType === 'festival' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h4 className="text-lg font-medium text-gray-900">Festival Bands</h4>
-            <button
-              onClick={addBandToFestival}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-            >
-              Add Band
-            </button>
-          </div>
-
-          {festivalData.selectedBands.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No bands added yet. Click &quot;Add Band&quot; to get started.</p>
-          ) : (
-            <div className="space-y-4">
-              {festivalData.selectedBands.map((band) => (
-                <div key={band.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="space-y-4">
-                    <ArtistSelector
-                      onArtistSelect={(artist) => {
-                        updateBand(band.id, 'name', artist.name);
-                        updateBand(band.id, 'id', artist.id);
-                        if (artist.wikipediaUrl) {
-                          updateBand(band.id, 'wikipediaUrl', artist.wikipediaUrl);
-                        }
-                      }}
-                      selectedArtist={band}
-                      placeholder="Search for band..."
-                      label="Band Name"
-                      type="band"
-                      defaultLanguage={festivalData.festival.country?.toLowerCase() === 'norway' ? 'no' : 'en'}
-                    />
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Genre</label>
-                        <input
-                          type="text"
-                          value={band.genre || ''}
-                          onChange={(e) => updateBand(band.id, 'genre', e.target.value)}
-                          placeholder="Music genre"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-                        <input
-                          type="text"
-                          value={band.country || ''}
-                          onChange={(e) => updateBand(band.id, 'country', e.target.value)}
-                          placeholder="Country of origin"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => removeBandFromFestival(band.id)}
-                        className="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                      >
-                        Remove Band
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex justify-between mt-6">
-            <button
-              onClick={() => setCurrentStep('details')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-            >
-              Back: Festival Details
-            </button>
-            <button
-              onClick={() => {/* Complete setup */}}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-            >
               Complete Setup
             </button>
           </div>
         </div>
       )}
 
-      {/* Concert Artist */}
-      {currentStep === 'artists' && eventType === 'concert' && (
-        <div className="space-y-4">
-          <h4 className="text-lg font-medium text-gray-900 mb-4">Artist Details</h4>
-          
-          <ArtistSelector
-            onArtistSelect={(artist) => {
-              const updatedArtist = { ...concertData.concert.artist, ...artist };
-              const updatedConcert = { ...concertData.concert, artist: updatedArtist };
-              const updatedData = { ...concertData, concert: updatedConcert };
-              setConcertData(updatedData);
-              
-              const eventData: MusicEventMetadata = {
-                eventType: 'concert',
-                concertData: updatedData
-              };
-              onMusicEventUpdate(eventData);
-            }}
-            selectedArtist={concertData.concert.artist}
-            placeholder="Search for artist or band..."
-            label="Artist/Band Name"
-            type="artist"
-            defaultLanguage={concertData.concert.country?.toLowerCase() === 'norway' ? 'no' : 'en'}
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Genre
-              </label>
-              <input
-                type="text"
-                value={concertData.concert.artist.genre || ''}
-                onChange={(e) => handleArtistChange('genre', e.target.value)}
-                placeholder="Music genre"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Artist Country
-              </label>
-              <input
-                type="text"
-                value={concertData.concert.artist.country || ''}
-                onChange={(e) => handleArtistChange('country', e.target.value)}
-                placeholder="Country of origin"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-between mt-6">
-            <button
-              onClick={() => setCurrentStep('details')}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-            >
-              Back: Concert Details
-            </button>
-            <button
-              onClick={() => {/* Complete setup */}}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-            >
-              Complete Setup
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

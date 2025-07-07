@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Music, ExternalLink } from 'lucide-react';
 import { MusicArtist } from '@/types/music';
 
@@ -21,6 +21,7 @@ interface ArtistSelectorProps {
   label?: string;
   type?: 'artist' | 'band';
   defaultLanguage?: string;
+  currentLanguage?: string;
 }
 
 export default function ArtistSelector({
@@ -28,13 +29,36 @@ export default function ArtistSelector({
   selectedArtist,
   placeholder = "Search for artist...",
   label = "Artist",
-  defaultLanguage = 'en'
+  defaultLanguage = 'en',
+  currentLanguage
 }: ArtistSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<WikipediaSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState(defaultLanguage);
+  const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage || defaultLanguage);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Update selected language when currentLanguage prop changes
+  useEffect(() => {
+    if (currentLanguage) {
+      setSelectedLanguage(currentLanguage);
+    }
+  }, [currentLanguage]);
+
+  // Handle clicking outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowResults(false);
+      }
+    }
+
+    if (showResults) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showResults]);
 
   const searchWikipedia = useCallback(async (query: string) => {
     setIsSearching(true);
@@ -56,6 +80,13 @@ export default function ArtistSelector({
 
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
+      // Don't search if we have a selected artist and the query matches the artist name
+      if (selectedArtist?.name && searchQuery === selectedArtist.name) {
+        setSearchResults([]);
+        setShowResults(false);
+        return;
+      }
+      
       if (searchQuery.length >= 2) {
         searchWikipedia(searchQuery);
       } else {
@@ -65,7 +96,7 @@ export default function ArtistSelector({
     }, 300);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchQuery, selectedLanguage, searchWikipedia]);
+  }, [searchQuery, selectedLanguage, searchWikipedia, selectedArtist]);
 
   const handleResultSelect = (result: WikipediaSearchResult) => {
     const artist: MusicArtist = {
@@ -113,7 +144,7 @@ export default function ArtistSelector({
   ];
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <div className="flex items-center justify-between mb-2">
         <label className="block text-sm font-medium text-gray-700">
           <Music className="w-4 h-4 inline mr-1" />
@@ -180,7 +211,10 @@ export default function ArtistSelector({
             {searchResults.map((result) => (
               <button
                 key={result.id}
-                onClick={() => handleResultSelect(result)}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleResultSelect(result);
+                }}
                 className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
               >
                 <div className="flex items-start justify-between">
@@ -205,7 +239,10 @@ export default function ArtistSelector({
             
             {searchQuery.trim() && (
               <button
-                onClick={handleManualEntry}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  handleManualEntry();
+                }}
                 className="w-full px-4 py-3 text-left hover:bg-purple-50 border-t border-gray-200 focus:outline-none focus:bg-purple-50"
               >
                 <div className="flex items-center">
@@ -226,7 +263,10 @@ export default function ArtistSelector({
           <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-md shadow-lg z-10 p-4">
             <div className="text-sm text-gray-500 text-center mb-3">No Wikipedia results found</div>
             <button
-              onClick={handleManualEntry}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleManualEntry();
+              }}
               className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               Add &quot;{searchQuery}&quot; manually
