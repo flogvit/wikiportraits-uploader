@@ -7,14 +7,15 @@ import { generateCommonsWikitext, generateFilename } from '@/utils/commons-templ
 
 interface CommonsPreviewProps {
   image: ImageFile;
+  index?: number;
 }
 
-export default function CommonsPreview({ image }: CommonsPreviewProps) {
+export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const wikitext = generateCommonsWikitext(image);
-  const suggestedFilename = generateFilename(image);
+  const suggestedFilename = generateFilename(image, index);
 
   const copyToClipboard = async () => {
     try {
