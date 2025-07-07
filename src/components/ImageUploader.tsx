@@ -10,7 +10,6 @@ import DuplicateWarningModal from './DuplicateWarningModal';
 import { UploadType } from './UploadTypeSelector';
 import SoccerMatchWorkflow, { SoccerMatchMetadata, SoccerPlayer } from './SoccerMatchWorkflow';
 import { generateSoccerCategories, generateMatchDescription } from '@/utils/soccer-categories';
-import MusicEventWorkflow from './MusicEventWorkflow';
 import { MusicEventMetadata } from '@/types/music';
 import { generateEventDescription } from '@/utils/music-categories';
 
@@ -18,53 +17,33 @@ interface ImageUploaderProps {
   onImagesAdded: (images: ImageFile[]) => void;
   existingImages: ImageFile[];
   uploadType: UploadType;
+  soccerMatchData?: SoccerMatchMetadata | null;
+  selectedPlayers?: SoccerPlayer[];
+  musicEventData?: MusicEventMetadata | null;
   onSoccerDataUpdate?: (matchData: SoccerMatchMetadata, players: SoccerPlayer[]) => void;
   onMusicEventUpdate?: (eventData: MusicEventMetadata) => void;
 }
 
-// Validation functions to check if event setup is complete
-function isSoccerSetupComplete(matchData: SoccerMatchMetadata | null): boolean {
-  if (!matchData) return false;
-  return !!(matchData.homeTeam?.name && matchData.awayTeam?.name && matchData.date && matchData.venue);
-}
 
-function isMusicSetupComplete(eventData: MusicEventMetadata | null): boolean {
-  if (!eventData) return false;
-  
-  if (eventData.eventType === 'festival' && eventData.festivalData) {
-    const festival = eventData.festivalData.festival;
-    const hasBasicInfo = !!(festival.name && festival.year && festival.location);
-    const hasBands = eventData.festivalData.selectedBands && eventData.festivalData.selectedBands.length > 0;
-    return hasBasicInfo && hasBands;
-  } else if (eventData.eventType === 'concert' && eventData.concertData) {
-    const concert = eventData.concertData.concert;
-    return !!(concert.artist.name && concert.venue && concert.date);
-  }
-  
-  return false;
-}
-
-export default function ImageUploader({ onImagesAdded, existingImages, uploadType, onSoccerDataUpdate, onMusicEventUpdate }: ImageUploaderProps) {
+export default function ImageUploader({ 
+  onImagesAdded, 
+  existingImages, 
+  uploadType, 
+  soccerMatchData: propSoccerMatchData, 
+  selectedPlayers: propSelectedPlayers = [], 
+  musicEventData: propMusicEventData, 
+  onSoccerDataUpdate, 
+  onMusicEventUpdate 
+}: ImageUploaderProps) {
   const [duplicates, setDuplicates] = useState<DuplicateInfo[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
-  const [soccerMatchData, setSoccerMatchData] = useState<SoccerMatchMetadata | null>(null);
-  const [selectedPlayers, setSelectedPlayers] = useState<SoccerPlayer[]>([]);
-  const [musicEventData, setMusicEventData] = useState<MusicEventMetadata | null>(null);
+  
+  // Use the event data from props (main workflow)
+  const soccerMatchData = propSoccerMatchData;
+  const selectedPlayers = propSelectedPlayers;
+  const musicEventData = propMusicEventData;
 
-  // Check if uploads should be allowed based on event setup completion
-  const isUploadAllowed = () => {
-    switch (uploadType) {
-      case 'soccer':
-        return isSoccerSetupComplete(soccerMatchData);
-      case 'music':
-        return isMusicSetupComplete(musicEventData);
-      case 'general':
-      case 'portraits':
-      default:
-        return true; // No setup required for general uploads
-    }
-  };
 
   const createImageFiles = async (files: File[]): Promise<ImageFile[]> => {
     const imageFiles = await Promise.all(files.map(async file => {
@@ -215,10 +194,6 @@ export default function ImageUploader({ onImagesAdded, existingImages, uploadTyp
   };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    // Only allow uploads if event setup is complete
-    if (!isUploadAllowed()) {
-      return;
-    }
 
     const imageFiles = acceptedFiles.filter(file => 
       file.type.startsWith('image/')
@@ -255,15 +230,13 @@ export default function ImageUploader({ onImagesAdded, existingImages, uploadTyp
     setPendingFiles([]);
   };
 
-  const uploadAllowed = isUploadAllowed();
-  
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
       'image/*': ['.jpeg', '.jpg', '.png', '.gif', '.webp']
     },
     multiple: true,
-    disabled: !uploadAllowed
+    disabled: false
   });
 
   return (
@@ -285,70 +258,39 @@ export default function ImageUploader({ onImagesAdded, existingImages, uploadTyp
         />
       )}
 
-      {uploadType === 'music' && (
-        <MusicEventWorkflow
-          onMusicEventUpdate={(eventData) => {
-            setMusicEventData(eventData);
-            if (onMusicEventUpdate) {
-              onMusicEventUpdate(eventData);
-            }
-          }}
-        />
-      )}
       
       <div
         {...getRootProps()}
         className={`
-          border-2 border-dashed rounded-lg p-12 text-center transition-all
-          ${!uploadAllowed 
-            ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
-            : isDragActive 
-              ? 'border-blue-500 bg-blue-50 cursor-pointer' 
-              : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50 cursor-pointer'
+          border-2 border-dashed rounded-lg p-12 text-center transition-all cursor-pointer
+          ${isDragActive 
+            ? 'border-primary bg-primary/10' 
+            : 'border-border hover:border-border/80 hover:bg-muted'
           }
         `}
       >
         <input {...getInputProps()} />
         
         <div className="flex flex-col items-center space-y-4">
-          {!uploadAllowed ? (
-            <ImageIcon className="w-16 h-16 text-gray-300" />
-          ) : isDragActive ? (
-            <Upload className="w-16 h-16 text-blue-500" />
+          {isDragActive ? (
+            <Upload className="w-16 h-16 text-primary" />
           ) : (
-            <ImageIcon className="w-16 h-16 text-gray-400" />
+            <ImageIcon className="w-16 h-16 text-muted-foreground" />
           )}
           
           <div>
-            {!uploadAllowed ? (
-              <>
-                <p className="text-xl font-semibold text-gray-400 mb-2">
-                  Complete event setup first
-                </p>
-                <p className="text-gray-400">
-                  {uploadType === 'soccer' && 'Please fill in match details, teams, and venue'}
-                  {uploadType === 'music' && 'Please complete festival/concert information and add bands/artists'}
-                </p>
-                <p className="text-sm text-gray-300 mt-2">
-                  Images will be available once setup is complete
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-xl font-semibold text-gray-700 mb-2">
-                  {isDragActive 
-                    ? 'Drop the images here...' 
-                    : 'Drag & drop portrait images here'
-                  }
-                </p>
-                <p className="text-gray-500">
-                  or click to select files
-                </p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Supports JPEG, PNG, GIF, WebP formats
-                </p>
-              </>
-            )}
+            <p className="text-xl font-semibold text-card-foreground mb-2">
+              {isDragActive 
+                ? 'Drop the images here...' 
+                : 'Drag & drop portrait images here'
+              }
+            </p>
+            <p className="text-muted-foreground">
+              or click to select files
+            </p>
+            <p className="text-sm text-muted-foreground/80 mt-2">
+              Supports JPEG, PNG, GIF, WebP formats
+            </p>
           </div>
         </div>
       </div>
