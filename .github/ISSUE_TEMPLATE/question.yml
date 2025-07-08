@@ -1,0 +1,59 @@
+name: Question
+description: Ask a question about the project
+title: "[QUESTION] "
+labels: ["question", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your question! Please provide as much detail as possible.
+
+  - type: dropdown
+    id: question-type
+    attributes:
+      label: What type of question is this?
+      options:
+        - Usage/How-to
+        - Configuration
+        - API/Development
+        - Deployment
+        - OAuth Setup
+        - Troubleshooting
+        - Other
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Please provide any relevant context about your setup, environment, or use case.
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted-solutions
+    attributes:
+      label: What have you tried?
+      description: Describe any solutions or approaches you've already attempted.
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional Information
+      description: Any logs, error messages, or screenshots that might help us understand your question.
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/your-username/wikiportraits/blob/main/CODE_OF_CONDUCT.md)
+      options:
+        - label: I agree to follow this project's Code of Conduct
+          required: true
