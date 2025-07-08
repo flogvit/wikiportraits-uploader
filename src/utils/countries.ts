@@ -98,6 +98,15 @@ export function searchCountries(query: string): Country[] {
 }
 
 /**
+ * Get country by exact code match
+ */
+export function getCountryByCode(code: string): Country | undefined {
+  return COUNTRIES.find(country => 
+    country.code === code.toUpperCase()
+  );
+}
+
+/**
  * Get country by exact name match
  */
 export function getCountryByName(name: string): Country | undefined {
@@ -106,3 +115,6 @@ export function getCountryByName(name: string): Country | undefined {
     country.searchTerms.includes(name.toLowerCase())
   );
 }
+
+// Export the countries array for backward compatibility
+export const countries = COUNTRIES;
