@@ -1,46 +1,51 @@
 import NextAuth from 'next-auth'
 import type { NextAuthOptions } from 'next-auth'
+import CredentialsProvider from 'next-auth/providers/credentials'
 
 const authOptions: NextAuthOptions = {
   providers: [
-    {
+    CredentialsProvider({
       id: 'wikimedia',
       name: 'Wikimedia',
-      type: 'oauth',
-      version: '1.0A',
-      requestTokenUrl: 'https://meta.wikimedia.org/w/index.php?title=Special:OAuth/initiate',
-      accessTokenUrl: 'https://meta.wikimedia.org/w/index.php?title=Special:OAuth/token',
-      profileUrl: 'https://meta.wikimedia.org/w/api.php?action=query&meta=userinfo&uiprop=*&format=json',
-      clientId: process.env.WIKIMEDIA_CLIENT_ID || 
-        (process.env.NODE_ENV === 'production' 
-          ? process.env.WIKIMEDIA_CLIENT_ID_PROD 
-          : process.env.WIKIMEDIA_CLIENT_ID_DEV),
-      clientSecret: process.env.WIKIMEDIA_CLIENT_SECRET || 
-        (process.env.NODE_ENV === 'production' 
-          ? process.env.WIKIMEDIA_CLIENT_SECRET_PROD 
-          : process.env.WIKIMEDIA_CLIENT_SECRET_DEV),
-      profile(profile: { query: { userinfo: { id: number; name: string } } }) {
-        return {
-          id: profile.query.userinfo.id.toString(),
-          name: profile.query.userinfo.name,
-          email: null, // Wikimedia doesn't provide email through OAuth
-          image: null,
+      credentials: {},
+      async authorize() {
+        // For development, we'll use the personal access token
+        if (process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN) {
+          // Verify the token by making a simple API call
+          try {
+            const response = await fetch('https://meta.wikimedia.org/w/api.php?action=query&meta=userinfo&uiprop=*&format=json', {
+              headers: {
+                'Authorization': `Bearer ${process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN}`,
+                'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              return {
+                id: data.query?.userinfo?.id?.toString() || 'dev-user',
+                name: data.query?.userinfo?.name || 'Development User',
+                email: null,
+                image: null,
+              };
+            }
+          } catch (error) {
+            console.error('Failed to verify personal access token:', error);
+          }
         }
+        return null;
       },
-    },
+    }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
-      if (account) {
-        token.accessToken = account.access_token
-        token.refreshToken = account.refresh_token
-      }
-      return token
+    async jwt({ token }) {
+      // Always use the personal access token for API calls
+      token.accessToken = process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
+      return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken
-      session.refreshToken = token.refreshToken
-      return session
+      session.accessToken = token.accessToken;
+      return session;
     },
   },
   pages: {
