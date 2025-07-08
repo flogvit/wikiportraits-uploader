@@ -1,12 +1,39 @@
 {
   "name": "wikiportraits-app",
   "version": "0.1.0",
+  "description": "Bulk image uploader for Wikimedia Commons with specialized workflows for WikiPortraits events, soccer matches, and music events",
+  "keywords": [
+    "wikimedia",
+    "commons",
+    "upload",
+    "wikidata",
+    "oauth",
+    "wikipedia",
+    "bulk-upload",
+    "image-processing",
+    "metadata"
+  ],
+  "author": "Vegard Hanssen",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/wikiportraits.git"
+  },
+  "homepage": "https://github.com/your-username/wikiportraits#readme",
+  "bugs": {
+    "url": "https://github.com/your-username/wikiportraits/issues"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev -p 3010",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "deploy": "bash scripts/deploy.sh"
   },
   "dependencies": {
@@ -21,11 +48,16 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.3.4",
+    "jest": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
