@@ -4,6 +4,11 @@ const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php';
 const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)';
 
 async function getWikidataCsrfToken(accessToken: string): Promise<string> {
+  const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
+  
+  if (!token) {
+    throw new Error('No access token available for authentication');
+  }
   const params = new URLSearchParams({
     action: 'query',
     meta: 'tokens',
@@ -13,7 +18,7 @@ async function getWikidataCsrfToken(accessToken: string): Promise<string> {
 
   const response = await fetch(`${WIKIDATA_API_URL}?${params.toString()}`, {
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${token}`,
       'User-Agent': USER_AGENT,
     },
   });
@@ -27,7 +32,13 @@ async function getWikidataCsrfToken(accessToken: string): Promise<string> {
 }
 
 export async function createClaim(accessToken: string, entityId: string, propertyId: string, value: string): Promise<any> {
-  const csrfToken = await getWikidataCsrfToken(accessToken);
+  const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
+  
+  if (!token) {
+    throw new Error('No access token available for authentication');
+  }
+  
+  const csrfToken = await getWikidataCsrfToken(token);
 
   const params = new URLSearchParams({
     action: 'wbcreateclaim',
@@ -43,7 +54,7 @@ export async function createClaim(accessToken: string, entityId: string, propert
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${token}`,
       'User-Agent': USER_AGENT,
     },
     body: params.toString(),

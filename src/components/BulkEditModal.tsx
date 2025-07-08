@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Edit3, Users } from 'lucide-react';
 import { ImageFile } from '@/app/page';
+import ArtistSelector from './ArtistSelector';
 
 interface BulkEditModalProps {
   images: ImageFile[];
@@ -31,6 +32,7 @@ const WIKI_PORTRAITS_EVENTS = [
 export default function BulkEditModal({ images, isOpen, onClose, onBulkUpdate }: BulkEditModalProps) {
   const [updates, setUpdates] = useState<Partial<ImageFile['metadata']>>({});
   const [selectedFields, setSelectedFields] = useState<Set<string>>(new Set());
+  const [selectedArtist, setSelectedArtist] = useState<{ id: string; name: string } | null>(null);
 
   if (!isOpen) return null;
 
@@ -64,11 +66,13 @@ export default function BulkEditModal({ images, isOpen, onClose, onBulkUpdate }:
     onClose();
     setUpdates({});
     setSelectedFields(new Set());
+    setSelectedArtist(null);
   };
 
   const handleReset = () => {
     setUpdates({});
     setSelectedFields(new Set());
+    setSelectedArtist(null);
   };
 
   return (
@@ -98,21 +102,44 @@ export default function BulkEditModal({ images, isOpen, onClose, onBulkUpdate }:
             <div className="flex items-center space-x-3">
               <input
                 type="checkbox"
-                id="author"
-                checked={selectedFields.has('author')}
-                onChange={() => handleFieldToggle('author')}
+                id="authorUsername"
+                checked={selectedFields.has('authorUsername')}
+                onChange={() => handleFieldToggle('authorUsername')}
                 className="w-4 h-4 text-primary rounded focus:ring-primary"
               />
-              <label htmlFor="author" className="flex-1">
-                <div className="font-medium text-card-foreground">Author</div>
-                <div className="text-sm text-muted-foreground">Photographer or creator name</div>
+              <label htmlFor="authorUsername" className="flex-1">
+                <div className="font-medium text-card-foreground">Username</div>
+                <div className="text-sm text-muted-foreground">Wiki username (will format author field automatically)</div>
               </label>
-              {selectedFields.has('author') && (
+              {selectedFields.has('authorUsername') && (
                 <input
                   type="text"
-                  value={updates.author || ''}
-                  onChange={(e) => handleUpdateChange('author', e.target.value)}
-                  placeholder="Enter author name"
+                  value={updates.authorUsername || ''}
+                  onChange={(e) => handleUpdateChange('authorUsername', e.target.value)}
+                  placeholder="YourUsername"
+                  className="w-64 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="authorFullName"
+                checked={selectedFields.has('authorFullName')}
+                onChange={() => handleFieldToggle('authorFullName')}
+                className="w-4 h-4 text-primary rounded focus:ring-primary"
+              />
+              <label htmlFor="authorFullName" className="flex-1">
+                <div className="font-medium text-card-foreground">Full Name</div>
+                <div className="text-sm text-muted-foreground">Full name (will format author field automatically)</div>
+              </label>
+              {selectedFields.has('authorFullName') && (
+                <input
+                  type="text"
+                  value={updates.authorFullName || ''}
+                  onChange={(e) => handleUpdateChange('authorFullName', e.target.value)}
+                  placeholder="Your Full Name"
                   className="w-64 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
               )}
@@ -143,6 +170,30 @@ export default function BulkEditModal({ images, isOpen, onClose, onBulkUpdate }:
             <div className="flex items-center space-x-3">
               <input
                 type="checkbox"
+                id="time"
+                checked={selectedFields.has('time')}
+                onChange={() => handleFieldToggle('time')}
+                className="w-4 h-4 text-primary rounded focus:ring-primary"
+              />
+              <label htmlFor="time" className="flex-1">
+                <div className="font-medium text-card-foreground">Time</div>
+                <div className="text-sm text-muted-foreground">Time when photos were taken</div>
+              </label>
+              {selectedFields.has('time') && (
+                <input
+                  type="time"
+                  step="1"
+                  value={updates.time || ''}
+                  onChange={(e) => handleUpdateChange('time', e.target.value)}
+                  placeholder="HH:MM:SS"
+                  className="w-64 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
                 id="source"
                 checked={selectedFields.has('source')}
                 onChange={() => handleFieldToggle('source')}
@@ -157,7 +208,7 @@ export default function BulkEditModal({ images, isOpen, onClose, onBulkUpdate }:
                   type="text"
                   value={updates.source || ''}
                   onChange={(e) => handleUpdateChange('source', e.target.value)}
-                  placeholder="e.g., self-made"
+                  placeholder="own work"
                   className="w-64 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
                 />
               )}
@@ -191,31 +242,33 @@ export default function BulkEditModal({ images, isOpen, onClose, onBulkUpdate }:
               )}
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-start space-x-3">
               <input
                 type="checkbox"
-                id="wikiPortraitsEvent"
-                checked={selectedFields.has('wikiPortraitsEvent')}
-                onChange={() => handleFieldToggle('wikiPortraitsEvent')}
-                className="w-4 h-4 text-primary rounded focus:ring-primary"
+                id="selectedBand"
+                checked={selectedFields.has('selectedBand')}
+                onChange={() => handleFieldToggle('selectedBand')}
+                className="w-4 h-4 text-primary rounded focus:ring-primary mt-1"
               />
-              <label htmlFor="wikiPortraitsEvent" className="flex-1">
-                <div className="font-medium text-card-foreground">WikiPortraits Event</div>
-                <div className="text-sm text-muted-foreground">Event where photos were taken</div>
+              <label htmlFor="selectedBand" className="flex-1">
+                <div className="font-medium text-card-foreground">Band/Artist</div>
+                <div className="text-sm text-muted-foreground">Band or artist for music events</div>
               </label>
-              {selectedFields.has('wikiPortraitsEvent') && (
-                <select
-                  value={updates.wikiPortraitsEvent || ''}
-                  onChange={(e) => handleUpdateChange('wikiPortraitsEvent', e.target.value)}
-                  className="w-64 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
-                >
-                  <option value="">Select event...</option>
-                  {WIKI_PORTRAITS_EVENTS.map(event => (
-                    <option key={event} value={event}>
-                      {event}
-                    </option>
-                  ))}
-                </select>
+              {selectedFields.has('selectedBand') && (
+                <div className="w-64">
+                  <ArtistSelector
+                    onArtistSelect={(artist) => {
+                      setSelectedArtist({ id: artist.id || '', name: artist.name });
+                      handleUpdateChange('selectedBand', artist.name);
+                    }}
+                    selectedArtist={selectedArtist || { id: '', name: '' }}
+                    placeholder="Search for band/artist..."
+                    label=""
+                    type="band"
+                    defaultLanguage="en"
+                    currentLanguage="en"
+                  />
+                </div>
               )}
             </div>
           </div>

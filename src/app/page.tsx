@@ -52,6 +52,18 @@ export interface ImageFile {
     // Music-specific fields
     musicEvent?: MusicEventMetadata;
     selectedBand?: string; // Band name selected for this specific image
+    // GPS coordinates from EXIF or event location
+    gps?: {
+      latitude: number;
+      longitude: number;
+      source: 'exif' | 'event' | 'manual';
+    };
+    // Generated wikitext (editable by user)
+    wikitext?: string;
+    wikitextModified?: boolean; // Track if user has manually edited wikitext
+    // Template to include in wikitext (editable by user)
+    template?: string;
+    templateModified?: boolean; // Track if user has manually edited template
   };
 }
 

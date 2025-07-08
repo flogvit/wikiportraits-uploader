@@ -41,7 +41,7 @@ export default function LoginButton() {
       className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
     >
       <LogIn className="h-4 w-4" />
-      <span className="text-sm font-medium">Sign In with Wikimedia</span>
+      <span className="text-sm font-medium">Sign In with Personal Token</span>
     </button>
   )
 }

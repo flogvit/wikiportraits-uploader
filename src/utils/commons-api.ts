@@ -26,6 +26,12 @@ export interface UploadResponse {
  * Fetches CSRF token from Commons API
  */
 export async function fetchCSRFToken(accessToken?: string): Promise<string> {
+  const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
+  
+  if (!token) {
+    throw new Error('No access token available for authentication');
+  }
+
   const url = new URL(process.env.COMMONS_API_URL || 'https://commons.wikimedia.org/w/api.php');
   url.searchParams.set('action', 'query');
   url.searchParams.set('meta', 'tokens');
@@ -34,11 +40,8 @@ export async function fetchCSRFToken(accessToken?: string): Promise<string> {
 
   const headers: Record<string, string> = {
     'User-Agent': 'WikiPortraits Bulk Uploader/1.0 (https://github.com/flogvit/wikiportraits)',
+    'Authorization': `Bearer ${token}`,
   };
-
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
 
   const response = await fetch(url.toString(), {
     method: 'GET',
@@ -69,6 +72,11 @@ export async function uploadToCommons(
   csrfToken: string,
   onProgress?: (progress: number) => void
 ): Promise<UploadResponse> {
+  const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
+  
+  if (!token) {
+    throw new Error('No access token available for authentication');
+  }
   const formData = new FormData();
   formData.append('action', 'upload');
   formData.append('format', 'json');
@@ -106,7 +114,7 @@ export async function uploadToCommons(
     });
 
     xhr.open('POST', process.env.COMMONS_API_URL || 'https://commons.wikimedia.org/w/api.php');
-    xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('User-Agent', 'WikiPortraits Bulk Uploader/1.0 (https://github.com/flogvit/wikiportraits)');
     
     xhr.send(formData);
@@ -125,8 +133,13 @@ export async function uploadFileInChunks(
   chunkSize: number = 10 * 1024 * 1024, // 10MB chunks
   onProgress?: (progress: number) => void
 ): Promise<UploadResponse> {
+  const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
+  
+  if (!token) {
+    throw new Error('No access token available for authentication');
+  }
   if (file.size <= chunkSize) {
-    return uploadToCommons(file, filename, text, accessToken, csrfToken, onProgress);
+    return uploadToCommons(file, filename, text, token, csrfToken, onProgress);
   }
 
   const totalChunks = Math.ceil(file.size / chunkSize);
@@ -160,7 +173,7 @@ export async function uploadFileInChunks(
     const response = await fetch(process.env.COMMONS_API_URL || 'https://commons.wikimedia.org/w/api.php', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${token}`,
         'User-Agent': 'WikiPortraits Bulk Uploader/1.0 (https://github.com/flogvit/wikiportraits)',
       },
       body: formData,

@@ -4,13 +4,19 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Music, ExternalLink } from 'lucide-react';
 import { MusicArtist } from '@/types/music';
 
-interface WikipediaSearchResult {
+interface UnifiedArtistResult {
   id: string;
-  title: string;
-  description: string;
-  url: string;
-  wikipedia_url: string;
-  isMusicRelated?: boolean;
+  name: string;
+  description?: string;
+  country?: string;
+  countryCode?: string;
+  musicbrainzId?: string;
+  formedYear?: string;
+  wikipediaUrl?: string;
+  wikidataUrl?: string;
+  isMusicRelated: boolean;
+  entityType?: 'person' | 'group' | 'unknown';
+  source: 'wikidata' | 'wikipedia';
   extract?: string;
 }
 
@@ -33,7 +39,7 @@ export default function ArtistSelector({
   currentLanguage
 }: ArtistSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<WikipediaSearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<UnifiedArtistResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage || defaultLanguage);
@@ -60,10 +66,10 @@ export default function ArtistSelector({
     }
   }, [showResults]);
 
-  const searchWikipedia = useCallback(async (query: string) => {
+  const searchArtists = useCallback(async (query: string) => {
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/wikipedia/music-search?q=${encodeURIComponent(query)}&limit=8&lang=${selectedLanguage}`);
+      const response = await fetch(`/api/music/artist-search?q=${encodeURIComponent(query)}&limit=8&lang=${selectedLanguage}`);
       const data = await response.json();
       
       if (data.results) {
@@ -71,7 +77,7 @@ export default function ArtistSelector({
         setShowResults(true);
       }
     } catch (error) {
-      console.error('Error searching Wikipedia:', error);
+      console.error('Error searching for artists:', error);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -88,7 +94,7 @@ export default function ArtistSelector({
       }
       
       if (searchQuery.length >= 2) {
-        searchWikipedia(searchQuery);
+        searchArtists(searchQuery);
       } else {
         setSearchResults([]);
         setShowResults(false);
@@ -96,17 +102,22 @@ export default function ArtistSelector({
     }, 300);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchQuery, selectedLanguage, searchWikipedia, selectedArtist]);
+  }, [searchQuery, selectedLanguage, searchArtists, selectedArtist]);
 
-  const handleResultSelect = (result: WikipediaSearchResult) => {
+  const handleResultSelect = (result: UnifiedArtistResult) => {
     const artist: MusicArtist = {
       id: result.id,
-      name: result.title,
-      wikipediaUrl: result.wikipedia_url
+      name: result.name,
+      wikipediaUrl: result.wikipediaUrl,
+      wikidataUrl: result.wikidataUrl,
+      musicbrainzId: result.musicbrainzId,
+      country: result.country,
+      entityType: result.entityType,
+      source: result.source
     };
     
     onArtistSelect(artist);
-    setSearchQuery(result.title);
+    setSearchQuery(result.name);
     setShowResults(false);
   };
 
@@ -198,7 +209,7 @@ export default function ArtistSelector({
         {isSearching && (
           <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-10 p-2">
             <div className="text-sm text-muted-foreground text-center">
-              Searching {languages.find(l => l.code === selectedLanguage)?.flag} {languages.find(l => l.code === selectedLanguage)?.name} Wikipedia...
+              Searching Wikidata & {languages.find(l => l.code === selectedLanguage)?.flag} {languages.find(l => l.code === selectedLanguage)?.name} Wikipedia...
             </div>
           </div>
         )}
@@ -206,7 +217,7 @@ export default function ArtistSelector({
         {showResults && searchResults.length > 0 && (
           <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
             <div className="px-3 py-2 bg-muted border-b text-xs text-muted-foreground">
-              {languages.find(l => l.code === selectedLanguage)?.flag} Searching {languages.find(l => l.code === selectedLanguage)?.name} Wikipedia
+              🌐 Wikidata & {languages.find(l => l.code === selectedLanguage)?.flag} {languages.find(l => l.code === selectedLanguage)?.name} Wikipedia Results
             </div>
             {searchResults.map((result) => (
               <button
@@ -219,18 +230,37 @@ export default function ArtistSelector({
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="font-medium text-foreground">{result.title}</div>
-                    {result.extract && (
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-foreground">{result.name}</div>
+                      {result.source === 'wikidata' && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">WD</span>
+                      )}
+                      {result.source === 'wikipedia' && (
+                        <span className="text-xs bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded">WP</span>
+                      )}
+                    </div>
+                    {(result.description || result.extract) && (
                       <div className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {result.extract}
+                        {result.description || result.extract}
                       </div>
                     )}
-                    {result.isMusicRelated && (
-                      <div className="flex items-center mt-1">
-                        <Music className="w-3 h-3 text-accent mr-1" />
-                        <span className="text-xs text-accent">Music Related</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 mt-1">
+                      {result.isMusicRelated && (
+                        <div className="flex items-center">
+                          <Music className="w-3 h-3 text-accent mr-1" />
+                          <span className="text-xs text-accent">Music</span>
+                        </div>
+                      )}
+                      {result.country && (
+                        <span className="text-xs text-muted-foreground">{result.country}</span>
+                      )}
+                      {result.formedYear && (
+                        <span className="text-xs text-muted-foreground">{result.formedYear}</span>
+                      )}
+                      {result.entityType && (
+                        <span className="text-xs text-muted-foreground capitalize">{result.entityType}</span>
+                      )}
+                    </div>
                   </div>
                   <ExternalLink className="w-4 h-4 text-muted-foreground ml-2 flex-shrink-0" />
                 </div>

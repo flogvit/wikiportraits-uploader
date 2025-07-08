@@ -2,6 +2,11 @@ export interface MusicArtist {
   id: string;
   name: string;
   wikipediaUrl?: string;
+  wikidataUrl?: string;
+  musicbrainzId?: string;
+  country?: string;
+  entityType?: 'person' | 'group' | 'unknown';
+  source?: 'wikidata' | 'wikipedia';
 }
 
 export interface Band extends MusicArtist {
@@ -18,6 +23,10 @@ export interface Festival {
   startDate?: string;
   endDate?: string;
   wikipediaUrl?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 export interface Concert {
@@ -29,6 +38,10 @@ export interface Concert {
   country: string;
   tour?: string;
   wikipediaUrl?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
 }
 
 export interface FestivalMetadata {

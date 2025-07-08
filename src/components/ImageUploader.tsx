@@ -5,6 +5,8 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, Image as ImageIcon } from 'lucide-react';
 import { ImageFile } from '@/app/page';
 import { extractExifData, formatDateForCommons, formatTimeForCommons } from '@/utils/exif-reader';
+import { generateCommonsWikitext } from '@/utils/commons-template';
+import { generateTemplateName } from '@/utils/template-generator';
 import { detectDuplicates, DuplicateInfo } from '@/utils/duplicate-detection';
 import DuplicateWarningModal from './DuplicateWarningModal';
 import { UploadType } from './UploadTypeSelector';
@@ -53,6 +55,34 @@ export default function ImageUploader({
       const captureDate = hasExifDate ? formatDateForCommons(exifData!.dateTime!) : new Date().toISOString().split('T')[0];
       const captureTime = hasExifDate ? formatTimeForCommons(exifData!.dateTime!) : undefined;
       
+      // Extract GPS coordinates from EXIF or use event location as fallback
+      let gpsData = undefined;
+      if (exifData?.gps?.latitude && exifData?.gps?.longitude) {
+        gpsData = {
+          latitude: exifData.gps.latitude,
+          longitude: exifData.gps.longitude,
+          source: 'exif' as const
+        };
+      } else {
+        // Try to get location from event data
+        if (uploadType === 'music' && musicEventData) {
+          if (musicEventData.eventType === 'festival' && musicEventData.festivalData?.festival.coordinates) {
+            gpsData = {
+              latitude: musicEventData.festivalData.festival.coordinates.latitude,
+              longitude: musicEventData.festivalData.festival.coordinates.longitude,
+              source: 'event' as const
+            };
+          } else if (musicEventData.eventType === 'concert' && musicEventData.concertData?.concert.coordinates) {
+            gpsData = {
+              latitude: musicEventData.concertData.concert.coordinates.latitude,
+              longitude: musicEventData.concertData.concert.coordinates.longitude,
+              source: 'event' as const
+            };
+          }
+        }
+        // Note: Soccer venues don't have coordinates yet, could be added later
+      }
+
       const baseMetadata = {
         description: '',
         author: '',
@@ -62,7 +92,8 @@ export default function ImageUploader({
         source: 'own work',
         license: 'CC-BY-SA-4.0',
         categories: [] as string[],
-        wikiPortraitsEvent: ''
+        wikiPortraitsEvent: '',
+        gps: gpsData
       };
 
       // Add soccer-specific metadata and categories if in soccer mode
@@ -74,7 +105,7 @@ export default function ImageUploader({
         
         const matchDescription = generateMatchDescription(soccerMatchData);
         
-        return {
+        const soccerImage = {
           id: crypto.randomUUID(),
           file,
           preview: URL.createObjectURL(file),
@@ -91,6 +122,38 @@ export default function ImageUploader({
               competition: soccerMatchData.competition,
               result: soccerMatchData.result
             } : undefined
+          }
+        };
+        
+        // Set initial template for soccer
+        const soccerMatchDataForTemplate = soccerMatchData.homeTeam && soccerMatchData.awayTeam ? {
+          homeTeam: soccerMatchData.homeTeam,
+          awayTeam: soccerMatchData.awayTeam,
+          date: soccerMatchData.date,
+          venue: soccerMatchData.venue,
+          competition: soccerMatchData.competition,
+          result: soccerMatchData.result
+        } : null;
+        
+        const templateName = generateTemplateName('soccer', null, soccerMatchDataForTemplate);
+        
+        // Generate initial wikitext
+        const soccerImageWithTemplate = {
+          ...soccerImage,
+          metadata: {
+            ...soccerImage.metadata,
+            template: templateName,
+            templateModified: false
+          }
+        };
+        
+        const wikitext = generateCommonsWikitext(soccerImageWithTemplate);
+        return {
+          ...soccerImageWithTemplate,
+          metadata: {
+            ...soccerImageWithTemplate.metadata,
+            wikitext,
+            wikitextModified: false
           }
         };
       }
@@ -159,7 +222,7 @@ export default function ImageUploader({
           eventName = `${concert.artist.name}`;
         }
         
-        return {
+        const musicImage = {
           id: crypto.randomUUID(),
           file,
           preview: URL.createObjectURL(file),
@@ -179,6 +242,29 @@ export default function ImageUploader({
             selectedBand: selectedBand // Automatically assign the band
           }
         };
+        
+        // Set initial template for music
+        const templateName = generateTemplateName('music', musicEventData, null);
+        
+        // Generate initial wikitext
+        const musicImageWithTemplate = {
+          ...musicImage,
+          metadata: {
+            ...musicImage.metadata,
+            template: templateName,
+            templateModified: false
+          }
+        };
+        
+        const wikitext = generateCommonsWikitext(musicImageWithTemplate);
+        return {
+          ...musicImageWithTemplate,
+          metadata: {
+            ...musicImageWithTemplate.metadata,
+            wikitext,
+            wikitextModified: false
+          }
+        };
       }
 
       // Default metadata for other upload types
@@ -190,7 +276,20 @@ export default function ImageUploader({
       };
     }));
     
-    return imageFiles;
+    // Generate initial wikitext for each image
+    const imagesWithWikitext = imageFiles.map(image => {
+      const wikitext = generateCommonsWikitext(image);
+      return {
+        ...image,
+        metadata: {
+          ...image.metadata,
+          wikitext,
+          wikitextModified: false
+        }
+      };
+    });
+    
+    return imagesWithWikitext;
   };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
