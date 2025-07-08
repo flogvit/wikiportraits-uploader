@@ -34,6 +34,10 @@ export function generateMusicCategories({
   // Base WikiPortraits category
   categories.add('WikiPortraits');
 
+  if (!eventData) {
+    return Array.from(categories);
+  }
+
   if (eventData.eventType === 'festival' && eventData.festivalData) {
     return generateFestivalCategories(eventData.festivalData, {
       includeBandCategories,
@@ -187,6 +191,16 @@ function getFestivalCategoriesToCreate(festivalData: FestivalMetadata): Category
       shouldCreate: true,
       parentCategory: festival.name,
       description: `[[${festival.name}]] ${festival.year}${festival.location ? ` in ${festival.location}` : ''}.`,
+      eventName: festival.name
+    });
+
+    // Create WikiPortraits at Festival category
+    const wikiPortraitsFestivalCategory = `WikiPortraits at ${festival.name} ${festival.year}`;
+    categoriesToCreate.push({
+      categoryName: wikiPortraitsFestivalCategory,
+      shouldCreate: true,
+      parentCategory: 'WikiPortraits',
+      description: `WikiPortraits photos taken at [[${festival.name}]] ${festival.year}.`,
       eventName: festival.name
     });
 
