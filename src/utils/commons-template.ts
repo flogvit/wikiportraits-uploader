@@ -1,4 +1,7 @@
 import { ImageFile } from '@/app/page';
+import { generateTemplateName } from '@/utils/template-generator';
+import { UploadType } from '@/components/UploadTypeSelector';
+import { SoccerMatchMetadata } from '@/components/SoccerMatchWorkflow';
 
 interface MetadataTemplate {
   description: string;
@@ -51,9 +54,49 @@ ${categoriesWikitext}`;
   return wikitext;
 }
 
-export function generateCommonsWikitext(image: ImageFile): string {
+export function generateCommonsWikitext(image: ImageFile, forceRegenerate = false): string {
+  // If user has manually edited wikitext and we're not forcing regeneration, use their version
+  if (image.metadata.wikitext && image.metadata.wikitextModified && !forceRegenerate) {
+    return image.metadata.wikitext;
+  }
   const { metadata } = image;
   
+  // Determine upload type from metadata
+  let uploadType: UploadType = 'general';
+  if (metadata.musicEvent) {
+    uploadType = 'music';
+  } else if (metadata.soccerMatch || metadata.soccerPlayer) {
+    uploadType = 'soccer';
+  }
+
+  // Generate template line - use custom template if set, otherwise auto-generate
+  let templateLine = '';
+  if (metadata.template !== undefined) {
+    // User has set a custom template (could be empty string to remove template)
+    templateLine = metadata.template.trim() ? `\n{{${metadata.template.trim()}}}\n` : '';
+  } else if (uploadType !== 'general') {
+    // Auto-generate template for events
+    // Convert simplified soccer match to full format for template generation
+    let soccerMatchData: SoccerMatchMetadata | null = null;
+    if (metadata.soccerMatch) {
+      soccerMatchData = {
+        homeTeam: { id: '', name: metadata.soccerMatch.homeTeam },
+        awayTeam: { id: '', name: metadata.soccerMatch.awayTeam },
+        date: metadata.soccerMatch.date,
+        venue: metadata.soccerMatch.venue,
+        competition: metadata.soccerMatch.competition,
+        result: metadata.soccerMatch.result
+      } as SoccerMatchMetadata;
+    }
+    
+    const templateName = generateTemplateName(
+      uploadType,
+      metadata.musicEvent,
+      soccerMatchData
+    );
+    templateLine = `\n{{${templateName}}}\n`;
+  }
+
   // Generate WikiPortraits category based on event
   const wikiPortraitsCategory = metadata.wikiPortraitsEvent 
     ? `WikiPortraits at ${metadata.wikiPortraitsEvent}`
@@ -75,6 +118,13 @@ export function generateCommonsWikitext(image: ImageFile): string {
     .map(cat => `[[Category:${cat}]]`)
     .join('\n');
 
+  // Generate location template if GPS coordinates are available
+  const locationTemplate = metadata.gps && 
+    typeof metadata.gps.latitude === 'number' && 
+    typeof metadata.gps.longitude === 'number'
+    ? `{{Location|${metadata.gps.latitude}|${metadata.gps.longitude}}}`
+    : '';
+
   const wikitext = `=={{int:filedesc}}==
 {{Information
 |description={{en|${metadata.description}}}
@@ -83,14 +133,30 @@ export function generateCommonsWikitext(image: ImageFile): string {
 |source=${metadata.source}
 |permission=
 |other_versions=
-}}
-
+}}${locationTemplate ? `\n${locationTemplate}` : ''}
+${templateLine}
 =={{int:license-header}}==
 ${licenseTemplate}
 
 ${categoriesWikitext}`;
 
   return wikitext;
+}
+
+export function updateImageWikitext(image: ImageFile, wikitext: string, isUserModified = true): ImageFile {
+  return {
+    ...image,
+    metadata: {
+      ...image.metadata,
+      wikitext,
+      wikitextModified: isUserModified
+    }
+  };
+}
+
+export function regenerateImageWikitext(image: ImageFile): ImageFile {
+  const wikitext = generateCommonsWikitext(image, true);
+  return updateImageWikitext(image, wikitext, false);
 }
 
 export function generateFilename(image: ImageFile, imageIndex?: number): string {
