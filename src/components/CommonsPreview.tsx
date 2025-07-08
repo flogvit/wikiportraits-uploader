@@ -14,7 +14,7 @@ export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const wikitext = generateCommonsWikitext(image);
+  const wikitext = image.metadata.wikitext || generateCommonsWikitext(image);
   const suggestedFilename = generateFilename(image, index);
 
   const copyToClipboard = async () => {
@@ -97,7 +97,9 @@ export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
           <p><strong>License:</strong> {image.metadata.license}</p>
           <p><strong>Categories:</strong></p>
           <ul className="list-disc list-inside ml-4">
-            <li>WikiPortraits at {image.metadata.wikiPortraitsEvent}</li>
+            {image.metadata.wikiPortraitsEvent && (
+              <li>WikiPortraits at {image.metadata.wikiPortraitsEvent}</li>
+            )}
             {image.metadata.categories.map(cat => (
               <li key={cat}>{cat}</li>
             ))}

@@ -26,7 +26,7 @@ export default function CategoryCreationModal({
   const [categoryStatuses, setCategoryStatuses] = useState<Record<string, CategoryStatus>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set(categories.map(c => c.categoryName))
+    new Set(categories?.map(c => c.categoryName) || [])
   );
 
   if (!isOpen) return null;
