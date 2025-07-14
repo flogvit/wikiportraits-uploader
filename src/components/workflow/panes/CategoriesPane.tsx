@@ -141,11 +141,6 @@ export default function CategoriesPane({
   const pendingCategories = categoriesToCreate.filter(cat => !createdCategories.has(cat.categoryName));
   const allCategoriesCreated = categoriesToCreate.length > 0 && pendingCategories.length === 0;
 
-  // Debug: Log the differences
-  console.log('Debug Categories:');
-  console.log('allCategories:', allCategories);
-  console.log('categoriesToCreate:', categoriesToCreate.map(c => c.categoryName));
-  console.log('pendingCategories:', pendingCategories.map(c => c.categoryName));
 
   if (!hasValidData()) {
     return (
