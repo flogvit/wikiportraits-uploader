@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+interface WikipediaSearchResult {
+  title: string;
+  snippet: string;
+  pageid: number;
+}
+
+interface WikipediaCategory {
+  title: string;
+}
+
+interface WikipediaPageInfo {
+  categories?: WikipediaCategory[];
+  extract?: string;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get('q');
@@ -44,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     // Get additional info to identify music artists/bands
     if (results.length > 0) {
-      const pageInfoPromises = results.slice(0, 8).map(async (result: any) => {
+      const pageInfoPromises = results.slice(0, 8).map(async (result: WikipediaSearchResult) => {
         try {
           const pageTitle = result.title;
           const pageInfoUrl = new URL(`https://${lang}.wikipedia.org/w/api.php`);
@@ -61,11 +76,11 @@ export async function GET(request: NextRequest) {
           const pageData = await pageResponse.json();
           
           if (pageData.query && pageData.query.pages) {
-            const page = Object.values(pageData.query.pages)[0] as any;
+            const page = Object.values(pageData.query.pages)[0] as WikipediaPageInfo;
             
             // Check if this is a music-related page
             const isMusicRelated = page.categories && 
-              page.categories.some((cat: any) => {
+              page.categories.some((cat: WikipediaCategory) => {
                 const categoryTitle = cat.title.toLowerCase();
                 return categoryTitle.includes('musical') || 
                        categoryTitle.includes('music') ||

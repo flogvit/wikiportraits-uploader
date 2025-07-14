@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url);
     const data = await response.json();
     return NextResponse.json(data.query.search);
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch data from Wikipedia' }, { status: 500 });
   }
 }

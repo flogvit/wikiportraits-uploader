@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper function to create Wikidata entries (for future implementation)
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   // This would be for creating new Wikidata entries
   // Requires OAuth authentication and proper permissions
   return NextResponse.json(
