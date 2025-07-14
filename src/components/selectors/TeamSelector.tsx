@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, Loader, Check, X } from 'lucide-react';
-import { SoccerTeam } from './SoccerMatchWorkflow';
+import { SoccerTeam } from '../forms/SoccerMatchForm';
 
 interface TeamSelectorProps {
   onTeamSelect: (team: SoccerTeam) => void;

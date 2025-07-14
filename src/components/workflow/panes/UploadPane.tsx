@@ -1,19 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Upload, CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
-import { UploadType } from '@/components/UploadTypeSelector';
-import { ImageFile } from '@/app/page';
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/SoccerMatchWorkflow';
-import { MusicEventMetadata } from '@/types/music';
+import React from 'react';
+import { useFormContext } from 'react-hook-form';
+import { CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
+import { WorkflowFormData } from '../providers/WorkflowFormProvider';
 import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
+
 interface UploadPaneProps {
-  uploadType: UploadType;
-  images: ImageFile[];
-  soccerMatchData?: SoccerMatchMetadata | null;
-  selectedPlayers?: SoccerPlayer[];
-  musicEventData?: MusicEventMetadata | null;
   onComplete: () => void;
 }
 
@@ -28,22 +22,18 @@ interface UploadStepInfo {
 }
 
 export default function UploadPane({
-  uploadType,
-  images,
-  soccerMatchData,
-  selectedPlayers,
-  musicEventData,
   onComplete
 }: UploadPaneProps) {
-  const [currentStep, setCurrentStep] = useState<UploadStep>('template');
-  const [stepStatuses, setStepStatuses] = useState<Record<UploadStep, StepStatus>>({
-    template: 'pending',
-    images: 'pending',
-    complete: 'pending'
-  });
-  const [templateCreated, setTemplateCreated] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
+  const { watch, setValue } = useFormContext<WorkflowFormData>();
+
+  // Get all data from the unified form
+  const uploadType = watch('uploadType');
+  const images = watch('images');
+  const soccerMatchData = watch('soccerMatchData');
+  const musicEventData = watch('musicEventData');
+  
+  const uploadData = watch('upload');
+  const { currentStep, stepStatuses, templateCreated, uploadProgress, currentUploadIndex } = uploadData;
 
   const templateName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
   const templateCode = generateTemplate(uploadType, musicEventData, soccerMatchData);
@@ -58,20 +48,20 @@ export default function UploadPane({
     },
     {
       id: 'images',
-      title: 'Upload Images',
-      description: `Upload ${images.length} image(s)`,
+      title: 'Publish Images',
+      description: `Publish ${images?.length || 0} image(s)`,
       status: stepStatuses.images
     },
     {
       id: 'complete',
       title: 'Complete',
-      description: 'Upload finished',
+      description: 'Publishing finished',
       status: stepStatuses.complete
     }
   ];
 
   const updateStepStatus = (step: UploadStep, status: StepStatus) => {
-    setStepStatuses(prev => ({ ...prev, [step]: status }));
+    setValue('upload.stepStatuses', { ...stepStatuses, [step]: status });
   };
 
   const getStatusIcon = (status: StepStatus) => {
@@ -91,7 +81,7 @@ export default function UploadPane({
     if (uploadType === 'general' || templateCreated) {
       // Skip template creation for general uploads or if already created
       updateStepStatus('template', 'completed');
-      setCurrentStep('images');
+      setValue('upload.currentStep', 'images');
       return;
     }
 
@@ -116,9 +106,9 @@ export default function UploadPane({
       const result = await response.json();
       console.log('Template creation result:', result);
       
-      setTemplateCreated(true);
+      setValue('upload.templateCreated', true);
       updateStepStatus('template', 'completed');
-      setCurrentStep('images');
+      setValue('upload.currentStep', 'images');
       
     } catch (error) {
       console.error('Template creation failed:', error);
@@ -132,18 +122,18 @@ export default function UploadPane({
     try {
       // TODO: Implement actual image upload
       // For now, simulate upload progress
-      for (let i = 0; i < images.length; i++) {
-        setCurrentUploadIndex(i);
-        setUploadProgress((i / images.length) * 100);
+      for (let i = 0; i < (images?.length || 0); i++) {
+        setValue('upload.currentUploadIndex', i);
+        setValue('upload.uploadProgress', (i / (images?.length || 1)) * 100);
         
         // Simulate upload delay
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      setUploadProgress(100);
+      setValue('upload.uploadProgress', 100);
       updateStepStatus('images', 'completed');
       updateStepStatus('complete', 'completed');
-      setCurrentStep('complete');
+      setValue('upload.currentStep', 'complete');
       
     } catch (error) {
       console.error('Image upload failed:', error);
@@ -158,21 +148,21 @@ export default function UploadPane({
     }
   };
 
-  if (images.length === 0) {
+  if ((images?.length || 0) === 0) {
     return (
       <div className="space-y-6">
         <div className="text-center">
           <div className="text-6xl mb-4">⬆️</div>
-          <h3 className="text-xl font-semibold text-card-foreground mb-2">Upload</h3>
+          <h3 className="text-xl font-semibold text-card-foreground mb-2">Publish</h3>
           <p className="text-muted-foreground">
-            Upload your images to Wikimedia Commons
+            Publish your images to Wikimedia Commons
           </p>
         </div>
         
         <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
           <p className="text-warning font-medium">⚠️ No Images Added</p>
           <p className="text-muted-foreground text-sm mt-1">
-            Please add images in the Images step before uploading.
+            Please add images in the Images step before publishing.
           </p>
         </div>
       </div>
@@ -183,15 +173,15 @@ export default function UploadPane({
     <div className="space-y-6">
       <div className="text-center">
         <div className="text-6xl mb-4">⬆️</div>
-        <h3 className="text-xl font-semibold text-card-foreground mb-2">Upload to Commons</h3>
+        <h3 className="text-xl font-semibold text-card-foreground mb-2">Publish to Commons</h3>
         <p className="text-muted-foreground">
-          Create templates and upload {images.length} image(s) to Wikimedia Commons
+          Create templates and publish {images?.length || 0} image(s) to Wikimedia Commons
         </p>
       </div>
 
       {/* Upload Steps Progress */}
       <div className="bg-card rounded-lg border border-border p-6">
-        <h4 className="text-lg font-semibold text-card-foreground mb-4">Upload Progress</h4>
+        <h4 className="text-lg font-semibold text-card-foreground mb-4">Publishing Progress</h4>
         <div className="space-y-3">
           {uploadSteps.map((step, index) => (
             <div
@@ -239,9 +229,9 @@ export default function UploadPane({
       {stepStatuses.images === 'in-progress' && (
         <div className="bg-card rounded-lg border border-border p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Uploading Images</span>
+            <span className="text-sm font-medium">Publishing Images</span>
             <span className="text-sm text-muted-foreground">
-              {currentUploadIndex + 1} / {images.length}
+              {currentUploadIndex + 1} / {images?.length || 0}
             </span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">
@@ -251,7 +241,7 @@ export default function UploadPane({
             />
           </div>
           <p className="text-sm text-muted-foreground mt-2">
-            Currently uploading: {images[currentUploadIndex]?.file.name}
+            Currently publishing: Image {currentUploadIndex + 1}
           </p>
         </div>
       )}
@@ -265,8 +255,8 @@ export default function UploadPane({
             className="px-6 py-2 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground rounded-lg transition-colors"
           >
             {stepStatuses.template === 'in-progress' || stepStatuses.images === 'in-progress'
-              ? 'Uploading...'
-              : 'Start Upload'
+              ? 'Publishing...'
+              : 'Start Publishing'
             }
           </button>
         )}
@@ -276,7 +266,7 @@ export default function UploadPane({
             onClick={onComplete}
             className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
           >
-            Upload Complete ✅
+            Publishing Complete ✅
           </button>
         )}
       </div>

@@ -1,35 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Copy, Download, FileText, Check } from 'lucide-react';
-import { UploadType } from '@/components/UploadTypeSelector';
+import React, { useEffect } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
+import { FileText } from 'lucide-react';
+import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
 import { ImageFile } from '@/app/page';
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/SoccerMatchWorkflow';
-import { MusicEventMetadata } from '@/types/music';
 import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
+
 interface TemplatesPaneProps {
-  uploadType: UploadType;
-  images: ImageFile[];
-  soccerMatchData?: SoccerMatchMetadata | null;
-  selectedPlayers?: SoccerPlayer[];
-  musicEventData?: MusicEventMetadata | null;
   onComplete: () => void;
-  onImageUpdate?: (imageId: string, updates: Partial<ImageFile['metadata']>) => void;
 }
 
 export default function TemplatesPane({
-  uploadType,
-  images,
-  soccerMatchData,
-  selectedPlayers,
-  musicEventData,
-  onComplete,
-  onImageUpdate
+  onComplete
 }: TemplatesPaneProps) {
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [templateCode, setTemplateCode] = useState('');
-  const [customTemplateName, setCustomTemplateName] = useState('');
+  const { updateImage } = useWorkflowForm();
+  const { control, watch, setValue } = useFormContext<WorkflowFormData>();
+
+  // Get all data from the unified form
+  const uploadType = watch('uploadType');
+  const images = watch('images');
+  const soccerMatchData = watch('soccerMatchData');
+  const musicEventData = watch('musicEventData');
+  
+  const templatesData = watch('templates');
+  const { selectedLanguage, customTemplateName } = templatesData;
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -42,25 +38,31 @@ export default function TemplatesPane({
   ];
 
   // Initialize template name and code when dependencies change
-  React.useEffect(() => {
+  useEffect(() => {
     const generatedName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
     if (!customTemplateName) {
-      setCustomTemplateName(generatedName);
+      setValue('templates.customTemplateName', generatedName);
     }
     
     const generatedTemplate = generateTemplate(uploadType, musicEventData, soccerMatchData, selectedLanguage);
-    setTemplateCode(generatedTemplate);
-  }, [uploadType, musicEventData, soccerMatchData, selectedLanguage]);
+    setValue('templates.templateCode', generatedTemplate);
+  }, [uploadType, musicEventData, soccerMatchData, selectedLanguage, customTemplateName, setValue]);
 
   const templateName = customTemplateName || generateTemplateName(uploadType, musicEventData, soccerMatchData);
   const templateUrl = `https://commons.wikimedia.org/wiki/Template:${encodeURIComponent(templateName)}`;
 
   const updateAllImagesTemplate = () => {
-    if (onImageUpdate && customTemplateName) {
-      images.forEach(image => {
-        onImageUpdate(image.id, { 
-          template: customTemplateName,
-          templateModified: true 
+    if (customTemplateName) {
+      // Update all images with the custom template
+      images.forEach((imgData) => {
+        // imgData is already an ImageFile from the form
+        updateImage(imgData.id, {
+          ...imgData,
+          metadata: {
+            ...imgData.metadata,
+            template: customTemplateName,
+            templateModified: true 
+          }
         });
       });
     }
@@ -80,17 +82,24 @@ export default function TemplatesPane({
       <div className="flex justify-center">
         <div className="flex items-center space-x-2">
           <label className="text-sm font-medium text-card-foreground">Wikipedia Language:</label>
-          <select
-            value={selectedLanguage}
-            onChange={(e) => setSelectedLanguage(e.target.value)}
-            className="px-3 py-1 bg-background border border-border rounded-lg text-sm"
-          >
-            {languages.map((lang) => (
-              <option key={lang.code} value={lang.code}>
-                {lang.name}
-              </option>
-            ))}
-          </select>
+          <Controller
+            name="templates.selectedLanguage"
+            control={control}
+            render={({ field }) => (
+              <select
+                {...field}
+                value={field.value}
+                onChange={(e) => field.onChange(e.target.value)}
+                className="px-3 py-1 bg-background border border-border rounded-lg text-sm"
+              >
+                {languages.map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          />
         </div>
       </div>
 
@@ -102,18 +111,25 @@ export default function TemplatesPane({
           </label>
           <button
             onClick={updateAllImagesTemplate}
-            disabled={!customTemplateName || !onImageUpdate}
+            disabled={!customTemplateName}
             className="px-3 py-1 bg-primary hover:bg-primary/90 disabled:bg-primary/50 text-primary-foreground text-xs rounded-lg transition-colors"
           >
             Apply to All Images
           </button>
         </div>
-        <input
-          type="text"
-          value={customTemplateName}
-          onChange={(e) => setCustomTemplateName(e.target.value)}
-          className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono"
-          placeholder="e.g. WikiPortraits Event Name"
+        <Controller
+          name="templates.customTemplateName"
+          control={control}
+          render={({ field }) => (
+            <input
+              {...field}
+              type="text"
+              value={field.value}
+              onChange={(e) => field.onChange(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono"
+              placeholder="e.g. WikiPortraits Event Name"
+            />
+          )}
         />
         <p className="text-xs text-muted-foreground mt-1">
           This will be the template name on Commons: Template:{customTemplateName}
@@ -138,11 +154,18 @@ export default function TemplatesPane({
           
           <div className="space-y-2">
             <label className="text-sm font-medium text-card-foreground">Template Code (editable):</label>
-            <textarea
-              value={templateCode}
-              onChange={(e) => setTemplateCode(e.target.value)}
-              className="w-full h-32 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono resize-y"
-              placeholder="Template code will be generated automatically..."
+            <Controller
+              name="templates.templateCode"
+              control={control}
+              render={({ field }) => (
+                <textarea
+                  {...field}
+                  value={field.value}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  className="w-full h-32 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono resize-y"
+                  placeholder="Template code will be generated automatically..."
+                />
+              )}
             />
           </div>
           

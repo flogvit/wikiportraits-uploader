@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Search, Loader, User, Plus, X } from 'lucide-react';
-import { SoccerPlayer, SoccerTeam } from './SoccerMatchWorkflow';
+import { SoccerPlayer, SoccerTeam } from '../forms/SoccerMatchForm';
 
 interface PlayerSelectorProps {
   teams: (SoccerTeam | null)[];

@@ -1,15 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Controller, useFormContext } from 'react-hook-form';
 import { FolderPlus, Check, AlertCircle, Eye, Plus, X } from 'lucide-react';
+import { WorkflowFormData } from '../providers/WorkflowFormProvider';
 import { ImageFile } from '@/app/page';
-import { MusicEventMetadata } from '@/types/music';
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/SoccerMatchWorkflow';
-import { UploadType } from '@/components/UploadTypeSelector';
 import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
 import { generateSoccerCategories, getCategoriesToCreate as getSoccerCategoriesToCreate } from '@/utils/soccer-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';
-import CategoryCreationModal from '@/components/CategoryCreationModal';
+import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
+
 
 interface CategoryCreationInfo {
   categoryName: string;
@@ -21,34 +21,57 @@ interface CategoryCreationInfo {
 }
 
 interface CategoriesPaneProps {
-  uploadType: UploadType;
-  images: ImageFile[];
-  soccerMatchData?: SoccerMatchMetadata | null;
-  selectedPlayers?: SoccerPlayer[];
-  musicEventData?: MusicEventMetadata | null;
   onComplete?: () => void;
 }
 
 export default function CategoriesPane({
-  uploadType,
-  images,
-  soccerMatchData,
-  selectedPlayers = [],
-  musicEventData,
   onComplete
 }: CategoriesPaneProps) {
   const [categoriesToCreate, setCategoriesToCreate] = useState<CategoryCreationInfo[]>([]);
-  const [allCategories, setAllCategories] = useState<string[]>([]);
   const [showCreationModal, setShowCreationModal] = useState(false);
-  const [createdCategories, setCreatedCategories] = useState<Set<string>>(new Set());
-  const [newCategoryInput, setNewCategoryInput] = useState('');
+
+  const { control, watch, setValue } = useFormContext<WorkflowFormData>();
+
+  // Get all data from the unified form
+  const uploadType = watch('uploadType');
+  const images = watch('images');
+  const soccerMatchData = watch('soccerMatchData');
+  const selectedPlayers = watch('selectedPlayers');
+  const musicEventData = watch('musicEventData');
+  
+  const watchedData = watch('categories');
+  const allCategories = watchedData.selectedCategories || [];
+  const createdCategories = new Set([]);  // Will be managed differently
+  const newCategoryInput = watchedData.newCategoryName || '';
 
   // Generate categories based on upload type and data
   useEffect(() => {
-    // Get all categories from images (including those in wikitext)
-    const imageCategories = getAllCategoriesFromImages(images);
+    // Get categories from images if they exist
+    let imageCategories: string[] = [];
+    if (images && images.length > 0) {
+      // Convert form image metadata back to ImageFile format for the utility function
+      const imageFiles: ImageFile[] = images.map((imgData, index) => ({
+        id: `image-${index}`,
+        file: new File([], `image-${index}`), // Placeholder file
+        metadata: {
+          description: imgData.description,
+          categories: imgData.categories,
+          date: imgData.date,
+          author: imgData.author,
+          source: imgData.source,
+          license: imgData.license,
+          permission: imgData.permission,
+          otherVersions: imgData.otherVersions,
+          additionalCategories: imgData.additionalCategories,
+          template: imgData.template,
+          templateModified: imgData.templateModified,
+        }
+      }));
+      
+      imageCategories = getAllCategoriesFromImages(imageFiles);
+    }
     
-    // Get event-specific categories
+    // Get event-specific categories (works without images)
     let eventCategories: string[] = [];
     if (uploadType === 'music' && musicEventData) {
       eventCategories = generateMusicCategories(musicEventData);
@@ -68,32 +91,30 @@ export default function CategoriesPane({
     }
     
     // Add categories that need creation to the unified list
-    toCreate.forEach(cat => combinedCategories.add(cat.categoryName));
+    toCreate.forEach((cat: CategoryCreationInfo) => combinedCategories.add(cat.categoryName));
     
-    setAllCategories(Array.from(combinedCategories).sort());
+    setValue('categories.selectedCategories', Array.from(combinedCategories).sort());
     setCategoriesToCreate(toCreate);
-  }, [uploadType, musicEventData, soccerMatchData, selectedPlayers, images]);
+  }, [uploadType, musicEventData, soccerMatchData, selectedPlayers, images, setValue]);
 
-  const handleCategoryCreated = (categoryName: string) => {
-    setCreatedCategories(prev => new Set([...prev, categoryName]));
-  };
 
   const handleAddCategory = () => {
-    if (newCategoryInput.trim() && !allCategories.includes(newCategoryInput.trim())) {
-      setAllCategories(prev => [...prev, newCategoryInput.trim()].sort());
-      setNewCategoryInput('');
+    const trimmedInput = newCategoryInput.trim();
+    if (trimmedInput && !allCategories.includes(trimmedInput)) {
+      setValue('categories.selectedCategories', [...allCategories, trimmedInput].sort());
+      setValue('categories.newCategoryName', '');
     }
   };
 
   const handleRemoveCategory = (categoryToRemove: string) => {
-    setAllCategories(prev => prev.filter(cat => cat !== categoryToRemove));
+    setValue('categories.selectedCategories', allCategories.filter(cat => cat !== categoryToRemove));
   };
 
   const getCategoryStatus = (categoryName: string): 'created' | 'needs_creation' | 'unknown' => {
     if (createdCategories.has(categoryName)) {
       return 'created';
     }
-    const categoryToCreate = categoriesToCreate.find(cat => cat.categoryName === categoryName);
+    const categoryToCreate = categoriesToCreate.find((cat: CategoryCreationInfo) => cat.categoryName === categoryName);
     if (categoryToCreate) {
       return 'needs_creation';
     }
@@ -112,9 +133,9 @@ export default function CategoriesPane({
               (musicEventData.eventType === 'concert' && musicEventData.concertData?.concert?.artist?.name));
     }
     if (uploadType === 'soccer') {
-      return soccerMatchData?.homeTeam?.name && soccerMatchData?.awayTeam?.name;
+      return soccerMatchData?.homeTeam?.name && soccerMatchData?.awayTeam?.name && selectedPlayers.length > 0;
     }
-    return false;
+    return true; // Allow general uploads to proceed
   };
 
   const pendingCategories = categoriesToCreate.filter(cat => !createdCategories.has(cat.categoryName));
@@ -180,13 +201,20 @@ export default function CategoriesPane({
         
         {/* Add new category input */}
         <div className="flex space-x-2 mb-4">
-          <input
-            type="text"
-            value={newCategoryInput}
-            onChange={(e) => setNewCategoryInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
-            placeholder="Add new category"
-            className="flex-1 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
+          <Controller
+            name="categories.newCategoryName"
+            control={control}
+            render={({ field }) => (
+              <input
+                {...field}
+                type="text"
+                value={field.value || ''}
+                onChange={(e) => field.onChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                placeholder="Add new category"
+                className="flex-1 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
+              />
+            )}
           />
           <button
             onClick={handleAddCategory}
@@ -199,7 +227,7 @@ export default function CategoriesPane({
         
         {allCategories.length > 0 ? (
           <div className="space-y-3">
-            {allCategories.map((category, index) => {
+            {allCategories.map((category: string, index: number) => {
               const status = getCategoryStatus(category);
               return (
                 <div
@@ -293,8 +321,12 @@ export default function CategoriesPane({
       <CategoryCreationModal
         isOpen={showCreationModal}
         onClose={() => setShowCreationModal(false)}
-        categoriesToCreate={pendingCategories}
-        onCategoryCreated={handleCategoryCreated}
+        categories={pendingCategories}
+        onCreateCategories={async (categories) => {
+          // Handle category creation
+          console.log('Creating categories:', categories);
+          setShowCreationModal(false);
+        }}
       />
     </div>
   );

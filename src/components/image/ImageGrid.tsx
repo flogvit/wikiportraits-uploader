@@ -5,7 +5,7 @@ import { Edit3, Download } from 'lucide-react';
 import { ImageFile } from '@/app/page';
 import { MusicEventMetadata } from '@/types/music';
 import ImageCard from './ImageCard';
-import BulkEditModal from './BulkEditModal';
+import BulkEditModal from '../modals/BulkEditModal';
 
 interface ImageGridProps {
   images: ImageFile[];

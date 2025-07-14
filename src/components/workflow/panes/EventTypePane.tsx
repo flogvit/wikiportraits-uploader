@@ -2,20 +2,19 @@
 
 import { Settings, Users, Mic } from 'lucide-react';
 import { MusicEventMetadata, MusicEventType } from '@/types/music';
+import { useWorkflowForm } from '../providers/WorkflowFormProvider';
+import { useWorkflow } from '../providers/WorkflowProvider';
 
 interface EventTypePaneProps {
-  musicEventData?: MusicEventMetadata | null;
-  onMusicEventUpdate?: (eventData: MusicEventMetadata) => void;
   onComplete?: () => void;
 }
 
 export default function EventTypePane({
-  musicEventData,
-  onMusicEventUpdate,
   onComplete
 }: EventTypePaneProps) {
+  const { form } = useWorkflowForm();
+  const musicEventData = form.watch('musicEventData');
   const handleEventTypeSelect = (type: MusicEventType) => {
-    if (!onMusicEventUpdate) return;
     
     const baseData = {
       eventType: type,
@@ -50,7 +49,7 @@ export default function EventTypePane({
       } : undefined
     };
     
-    onMusicEventUpdate(baseData as MusicEventMetadata);
+    form.setValue('musicEventData', baseData as MusicEventMetadata);
     onComplete?.();
   };
 
