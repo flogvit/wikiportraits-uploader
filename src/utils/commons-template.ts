@@ -1,7 +1,7 @@
 import { ImageFile } from '@/app/page';
 import { generateTemplateName } from '@/utils/template-generator';
-import { UploadType } from '@/components/UploadTypeSelector';
-import { SoccerMatchMetadata } from '@/components/SoccerMatchWorkflow';
+import { UploadType } from '@/components/selectors/UploadTypeSelector';
+import { SoccerMatchMetadata } from '@/components/workflow/SoccerMatchWorkflow';
 
 interface MetadataTemplate {
   description: string;
