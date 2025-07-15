@@ -18,11 +18,31 @@ export const removeItem = (key: string) => {
   }
 };
 
-// Music event specific keys
+// JSON utilities for complex objects
+export const setJsonItem = (key: string, value: any) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+};
+
+export const getJsonItem = <T>(key: string, defaultValue: T): T => {
+  if (typeof window !== 'undefined') {
+    const item = localStorage.getItem(key);
+    if (item) {
+      try {
+        return JSON.parse(item);
+      } catch (e) {
+        console.warn(`Failed to parse localStorage item for key "${key}":`, e);
+      }
+    }
+  }
+  return defaultValue;
+};
+
+// Application-wide keys
 export const KEYS = {
-  // Author info
-  AUTHOR_USERNAME: 'music-event-author-username',
-  AUTHOR_FULLNAME: 'music-event-author-fullname',
+  // Author info (used for all upload types) - Q-ID only, fetch name from Wikidata
+  AUTHOR_WIKIDATA_QID: 'author-wikidata-qid',
   
   // Festival info
   FESTIVAL_NAME: 'music-event-festival-name',
@@ -48,4 +68,59 @@ export const KEYS = {
   CONCERT_ARTIST_WIKIDATA: 'music-event-concert-artist-wikidata',
   CONCERT_ARTIST_MUSICBRAINZ: 'music-event-concert-artist-musicbrainz',
   CONCERT_ARTIST_COUNTRY: 'music-event-concert-artist-country',
+  
+  // Band members
+  BAND_MEMBERS: 'music-event-band-members',
+  PENDING_BAND_MEMBERS: 'music-event-pending-band-members',
+  SELECTED_BAND_MEMBERS: 'music-event-selected-band-members',
+};
+
+// Band member utilities
+export const saveBandMembers = (bandId: string, members: any[]) => {
+  if (!bandId) return;
+  const key = `${KEYS.BAND_MEMBERS}-${bandId}`;
+  setJsonItem(key, members);
+};
+
+export const loadBandMembers = (bandId: string): any[] => {
+  if (!bandId) return [];
+  const key = `${KEYS.BAND_MEMBERS}-${bandId}`;
+  return getJsonItem(key, []);
+};
+
+export const savePendingBandMembers = (bandId: string, pendingMembers: any[]) => {
+  if (!bandId) return;
+  const key = `${KEYS.PENDING_BAND_MEMBERS}-${bandId}`;
+  setJsonItem(key, pendingMembers);
+};
+
+export const loadPendingBandMembers = (bandId: string): any[] => {
+  if (!bandId) return [];
+  const key = `${KEYS.PENDING_BAND_MEMBERS}-${bandId}`;
+  return getJsonItem(key, []);
+};
+
+export const saveSelectedBandMembers = (bandId: string, selectedMembers: string[]) => {
+  if (!bandId) return;
+  const key = `${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`;
+  setJsonItem(key, selectedMembers);
+};
+
+export const loadSelectedBandMembers = (bandId: string): string[] => {
+  if (!bandId) return [];
+  const key = `${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`;
+  return getJsonItem(key, []);
+};
+
+// Author utilities - Q-ID only, names fetched from Wikidata
+export const saveAuthorWikidataQid = (qid: string) => {
+  setItem(KEYS.AUTHOR_WIKIDATA_QID, qid);
+};
+
+export const loadAuthorWikidataQid = (): string => {
+  return getItem(KEYS.AUTHOR_WIKIDATA_QID);
+};
+
+export const clearAuthorWikidataQid = () => {
+  removeItem(KEYS.AUTHOR_WIKIDATA_QID);
 };

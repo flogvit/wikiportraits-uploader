@@ -165,8 +165,8 @@ export default function CountrySelector({
                   e.preventDefault();
                   selectCountry(country);
                 }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-muted focus:bg-muted focus:outline-none ${
-                  index === highlightedIndex ? 'bg-accent/10 text-accent' : 'text-foreground'
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 focus:bg-gray-100 dark:focus:bg-gray-700 focus:outline-none ${
+                  index === highlightedIndex ? 'bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-blue-100' : 'text-foreground'
                 }`}
                 onMouseEnter={() => setHighlightedIndex(index)}
               >
@@ -180,7 +180,7 @@ export default function CountrySelector({
                 </div>
                 {/* Show flag emoji if available */}
                 <div className="text-xs text-muted-foreground mt-1">
-                  {country.code} • {country.searchTerms.slice(0, 3).join(', ')}
+                  {country.code} • {country.wikidataId && `${country.wikidataId} • `}{country.searchTerms.slice(0, 3).join(', ')}
                 </div>
               </button>
             ))
@@ -191,6 +191,10 @@ export default function CountrySelector({
       {/* Show selected country info */}
       {selectedCountry && !isOpen && (
         <div className="mt-1 text-xs text-muted-foreground">
+          {selectedCountry.wikidataId && (
+            <span>🗂️ Wikidata: {selectedCountry.wikidataId}</span>
+          )}
+          {selectedCountry.language && selectedCountry.wikidataId && <span> • </span>}
           {selectedCountry.language && (
             <span>🌐 Wikipedia language: {selectedCountry.language.toUpperCase()}</span>
           )}
