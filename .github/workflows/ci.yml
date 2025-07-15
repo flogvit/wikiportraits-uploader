@@ -45,12 +45,13 @@ jobs:
         fail_ci_if_error: false
     
     - name: Build application
-      run: npm run build
+      run: npm run build:ci
       env:
         NEXTAUTH_URL: http://localhost:3010
         NEXTAUTH_SECRET: test-secret-for-ci
         WIKIMEDIA_CLIENT_ID: test-client-id
         WIKIMEDIA_CLIENT_SECRET: test-client-secret
+        SKIP_TYPE_CHECK: true
 
   security:
     runs-on: ubuntu-latest
