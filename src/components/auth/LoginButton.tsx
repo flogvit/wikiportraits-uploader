@@ -2,6 +2,8 @@
 
 import { useSession, signIn, signOut } from 'next-auth/react'
 import { User, LogIn, LogOut } from 'lucide-react'
+import { clearAuthorWikidataQid } from '@/utils/localStorage'
+import Link from 'next/link'
 
 export default function LoginButton() {
   const { data: session, status } = useSession()
@@ -15,17 +17,24 @@ export default function LoginButton() {
     )
   }
 
+  const handleSignOut = () => {
+    clearAuthorWikidataQid();
+    signOut();
+  };
+
   if (session) {
     return (
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2 px-3 py-2 bg-success/20 rounded-lg">
-          <User className="h-4 w-4 text-success" />
-          <span className="text-sm font-medium text-success">
-            {session.user?.name}
-          </span>
-        </div>
+        <Link href="/profile">
+          <div className="flex items-center space-x-2 px-3 py-2 bg-success/20 rounded-lg hover:bg-success/30 transition-colors cursor-pointer">
+            <User className="h-4 w-4 text-success" />
+            <span className="text-sm font-medium text-success">
+              {session.user?.name}
+            </span>
+          </div>
+        </Link>
         <button
-          onClick={() => signOut()}
+          onClick={handleSignOut}
           className="flex items-center space-x-2 px-3 py-2 bg-destructive/20 hover:bg-destructive/30 rounded-lg transition-colors"
         >
           <LogOut className="h-4 w-4 text-destructive" />
