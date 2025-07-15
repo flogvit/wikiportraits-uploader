@@ -5,6 +5,8 @@ import { setItem, KEYS } from '@/utils/localStorage';
 import { WorkflowFormData } from '../workflow/providers/WorkflowFormProvider';
 import CountrySelector from '@/components/selectors/CountrySelector';
 import ArtistSelector from '@/components/selectors/ArtistSelector';
+import BandMemberSelector from '@/components/selectors/BandMemberSelector';
+import { PendingWikidataEntity } from '@/types/music';
 
 
 interface EventDetailsFormProps {
@@ -17,9 +19,22 @@ export default function EventDetailsForm({
   const { control, watch, setValue } = useFormContext<WorkflowFormData>();
 
   const eventDetails = watch('eventDetails');
+  const pendingWikidataEntities = watch('pendingWikidataEntities') || [];
   const canComplete = eventDetails.festivalName && 
                      eventDetails.year && 
                      eventDetails.selectedBand?.name;
+
+  // Handle adding pending Wikidata entities
+  const handlePendingMemberAdd = (member: PendingWikidataEntity) => {
+    const updatedEntities = [...pendingWikidataEntities, member];
+    setValue('pendingWikidataEntities', updatedEntities);
+  };
+
+  // Handle syncing pending members from localStorage to form state
+  const handlePendingMembersSync = (members: PendingWikidataEntity[]) => {
+    const updatedEntities = [...pendingWikidataEntities, ...members];
+    setValue('pendingWikidataEntities', updatedEntities);
+  };
 
   // Note: Form data is now managed by WorkflowFormProvider
   // No need to update parent component - data flows through unified form context
@@ -159,57 +174,40 @@ export default function EventDetailsForm({
         )}
       </div>
 
-      {/* Author fields for Festival */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Band Members Section */}
+      {eventDetails.selectedBand?.name && (
         <div>
           <label className="block text-sm font-medium text-card-foreground mb-1">
-            Username (optional)
+            Band Members
           </label>
+          <p className="text-sm text-muted-foreground mb-3">
+            Select band members that will be featured in your images. This helps with tagging and categorization.
+          </p>
           <Controller
-            name="eventDetails.authorUsername"
+            name="eventDetails.selectedBandMembers"
             control={control}
             render={({ field }) => (
-              <input
-                {...field}
-                type="text"
-                value={field.value || ''}
-                onChange={(e) => {
-                  field.onChange(e.target.value);
-                  setItem(KEYS.AUTHOR_USERNAME, e.target.value);
-                }}
-                placeholder="YourUsername"
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
+              <BandMemberSelector
+                bandName={eventDetails.selectedBand?.name}
+                bandId={eventDetails.selectedBand?.wikidataUrl?.split('/').pop()}
+                selectedMembers={field.value || []}
+                onMembersChange={field.onChange}
+                onPendingMemberAdd={handlePendingMemberAdd}
+                onPendingMembersSync={handlePendingMembersSync}
+                pendingMembers={pendingWikidataEntities}
+                placeholder="Search and select band members..."
               />
             )}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-card-foreground mb-1">
-            Full Name (optional)
-          </label>
-          <Controller
-            name="eventDetails.authorFullName"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                type="text"
-                value={field.value || ''}
-                onChange={(e) => {
-                  field.onChange(e.target.value);
-                  setItem(KEYS.AUTHOR_FULLNAME, e.target.value);
-                }}
-                placeholder="Your Full Name"
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
-              />
-            )}
-          />
-        </div>
-      </div>
+      )}
 
-      <p className="text-xs text-muted-foreground">
-        Will be formatted as [[User:Username|Full Name]] in Commons
-      </p>
+      {/* Photographer info is now automatically populated from authenticated user's Q-ID */}
+      <div className="p-4 bg-muted/50 rounded-lg border border-border">
+        <p className="text-sm text-muted-foreground">
+          <strong>Photographer:</strong> Images will be automatically attributed to your authenticated photographer profile.
+        </p>
+      </div>
 
       <div className="flex items-center space-x-2">
         <Controller

@@ -9,7 +9,7 @@ import { SoccerMatchMetadata, SoccerPlayer } from '../forms/SoccerMatchForm';
 import { generateSoccerCategories, generateMatchDescription } from '@/utils/soccer-categories';
 import { MusicEventMetadata } from '@/types/music';
 import { generateEventDescription } from '@/utils/music-categories';
-import { getItem, KEYS } from '@/utils/localStorage';
+import { generateAuthorField, getCurrentPhotographerQid } from '@/utils/photographer';
 
 interface FileProcessorProps {
   uploadType: UploadType;
@@ -46,26 +46,15 @@ export class FileProcessor {
       // Generate preview URL
       const preview = URL.createObjectURL(file);
 
-      // Get author info from localStorage
-      const authorUsername = getItem(KEYS.AUTHOR_USERNAME);
-      const authorFullName = getItem(KEYS.AUTHOR_FULLNAME);
-      
-      // Format author field
-      let formattedAuthor = '';
-      if (authorUsername && authorFullName) {
-        formattedAuthor = `[[User:${authorUsername}|${authorFullName}]]`;
-      } else if (authorFullName) {
-        formattedAuthor = authorFullName;
-      } else if (authorUsername) {
-        formattedAuthor = `[[User:${authorUsername}]]`;
-      }
+      // Get author info from authenticated user's Q-ID
+      const wikidataQid = getCurrentPhotographerQid();
+      const formattedAuthor = generateAuthorField(wikidataQid);
 
       // Initial metadata based on upload type
       let initialMetadata = {
         description: '',
         author: formattedAuthor,
-        authorUsername: authorUsername,
-        authorFullName: authorFullName,
+        wikidataQid: wikidataQid,
         date: captureDate,
         time: captureTime,
         dateFromExif: hasExifDate,

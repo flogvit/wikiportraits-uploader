@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import LoginButton from '@/components/auth/LoginButton';
+import AuthWrapper from '@/components/auth/AuthWrapper';
 import UploadTypeSelector, { UploadType } from '@/components/selectors/UploadTypeSelector';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
@@ -14,9 +15,8 @@ export interface ImageFile {
   preview: string;
   metadata: {
     description: string;
-    author: string; // Keep for backwards compatibility, will be generated from username/fullname
-    authorUsername?: string;
-    authorFullName?: string;
+    author: string; // Generated from Q-ID using {{Creator:Q-ID}} format
+    wikidataQid?: string;
     date: string;
     time?: string; // Time portion (HH:MM:SS)
     dateFromExif?: boolean; // Indicates if date came from EXIF data
@@ -43,6 +43,7 @@ export interface ImageFile {
     // Music-specific fields
     musicEvent?: MusicEventMetadata;
     selectedBand?: string; // Band name selected for this specific image
+    selectedBandMembers?: string[]; // Array of band member IDs for this specific image
     // GPS coordinates from EXIF or event location
     gps?: {
       latitude: number;
@@ -69,46 +70,47 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <header className="mb-8">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h1 className="text-4xl font-bold text-foreground mb-2">
-                  WikiPortraits Bulk Uploader
-                </h1>
-                <p className="text-lg text-muted-foreground">
-                  Upload and tag portrait images for Wikimedia Commons
-                </p>
+    <AuthWrapper>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <header className="mb-8">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h1 className="text-4xl font-bold text-foreground mb-2">
+                    WikiPortraits Bulk Uploader
+                  </h1>
+                  <p className="text-lg text-muted-foreground">
+                    Upload and tag portrait images for Wikimedia Commons
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <ThemeToggle />
+                  <LoginButton />
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <ThemeToggle />
-                <LoginButton />
-              </div>
-            </div>
-          </header>
+            </header>
 
-          <div className="space-y-8">
-            <UploadTypeSelector 
-              onTypeSelect={setUploadType}
-              selectedType={uploadType}
-            />
-            
-            <WikimediaWorkflow
-              uploadType={uploadType}
-            />
+            <div className="space-y-8">
+              <UploadTypeSelector 
+                onTypeSelect={setUploadType}
+                selectedType={uploadType}
+              />
+              
+              <WikimediaWorkflow
+                uploadType={uploadType}
+              />
+            </div>
           </div>
         </div>
+
+        <CategoryCreationModal
+          isOpen={showCategoryModal}
+          onClose={() => setShowCategoryModal(false)}
+          categories={categoriesToCreate}
+          onCreateCategories={handleCreateCategories}
+        />
       </div>
-
-
-      <CategoryCreationModal
-        isOpen={showCategoryModal}
-        onClose={() => setShowCategoryModal(false)}
-        categories={categoriesToCreate}
-        onCreateCategories={handleCreateCategories}
-      />
-    </div>
+    </AuthWrapper>
   );
 }

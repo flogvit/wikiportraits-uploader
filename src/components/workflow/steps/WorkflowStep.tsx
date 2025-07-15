@@ -7,6 +7,7 @@ import EventDetailsPane from '../panes/EventDetailsPane';
 import CategoriesPane from '../panes/CategoriesPane';
 import ImagesPane from '../panes/ImagesPane';
 import TemplatesPane from '../panes/TemplatesPane';
+import WikidataPane from '../panes/WikidataPane';
 import UploadPane from '../panes/UploadPane';
 
 export default function WorkflowStep() {
@@ -116,7 +117,11 @@ export default function WorkflowStep() {
         );
 
       case 'wikidata':
-        return renderWikidataPlaceholder();
+        return (
+          <WikidataPane
+            onComplete={() => console.log('Wikidata completed!')}
+          />
+        );
 
       case 'wikipedia':
         return renderWikipediaPlaceholder();

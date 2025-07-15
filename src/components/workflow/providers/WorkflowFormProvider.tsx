@@ -8,7 +8,7 @@ import { ImageFile } from '@/app/page';
 import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
 import { MusicEventMetadata } from '@/types/music';
 import { UploadType } from '@/components/selectors/UploadTypeSelector';
-import { getItem, setItem, KEYS } from '@/utils/localStorage';
+import { setItem, getItem, KEYS, loadSelectedBandMembers, saveSelectedBandMembers, loadAuthorWikidataQid } from '@/utils/localStorage';
 
 // Individual schemas for each section
 const eventDetailsSchema = z.object({
@@ -26,8 +26,8 @@ const eventDetailsSchema = z.object({
     entityType: z.string().optional(),
     source: z.string().optional(),
   }).optional(),
-  authorUsername: z.string().default(''),
-  authorFullName: z.string().default(''),
+  selectedBandMembers: z.array(z.string()).default([]),
+  photographerWikidataId: z.string().default(''),
   addToWikiPortraitsConcerts: z.boolean().default(false),
 });
 
@@ -99,6 +99,9 @@ const workflowFormSchema = z.object({
   
   // Music-specific data
   musicEventData: z.any().optional(), // Keep as any for now to avoid complex typing
+  
+  // Wikidata entity creation
+  pendingWikidataEntities: z.array(z.any()).default([]), // Array of PendingWikidataEntity objects
 });
 
 export type WorkflowFormData = z.infer<typeof workflowFormSchema>;
@@ -107,6 +110,8 @@ export type WorkflowFormData = z.infer<typeof workflowFormSchema>;
 const loadStoredEventDetails = () => {
   const bandId = getItem(KEYS.FESTIVAL_BAND_ID);
   const bandName = getItem(KEYS.FESTIVAL_BAND_NAME);
+  const currentBandId = bandId || `pending-band-${bandName}`;
+  const photographerWikidataId = loadAuthorWikidataQid();
   
   return {
     festivalName: getItem(KEYS.FESTIVAL_NAME),
@@ -121,11 +126,13 @@ const loadStoredEventDetails = () => {
       musicbrainzId: getItem(KEYS.FESTIVAL_BAND_MUSICBRAINZ),
       country: getItem(KEYS.FESTIVAL_BAND_COUNTRY),
     } : undefined,
-    authorUsername: getItem(KEYS.AUTHOR_USERNAME),
-    authorFullName: getItem(KEYS.AUTHOR_FULLNAME),
+    selectedBandMembers: currentBandId ? loadSelectedBandMembers(currentBandId) : [],
+    // Author info is automatically populated from authenticated user's Q-ID
+    photographerWikidataId,
     addToWikiPortraitsConcerts: false,
   };
 };
+
 
 interface WorkflowFormContextType {
   form: UseFormReturn<WorkflowFormData>;
@@ -165,8 +172,8 @@ export function WorkflowFormProvider({
     location: musicEventData.festivalData.festival?.location || '',
     country: musicEventData.festivalData.festival?.country || '',
     selectedBand: musicEventData.festivalData.selectedBands?.[0],
-    authorUsername: musicEventData.festivalData.authorUsername || '',
-    authorFullName: musicEventData.festivalData.authorFullName || '',
+    selectedBandMembers: storedEventDetails.selectedBandMembers, // Always use stored band members
+    photographerWikidataId: storedEventDetails.photographerWikidataId, // Always use stored Q-ID
     addToWikiPortraitsConcerts: musicEventData.festivalData.addToWikiPortraitsConcerts || false,
   } : storedEventDetails;
 
@@ -223,8 +230,7 @@ export function WorkflowFormProvider({
           if (eventDetails.year) setItem(KEYS.FESTIVAL_YEAR, eventDetails.year);
           if (eventDetails.location) setItem(KEYS.FESTIVAL_LOCATION, eventDetails.location);
           if (eventDetails.country) setItem(KEYS.FESTIVAL_COUNTRY, eventDetails.country);
-          if (eventDetails.authorUsername) setItem(KEYS.AUTHOR_USERNAME, eventDetails.authorUsername);
-          if (eventDetails.authorFullName) setItem(KEYS.AUTHOR_FULLNAME, eventDetails.authorFullName);
+          // Author info is handled by Q-ID only - no need to save username/fullname
           
           // Save band info
           if (eventDetails.selectedBand) {
@@ -236,12 +242,23 @@ export function WorkflowFormProvider({
             if (band.musicbrainzId) setItem(KEYS.FESTIVAL_BAND_MUSICBRAINZ, band.musicbrainzId);
             if (band.country) setItem(KEYS.FESTIVAL_BAND_COUNTRY, band.country);
           }
+          
+          // Save selected band members
+          if (eventDetails.selectedBandMembers && eventDetails.selectedBand) {
+            const currentBandId = eventDetails.selectedBand.id || `pending-band-${eventDetails.selectedBand.name}`;
+            if (currentBandId) {
+              saveSelectedBandMembers(currentBandId, eventDetails.selectedBandMembers);
+            }
+          }
         }
       }
     });
     
     return () => subscription.unsubscribe();
   }, [form]);
+
+  // Photographer details are fetched on-demand from Q-ID when needed
+  // No need to pre-populate form fields
 
   const updateImageMetadata = (imageId: string, metadata: Partial<z.infer<typeof imageMetadataSchema>>) => {
     const currentImages = form.getValues('imageMetadata');

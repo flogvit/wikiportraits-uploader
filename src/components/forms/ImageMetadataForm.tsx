@@ -6,11 +6,12 @@ import { z } from 'zod';
 import { useEffect, useMemo } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { ImageFile } from '@/app/page';
-import { MusicEventMetadata } from '@/types/music';
+import { MusicEventMetadata, BandMember } from '@/types/music';
 import { updateImageWikitext, regenerateImageWikitext } from '@/utils/commons-template';
 import { extractCategoriesFromWikitext } from '@/utils/category-extractor';
 import CommonsPreview from '../image/CommonsPreview';
 import CategoryForm from './CategoryForm';
+import ImageBandMemberTagger from '../image/ImageBandMemberTagger';
 
 const metadataSchema = z.object({
   description: z.string().optional(),
@@ -194,6 +195,23 @@ export default function ImageMetadataForm({
     setValue('categories', categories);
     handleMetadataChange('categories', categories);
   };
+
+  const handleBandMembersChange = (imageId: string, memberIds: string[]) => {
+    onUpdate(imageId, { selectedBandMembers: memberIds });
+  };
+
+  // Get available band members from music event data
+  const availableMembers: BandMember[] = useMemo(() => {
+    if (musicEventData?.eventType === 'festival' && musicEventData.festivalData?.selectedBands) {
+      return musicEventData.festivalData.selectedBands.flatMap(band => band.members || []);
+    }
+    if (musicEventData?.eventType === 'concert' && musicEventData.concertData?.concert.artist) {
+      // For concerts, we might need to fetch members of the main artist if it's a band
+      // For now, return empty array - this can be expanded later
+      return [];
+    }
+    return [];
+  }, [musicEventData]);
 
   return (
     <div className="space-y-4">
@@ -404,6 +422,17 @@ export default function ImageMetadataForm({
         categories={watchedData.categories || []}
         onCategoriesChange={handleCategoriesChange}
       />
+
+      {/* Band Members Tagger */}
+      {availableMembers.length > 0 && (
+        <div className="pt-4 border-t border-border">
+          <ImageBandMemberTagger
+            image={image}
+            availableMembers={availableMembers}
+            onMembersChange={handleBandMembersChange}
+          />
+        </div>
+      )}
 
       {/* Template Editor */}
       <div className="pt-4 border-t border-border">
