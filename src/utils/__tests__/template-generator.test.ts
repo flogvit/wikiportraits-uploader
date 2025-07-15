@@ -24,6 +24,7 @@ describe('template-generator utility', () => {
     homeTeam: 'Test Team',
     awayTeam: 'Other Team', 
     date: '2024-01-01',
+    venue: 'Test Stadium',
     competition: 'Test League'
   }
 
