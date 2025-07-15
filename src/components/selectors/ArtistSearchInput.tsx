@@ -10,20 +10,8 @@ interface ArtistSearchInputProps {
   selectedArtist?: { name: string } | null;
   onClearSelection: () => void;
   onFocus: () => void;
-  selectedLanguage: string;
-  onLanguageChange: (language: string) => void;
 }
 
-const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'no', name: 'Norwegian', flag: '🇳🇴' },
-  { code: 'da', name: 'Danish', flag: '🇩🇰' },
-  { code: 'sv', name: 'Swedish', flag: '🇸🇪' },
-  { code: 'de', name: 'German', flag: '🇩🇪' },
-  { code: 'fr', name: 'French', flag: '🇫🇷' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
-  { code: 'it', name: 'Italian', flag: '🇮🇹' }
-];
 
 export default function ArtistSearchInput({
   searchQuery,
@@ -32,28 +20,15 @@ export default function ArtistSearchInput({
   isSearching,
   selectedArtist,
   onClearSelection,
-  onFocus,
-  selectedLanguage,
-  onLanguageChange
+  onFocus
 }: ArtistSearchInputProps) {
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2">
         <label className="block text-sm font-medium text-muted-foreground">
           <Search className="w-4 h-4 inline mr-1" />
           Artist
         </label>
-        <select
-          value={selectedLanguage}
-          onChange={(e) => onLanguageChange(e.target.value)}
-          className="text-xs px-2 py-1 border border-border rounded focus:outline-none focus:ring-1 focus:ring-accent"
-        >
-          {languages.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.flag} {lang.name}
-            </option>
-          ))}
-        </select>
       </div>
       
       <div className="relative">
@@ -80,7 +55,7 @@ export default function ArtistSearchInput({
       {isSearching && (
         <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-10 p-2">
           <div className="text-sm text-muted-foreground text-center">
-            Searching Wikidata & {languages.find(l => l.code === selectedLanguage)?.flag} {languages.find(l => l.code === selectedLanguage)?.name} Wikipedia...
+            Searching Wikidata...
           </div>
         </div>
       )}

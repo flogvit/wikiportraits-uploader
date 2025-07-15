@@ -28,31 +28,20 @@ interface ArtistSelectorProps {
   placeholder?: string;
   label?: string;
   type?: 'artist' | 'band';
-  defaultLanguage?: string;
-  currentLanguage?: string;
 }
 
 export default function ArtistSelector({
   onArtistSelect,
   selectedArtist,
   placeholder = "Search for artist...",
-  label = "Artist",
-  defaultLanguage = 'en',
-  currentLanguage
+  label = "Artist"
 }: ArtistSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UnifiedArtistResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState(currentLanguage || defaultLanguage);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Update selected language when currentLanguage prop changes
-  useEffect(() => {
-    if (currentLanguage) {
-      setSelectedLanguage(currentLanguage);
-    }
-  }, [currentLanguage]);
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
@@ -71,7 +60,7 @@ export default function ArtistSelector({
   const searchArtists = useCallback(async (query: string) => {
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/music/artist-search?q=${encodeURIComponent(query)}&limit=8&lang=${selectedLanguage}`);
+      const response = await fetch(`/api/music/artist-search?q=${encodeURIComponent(query)}&limit=8&wikidata_only=true`);
       const data = await response.json();
       
       if (data.results) {
@@ -84,7 +73,7 @@ export default function ArtistSelector({
     } finally {
       setIsSearching(false);
     }
-  }, [selectedLanguage]);
+  }, []);
 
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
@@ -104,7 +93,7 @@ export default function ArtistSelector({
     }, 300);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchQuery, selectedLanguage, searchArtists, selectedArtist]);
+  }, [searchQuery, searchArtists, selectedArtist]);
 
   const handleResultSelect = (result: UnifiedArtistResult) => {
     const artist: MusicArtist = {
@@ -145,11 +134,6 @@ export default function ArtistSelector({
     setShowResults(false);
   };
 
-  const handleLanguageChange = (language: string) => {
-    setSelectedLanguage(language);
-    setSearchResults([]);
-    setShowResults(false);
-  };
 
   const handleFocus = () => {
     if (searchResults.length > 0) {
@@ -167,14 +151,11 @@ export default function ArtistSelector({
         selectedArtist={selectedArtist}
         onClearSelection={clearSelection}
         onFocus={handleFocus}
-        selectedLanguage={selectedLanguage}
-        onLanguageChange={handleLanguageChange}
       />
 
       <ArtistResultsList
         results={searchResults}
         searchQuery={searchQuery}
-        selectedLanguage={selectedLanguage}
         onResultSelect={handleResultSelect}
         onManualEntry={handleManualEntry}
         showResults={showResults}

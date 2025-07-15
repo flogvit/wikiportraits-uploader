@@ -21,32 +21,19 @@ interface UnifiedArtistResult {
 interface ArtistResultsListProps {
   results: UnifiedArtistResult[];
   searchQuery: string;
-  selectedLanguage: string;
   onResultSelect: (result: UnifiedArtistResult) => void;
   onManualEntry: () => void;
   showResults: boolean;
 }
 
-const languages = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'no', name: 'Norwegian', flag: '🇳🇴' },
-  { code: 'da', name: 'Danish', flag: '🇩🇰' },
-  { code: 'sv', name: 'Swedish', flag: '🇸🇪' },
-  { code: 'de', name: 'German', flag: '🇩🇪' },
-  { code: 'fr', name: 'French', flag: '🇫🇷' },
-  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
-  { code: 'it', name: 'Italian', flag: '🇮🇹' }
-];
 
 export default function ArtistResultsList({
   results,
   searchQuery,
-  selectedLanguage,
   onResultSelect,
   onManualEntry,
   showResults
 }: ArtistResultsListProps) {
-  const selectedLang = languages.find(l => l.code === selectedLanguage);
 
   if (!showResults) return null;
 
@@ -54,7 +41,7 @@ export default function ArtistResultsList({
     return (
       <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-10 max-h-80 overflow-y-auto">
         <div className="px-3 py-2 bg-muted border-b text-xs text-muted-foreground">
-          🌐 Wikidata & {selectedLang?.flag} {selectedLang?.name} Wikipedia Results
+          🌐 Wikidata Results
         </div>
         {results.map((result) => (
           <button
@@ -130,7 +117,7 @@ export default function ArtistResultsList({
   if (searchQuery.length >= 2) {
     return (
       <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-10 p-4">
-        <div className="text-sm text-muted-foreground text-center mb-3">No Wikipedia results found</div>
+        <div className="text-sm text-muted-foreground text-center mb-3">No Wikidata results found</div>
         <button
           onMouseDown={(e) => {
             e.preventDefault();
