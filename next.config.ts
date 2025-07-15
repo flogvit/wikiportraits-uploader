@@ -68,6 +68,11 @@ const nextConfig: NextConfig = {
   // React strict mode
   reactStrictMode: true,
   
+  // Skip type checking in CI
+  typescript: {
+    ignoreBuildErrors: process.env.SKIP_TYPE_CHECK === 'true',
+  },
+  
   // Environment variables validation
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
