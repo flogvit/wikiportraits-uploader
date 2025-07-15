@@ -1,4 +1,5 @@
 import { MusicEventMetadata, FestivalMetadata, ConcertMetadata, MusicArtist } from '@/types/music';
+import { CategoryCreationInfo } from '@/types/categories';
 
 // Helper function to get the correct Wikipedia page name for bands/artists
 function getWikipediaPageName(bandName: string, wikipediaUrl?: string): string {

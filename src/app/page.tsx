@@ -8,6 +8,7 @@ import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import WikimediaWorkflow from '@/components/workflow/workflows/WikimediaWorkflow';
 import { CategoryCreationInfo } from '@/utils/soccer-categories';
+import { MusicEventMetadata } from '@/types/music';
 
 export interface ImageFile {
   id: string;

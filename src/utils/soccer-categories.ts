@@ -1,4 +1,5 @@
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/workflow/SoccerMatchWorkflow';
+import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
+import { CategoryCreationInfo } from '@/types/categories';
 
 export interface SoccerCategoryOptions {
   matchData: SoccerMatchMetadata;
