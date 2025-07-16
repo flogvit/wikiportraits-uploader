@@ -1,13 +1,7 @@
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
+import { SoccerMatchMetadata, SoccerPlayer, SoccerCategoryOptions } from '@/types/soccer';
 import { CategoryCreationInfo } from '@/types/categories';
 
-export interface SoccerCategoryOptions {
-  matchData: SoccerMatchMetadata;
-  selectedPlayers: SoccerPlayer[];
-  includePlayerCategories?: boolean;
-  includeTeamCategories?: boolean;
-  includeMatchCategories?: boolean;
-}
+export type { SoccerCategoryOptions } from '@/types/soccer';
 
 export type { CategoryCreationInfo } from '@/types/categories';
 

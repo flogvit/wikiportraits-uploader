@@ -1,10 +1,6 @@
-export interface Country {
-  name: string;
-  code: string;
-  searchTerms: string[];
-  language?: string;
-  wikidataId?: string; // Q-code for Wikidata
-}
+import { Country } from '@/types/common';
+
+export type { Country } from '@/types/common';
 
 export const COUNTRIES: Country[] = [
   // Nordic countries

@@ -1,22 +1,7 @@
 import { parse } from 'exifr';
+import { ExifData } from '@/types/common';
 
-export interface ExifData {
-  dateTime?: Date;
-  make?: string;
-  model?: string;
-  orientation?: number;
-  width?: number;
-  height?: number;
-  iso?: number;
-  fNumber?: number;
-  exposureTime?: number;
-  focalLength?: number;
-  flash?: boolean;
-  gps?: {
-    latitude?: number;
-    longitude?: number;
-  };
-}
+export type { ExifData } from '@/types/common';
 
 /**
  * Extract EXIF metadata from an image file

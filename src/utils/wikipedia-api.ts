@@ -1,4 +1,4 @@
-import { getToken } from 'next-auth/jwt';
+// import { getToken } from 'next-auth/jwt';
 
 const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)';
 

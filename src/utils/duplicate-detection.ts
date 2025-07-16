@@ -1,10 +1,7 @@
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types/upload';
+import { DuplicateInfo } from '@/types/common';
 
-export interface DuplicateInfo {
-  file: File;
-  duplicateOf: string; // ID of existing image
-  reason: 'identical' | 'sameName' | 'similarSize';
-}
+export type { DuplicateInfo } from '@/types/common';
 
 export function detectDuplicates(
   newFiles: File[], 

@@ -1,4 +1,4 @@
-import { getToken } from 'next-auth/jwt';
+// import { getToken } from 'next-auth/jwt';
 
 const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php';
 const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)';

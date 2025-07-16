@@ -72,7 +72,7 @@ export function generateTemplate(
   soccerMatchData?: SoccerMatchMetadata | null,
   language: string = 'en'
 ): string {
-  const templateName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
+  const _templateName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
   const title = generateTemplateTitle(uploadType, musicEventData, soccerMatchData, language);
   const categoryName = generateCategoryName(uploadType, musicEventData, soccerMatchData);
   const accentColor = generateAccentColor(uploadType);

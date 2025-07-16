@@ -112,6 +112,17 @@ export const loadSelectedBandMembers = (bandId: string): string[] => {
   return getJsonItem(key, []);
 };
 
+export const clearBandMemberData = (bandId: string) => {
+  if (!bandId) return;
+  const bandMembersKey = `${KEYS.BAND_MEMBERS}-${bandId}`;
+  const pendingMembersKey = `${KEYS.PENDING_BAND_MEMBERS}-${bandId}`;
+  const selectedMembersKey = `${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`;
+  
+  removeItem(bandMembersKey);
+  removeItem(pendingMembersKey);
+  removeItem(selectedMembersKey);
+};
+
 // Author utilities - Q-ID only, names fetched from Wikidata
 export const saveAuthorWikidataQid = (qid: string) => {
   setItem(KEYS.AUTHOR_WIKIDATA_QID, qid);

@@ -2,25 +2,9 @@
  * Commons API utilities for CSRF token management and file uploads
  */
 
-export interface CSRFTokenResponse {
-  query: {
-    tokens: {
-      csrftoken: string;
-    };
-  };
-}
+import { CSRFTokenResponse, UploadResponse } from '@/types/common';
 
-export interface UploadResponse {
-  upload: {
-    result: string;
-    filename?: string;
-    warnings?: Record<string, string>;
-    error?: {
-      code: string;
-      info: string;
-    };
-  };
-}
+export type { CSRFTokenResponse, UploadResponse } from '@/types/common';
 
 /**
  * Fetches CSRF token from Commons API
