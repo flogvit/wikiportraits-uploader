@@ -84,7 +84,7 @@ export interface MusicEventMetadata {
 // Pending Wikidata entity creation
 export interface PendingWikidataEntity {
   id: string; // Temporary ID for tracking
-  type: 'band' | 'band_member';
+  type: 'band' | 'band_member' | 'artist';
   status: 'pending' | 'creating' | 'created' | 'failed';
   name: string;
   description?: string;
@@ -112,6 +112,7 @@ export interface PendingBandMemberData {
   gender?: 'male' | 'female' | 'non-binary gender' | 'trans man' | 'trans woman';
   birthYear?: string; // Birth year for P569 (date of birth)
   bandId?: string; // ID of the band (existing or pending)
+  isBandMember?: boolean; // Whether this artist is a band member or guest/other
 }
 
 export interface WikidataCreationPlan {
