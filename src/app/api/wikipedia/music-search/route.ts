@@ -4,6 +4,7 @@ interface WikipediaSearchResult {
   title: string;
   snippet: string;
   pageid: number;
+  description?: string;
 }
 
 interface WikipediaCategory {

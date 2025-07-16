@@ -26,12 +26,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Team not found' }, { status: 404 });
     }
 
-    const page = Object.values(pageData.query.pages)[0] as any;
+    const page = Object.values(pageData.query.pages)[0] as Record<string, unknown>;
     const categories = page.categories || [];
 
     // Look for player categories with more comprehensive patterns
     const playerCategories = categories
-      .map((cat: any) => cat.title)
+      .map((cat: Record<string, unknown>) => cat.title)
       .filter((title: string) => {
         const lowerTitle = title.toLowerCase();
         return lowerTitle.includes('players') || 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       playerCategories.push(...possibleCategories);
     }
 
-    let allPlayers: any[] = [];
+    const allPlayers: unknown[] = [];
 
     // Get players from each relevant category
     for (const categoryTitle of playerCategories.slice(0, 3)) { // Limit to first 3 categories
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         const membersData = await membersResponse.json();
 
         if (membersData.query && membersData.query.categorymembers) {
-          const players = membersData.query.categorymembers.map((member: any) => ({
+          const players = membersData.query.categorymembers.map((member: Record<string, unknown>) => ({
             id: member.title.replace(/\s+/g, '_'),
             name: member.title,
             wikipedia_title: member.title,

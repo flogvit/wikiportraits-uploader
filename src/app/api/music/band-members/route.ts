@@ -50,11 +50,10 @@ async function fetchBandMembersById(bandId: string): Promise<BandMember[]> {
 
   // Check P527 (has part) for direct member listing
   const memberClaims = entity.claims?.P527 || [];
-  const memberIds = memberClaims.map((claim: any) => claim.mainsnak.datavalue?.value?.id).filter(Boolean);
-
-  if (memberIds.length > 0) {
-    console.log(`Found ${memberIds.length} members via P527 for band ${bandId}`);
-    return fetchMemberDetails(memberIds);
+  
+  if (memberClaims.length > 0) {
+    console.log(`Found ${memberClaims.length} members via P527 for band ${bandId}`);
+    return fetchMemberDetailsWithRoles(memberClaims);
   }
 
   // Approach 2: Try SPARQL reverse lookup for P463 (member of)
@@ -107,6 +106,138 @@ async function fetchBandMembersById(bandId: string): Promise<BandMember[]> {
   return getDemoMembers(bandId);
 }
 
+async function fetchMemberDetailsWithRoles(memberClaims: unknown[]): Promise<BandMember[]> {
+  // Extract member IDs and role information from P527 claims
+  const memberData: Array<{
+    id: string;
+    roles: string[];
+    startTime?: string;
+    endTime?: string;
+  }> = [];
+
+  // Collect all role IDs to resolve in batch
+  const roleIds = new Set<string>();
+
+  memberClaims.forEach((claim: unknown) => {
+    const memberId = claim.mainsnak.datavalue?.value?.id;
+    if (!memberId) return;
+
+    const roles: string[] = [];
+    const qualifiers = claim.qualifiers || {};
+    
+    // Extract roles from P3831 (object of statement has role)
+    const roleClaims = qualifiers.P3831 || [];
+    roleClaims.forEach((roleClaim: unknown) => {
+      const roleId = roleClaim.datavalue?.value?.id;
+      if (roleId) {
+        roles.push(roleId);
+        roleIds.add(roleId);
+      }
+    });
+
+    // Extract time qualifiers
+    const startTimeClaims = qualifiers.P580 || [];
+    const endTimeClaims = qualifiers.P582 || [];
+    
+    const startTime = startTimeClaims[0]?.datavalue?.value?.time;
+    const endTime = endTimeClaims[0]?.datavalue?.value?.time;
+
+    memberData.push({
+      id: memberId,
+      roles,
+      startTime: startTime ? new Date(startTime).getFullYear().toString() : undefined,
+      endTime: endTime ? new Date(endTime).getFullYear().toString() : undefined
+    });
+  });
+
+  // Resolve role names if we have any
+  const roleNames: { [key: string]: string } = {};
+  if (roleIds.size > 0) {
+    const roleUrl = new URL('https://www.wikidata.org/w/api.php');
+    roleUrl.searchParams.set('action', 'wbgetentities');
+    roleUrl.searchParams.set('ids', Array.from(roleIds).join('|'));
+    roleUrl.searchParams.set('props', 'labels');
+    roleUrl.searchParams.set('languages', 'en');
+    roleUrl.searchParams.set('format', 'json');
+
+    try {
+      const roleResponse = await fetch(roleUrl.toString());
+      if (roleResponse.ok) {
+        const roleData = await roleResponse.json();
+        Object.keys(roleData.entities).forEach(id => {
+          const entity = roleData.entities[id];
+          roleNames[id] = entity.labels?.en?.value || id;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to resolve role names:', error);
+    }
+  }
+
+  // Fetch member details
+  const memberIds = memberData.map(m => m.id);
+  const membersEntityUrl = new URL('https://www.wikidata.org/w/api.php');
+  membersEntityUrl.searchParams.set('action', 'wbgetentities');
+  membersEntityUrl.searchParams.set('ids', memberIds.join('|'));
+  membersEntityUrl.searchParams.set('props', 'labels|descriptions|claims|sitelinks');
+  membersEntityUrl.searchParams.set('languages', 'en');
+  membersEntityUrl.searchParams.set('format', 'json');
+
+  const membersResponse = await fetch(membersEntityUrl.toString());
+  if (!membersResponse.ok) {
+    return [];
+  }
+
+  const membersData = await membersResponse.json();
+  const members: BandMember[] = [];
+
+  memberData.forEach(memberInfo => {
+    const entity = membersData.entities[memberInfo.id];
+    if (!entity) return;
+
+    // Get the member name
+    const name = entity.labels?.en?.value || memberInfo.id;
+    
+    // Convert role IDs to names
+    const instruments = memberInfo.roles.map(roleId => roleNames[roleId] || roleId);
+    
+    // Get birth date from P569 (date of birth)
+    const birthDateClaims = entity.claims?.P569 || [];
+    const birthDate = birthDateClaims[0]?.mainsnak.datavalue?.value?.time;
+    
+    // Get nationality from P27 (country of citizenship)
+    const nationalityClaims = entity.claims?.P27 || [];
+    const nationalityId = nationalityClaims[0]?.mainsnak.datavalue?.value?.id;
+    
+    // Get image from P18 (image)
+    const imageClaims = entity.claims?.P18 || [];
+    const imageUrl = imageClaims[0]?.mainsnak.datavalue?.value;
+    
+    // Get Wikipedia URL from sitelinks
+    const sitelinks = entity.sitelinks || {};
+    const wikipediaUrl = sitelinks.enwiki ? 
+      `https://en.wikipedia.org/wiki/${encodeURIComponent(sitelinks.enwiki.title)}` : 
+      undefined;
+    
+    members.push({
+      id: memberInfo.id,
+      name,
+      wikidataUrl: `https://www.wikidata.org/wiki/${memberInfo.id}`,
+      wikipediaUrl,
+      instruments: instruments.length > 0 ? instruments : undefined,
+      birthDate: birthDate ? new Date(birthDate).getFullYear().toString() : undefined,
+      nationality: nationalityId, // This would need to be resolved to a human name
+      imageUrl: imageUrl ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageUrl}` : undefined,
+      // Add band-specific time period
+      memberFrom: memberInfo.startTime,
+      memberTo: memberInfo.endTime
+    });
+  });
+
+  return members;
+}
+
+/*
 async function fetchMemberDetails(memberIds: string[]): Promise<BandMember[]> {
   const membersEntityUrl = new URL('https://www.wikidata.org/w/api.php');
   membersEntityUrl.searchParams.set('action', 'wbgetentities');
@@ -121,10 +252,11 @@ async function fetchMemberDetails(memberIds: string[]): Promise<BandMember[]> {
   }
 
   const membersData = await membersResponse.json();
-  return processMembersFromEntityData(membersData.entities);
+  return await processMembersFromEntityData(membersData.entities);
 }
+*/
 
-function getDemoMembers(bandId: string): BandMember[] {
+function getDemoMembers(_bandId: string): BandMember[] {
   // No fallback demo data - return empty array
   return [];
 }
@@ -155,8 +287,46 @@ async function fetchBandMembersByName(bandName: string): Promise<BandMember[]> {
   return fetchBandMembersById(bandId);
 }
 
-function processMembersFromEntityData(entities: any): BandMember[] {
+async function processMembersFromEntityData(entities: Record<string, unknown>): Promise<BandMember[]> {
   const members: BandMember[] = [];
+
+  // Collect all instrument IDs to resolve in batch
+  const instrumentIds = new Set<string>();
+  
+  Object.keys(entities).forEach(entityId => {
+    const entity = entities[entityId];
+    const instrumentClaims = entity.claims?.P1303 || [];
+    instrumentClaims.forEach((claim: unknown) => {
+      const instrumentId = claim.mainsnak.datavalue?.value?.id;
+      if (instrumentId) {
+        instrumentIds.add(instrumentId);
+      }
+    });
+  });
+
+  // Resolve instrument names if we have any
+  const instrumentNames: { [key: string]: string } = {};
+  if (instrumentIds.size > 0) {
+    const instrumentUrl = new URL('https://www.wikidata.org/w/api.php');
+    instrumentUrl.searchParams.set('action', 'wbgetentities');
+    instrumentUrl.searchParams.set('ids', Array.from(instrumentIds).join('|'));
+    instrumentUrl.searchParams.set('props', 'labels');
+    instrumentUrl.searchParams.set('languages', 'en');
+    instrumentUrl.searchParams.set('format', 'json');
+
+    try {
+      const instrumentResponse = await fetch(instrumentUrl.toString());
+      if (instrumentResponse.ok) {
+        const instrumentData = await instrumentResponse.json();
+        Object.keys(instrumentData.entities).forEach(id => {
+          const entity = instrumentData.entities[id];
+          instrumentNames[id] = entity.labels?.en?.value || id;
+        });
+      }
+    } catch (error) {
+      console.error('Failed to resolve instrument names:', error);
+    }
+  }
 
   Object.keys(entities).forEach(entityId => {
     const entity = entities[entityId];
@@ -168,11 +338,11 @@ function processMembersFromEntityData(entities: any): BandMember[] {
     const instrumentClaims = entity.claims?.P1303 || [];
     const instruments: string[] = [];
     
-    instrumentClaims.forEach((claim: any) => {
+    instrumentClaims.forEach((claim: unknown) => {
       const instrumentId = claim.mainsnak.datavalue?.value?.id;
       if (instrumentId) {
-        // For now, add the ID - we could enhance this to resolve to names
-        instruments.push(instrumentId);
+        // Use resolved name or fall back to ID
+        instruments.push(instrumentNames[instrumentId] || instrumentId);
       }
     });
     
@@ -209,7 +379,7 @@ function processMembersFromEntityData(entities: any): BandMember[] {
   return members;
 }
 
-function processSparqlBandMembersData(bindings: any[]): BandMember[] {
+function processSparqlBandMembersData(bindings: unknown[]): BandMember[] {
   const memberMap = new Map<string, BandMember>();
 
   bindings.forEach((binding) => {

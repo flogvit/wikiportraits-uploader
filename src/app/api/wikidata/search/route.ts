@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchWikidataEntities, getWikidataEntity, hasClaimValue } from '@/utils/wikidata';
 
+/*
 interface WikidataSearchResult {
   id: string;
   label: string;
@@ -9,10 +10,13 @@ interface WikidataSearchResult {
   conceptUri: string;
   url: string;
 }
+*/
 
+/*
 interface WikidataSearchResponse {
   search: WikidataSearchResult[];
 }
+*/
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,7 +66,7 @@ export async function GET(request: NextRequest) {
     const sortedResults = enhancedResults.sort((a, b) => a.priority - b.priority);
 
     return NextResponse.json({
-      results: sortedResults.map(({ priority: _unused, ...item }) => item)
+      results: sortedResults.map(({ priority: _, ...item }) => item)
     });
   } catch (error) {
     console.error('Wikidata search error:', error);

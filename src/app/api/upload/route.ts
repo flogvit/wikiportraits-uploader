@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { fetchCSRFToken, uploadFileInChunks } from '@/utils/commons-api';
 import { generateCommonsTemplate, generateFilename } from '@/utils/commons-template';
-import type { ImageFile } from '@/app/page';
+import type { ImageFile } from '@/types';
 
 export async function POST(request: NextRequest) {
   try {

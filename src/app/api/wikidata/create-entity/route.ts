@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PendingWikidataEntity, PendingBandData, PendingBandMemberData } from '@/types/music';
-import { createWikidataEntity, getEditToken, getUserPermissions } from '@/utils/wikidata';
+import { PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
+import { createWikidataEntity, getUserPermissions } from '@/utils/wikidata';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,7 +38,7 @@ function validateEntity(entity: PendingWikidataEntity): { valid: boolean; error?
   return { valid: true };
 }
 
-async function createWikidataEntity(entity: PendingWikidataEntity, accessToken: string) {
+async function createWikidataEntityRequest(entity: PendingWikidataEntity, accessToken: string) {
   console.log('Creating Wikidata entity on test.wikidata.org:', entity);
   
   // Build the entity data based on type
@@ -47,7 +47,7 @@ async function createWikidataEntity(entity: PendingWikidataEntity, accessToken: 
     entityData = await createBandEntity(entity);
   } else if (entity.type === 'band_member') {
     entityData = await createBandMemberEntity(entity);
-  } else if (entity.type === 'photographer') {
+  } else if (entity.type === 'artist') {
     entityData = await createPhotographerEntity(entity);
   }
 
@@ -59,7 +59,7 @@ async function createWikidataEntity(entity: PendingWikidataEntity, accessToken: 
     console.log('User permissions:', permissions);
     
     // Create the entity using utility
-    const result = await createWikidataEntity(entityData, accessToken);
+    const result = await createWikidataEntityRequest(entityData, accessToken);
     console.log('Wikidata API response:', result);
     
     if (result.success && result.entity) {
@@ -323,7 +323,7 @@ function getGenderId(gender?: string): string {
 }
 
 async function createPhotographerEntity(entity: PendingWikidataEntity) {
-  const photographerData = entity.data as Record<string, unknown>;
+  const photographerData = entity.data as unknown as Record<string, unknown>;
   
   // Minimum viable photographer entity based on Q135336656 structure
   const entityStructure = {
@@ -427,6 +427,7 @@ async function createPhotographerEntity(entity: PendingWikidataEntity) {
 }
 
 // Helper function to map language names to Wikidata IDs
+/*
 function getLanguageId(language: string): string {
   const languageMap: { [key: string]: string } = {
     'english': 'Q1860',
@@ -452,6 +453,7 @@ function getLanguageId(language: string): string {
   
   return languageMap[language.toLowerCase()] || 'Q1860'; // Default to English
 }
+*/
 
 // Batch creation endpoint
 export async function PATCH(request: NextRequest) {
@@ -467,7 +469,7 @@ export async function PATCH(request: NextRequest) {
     // Process entities in sequence to avoid rate limiting
     for (const entity of entities) {
       try {
-        const result = await createWikidataEntity(entity, accessToken);
+        const result = await createWikidataEntityRequest(entity, accessToken);
         results.push({
           entityId: entity.id,
           success: true,
