@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Eye, Code, Copy, Check } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { generateCommonsWikitext, generateFilename } from '@/utils/commons-template';
 
 interface CommonsPreviewProps {

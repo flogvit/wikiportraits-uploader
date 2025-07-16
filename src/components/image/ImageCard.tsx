@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { MusicEventMetadata } from '@/types/music';
 import { generateFilename } from '@/utils/commons-template';
 import ImagePreview from './ImagePreview';

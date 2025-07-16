@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Search, User, Plus, Check, Camera, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Search, Plus, Check, Camera, AlertCircle, ArrowLeft } from 'lucide-react';
 import { saveAuthorWikidataQid, loadAuthorWikidataQid } from '@/utils/localStorage';
 import LoginButton from '@/components/auth/LoginButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';

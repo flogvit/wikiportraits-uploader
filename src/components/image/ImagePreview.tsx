@@ -2,7 +2,7 @@
 
 import { X } from 'lucide-react';
 import { ImageFile } from '@/app/page';
-import { generateFilename } from '@/utils/commons-template';
+// import { generateFilename } from '@/utils/commons-template';
 import { MusicEventMetadata } from '@/types/music';
 
 interface ImagePreviewProps {
@@ -15,7 +15,6 @@ interface ImagePreviewProps {
 
 export default function ImagePreview({ 
   image, 
-  index, 
   onImageClick, 
   onRemove,
   musicEventData 

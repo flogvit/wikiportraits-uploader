@@ -9,6 +9,7 @@ import FileDropzone from './FileDropzone';
 import { FileProcessor } from './FileProcessor';
 import { useDuplicateHandler } from './DuplicateHandler';
 import DuplicateWarningModal from '../modals/DuplicateWarningModal';
+import SoccerMatchWorkflow from '../workflow/workflows/SoccerMatchWorkflow';
 
 interface ImageUploaderProps {
   onImagesAdded: (images: ImageFile[]) => void;
@@ -28,8 +29,7 @@ export default function ImageUploader({
   soccerMatchData, 
   selectedPlayers = [], 
   musicEventData, 
-  onSoccerDataUpdate, 
-  onMusicEventUpdate 
+  onSoccerDataUpdate 
 }: ImageUploaderProps) {
   const {
     duplicates,

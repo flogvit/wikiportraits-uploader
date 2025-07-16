@@ -12,7 +12,7 @@ interface AuthWrapperProps {
 }
 
 export default function AuthWrapper({ children }: AuthWrapperProps) {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [needsOnboarding, setNeedsOnboarding] = useState(true);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
 

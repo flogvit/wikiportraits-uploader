@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User, X } from 'lucide-react';
 import { BandMember } from '@/types/music';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 
 interface ImageBandMemberTaggerProps {
   image: ImageFile;

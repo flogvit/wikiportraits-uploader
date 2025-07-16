@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Edit3, Download } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { MusicEventMetadata } from '@/types/music';
 import ImageCard from './ImageCard';
 import BulkEditModal from '../modals/BulkEditModal';
@@ -24,8 +24,6 @@ export default function ImageGrid({
   onImageRemove, 
   onImageClick, 
   onExportMetadata, 
-  onBulkEdit, 
-  onScrollToImage,
   musicEventData 
 }: ImageGridProps) {
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);

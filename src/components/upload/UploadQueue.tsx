@@ -2,20 +2,16 @@
 
 import { useState } from 'react';
 import { Upload, CheckCircle, AlertCircle, Clock, Download, Edit3, ChevronDown, ChevronUp } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types/upload';
+import { UploadStatus } from '@/types/common';
+
+export type { UploadStatus } from '@/types/common';
 
 interface UploadQueueProps {
   images: ImageFile[];
   onExportMetadata: () => void;
   onBulkEdit: () => void;
   onScrollToImage?: (imageId: string) => void;
-}
-
-export interface UploadStatus {
-  id: string;
-  status: 'pending' | 'uploading' | 'completed' | 'error';
-  progress: number;
-  error?: string;
 }
 
 export default function UploadQueue({ images, onExportMetadata, onBulkEdit, onScrollToImage }: UploadQueueProps) {

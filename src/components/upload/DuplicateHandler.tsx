@@ -15,7 +15,7 @@ export default function DuplicateHandler({ onImagesProcessed, existingImages }: 
   const [pendingFiles, setPendingFiles] = useState<ImageFile[]>([]);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
-  const handleNewImages = (newImages: ImageFile[]) => {
+  const _handleNewImages = (newImages: ImageFile[]) => {
     // Check for duplicates
     const duplicateResults = detectDuplicates(newImages, existingImages);
     
