@@ -3,7 +3,7 @@
 import { Settings, Users, Mic } from 'lucide-react';
 import { MusicEventMetadata, MusicEventType } from '@/types/music';
 import { useWorkflowForm } from '../providers/WorkflowFormProvider';
-import { useWorkflow } from '../providers/WorkflowProvider';
+// import { useWorkflow } from '../providers/WorkflowProvider';
 
 interface EventTypePaneProps {
   onComplete?: () => void;

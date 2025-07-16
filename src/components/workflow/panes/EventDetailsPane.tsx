@@ -2,9 +2,9 @@
 
 import { Calendar } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
-import { SoccerMatchMetadata, SoccerPlayer } from '../../forms/SoccerMatchForm';
-import { MusicEventMetadata } from '@/types/music';
-import { UploadType } from '@/components/selectors/UploadTypeSelector';
+// import { SoccerMatchMetadata, SoccerPlayer } from '../../forms/SoccerMatchForm';
+// import { MusicEventMetadata } from '@/types/music';
+// import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
 import SoccerMatchForm from '../../forms/SoccerMatchForm';
 import FestivalDetailsForm from '../../forms/FestivalDetailsForm';
@@ -18,13 +18,13 @@ export default function EventDetailsPane({
 }: EventDetailsPaneProps) {
   const { form } = useWorkflowForm();
   const uploadType = form.watch('uploadType');
-  const soccerMatchData = form.watch('soccerMatchData');
-  const selectedPlayers = form.watch('selectedPlayers') || [];
+  const _soccerMatchData = form.watch('soccerMatchData');
+  const _selectedPlayers = form.watch('selectedPlayers') || [];
   const musicEventData = form.watch('musicEventData');
   const { watch } = useFormContext<WorkflowFormData>();
   
   // Get event details from the unified form
-  const eventDetails = watch('eventDetails');
+  const _eventDetails = watch('eventDetails');
   return (
     <div className="space-y-6">
       <div className="text-center">

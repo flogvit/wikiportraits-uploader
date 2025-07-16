@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { FileText } from 'lucide-react';
 import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
-import { ImageFile } from '@/app/page';
+// import { ImageFile } from '@/app/page';
 import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
 

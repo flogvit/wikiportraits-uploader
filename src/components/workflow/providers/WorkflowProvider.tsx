@@ -1,11 +1,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { ImageFile } from '@/app/page';
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
+// import { ImageFile } from '@/app/page';
+// import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
 import { MusicEventMetadata } from '@/types/music';
 import { getItem, KEYS } from '@/utils/localStorage';
-import { UploadType } from '@/components/selectors/UploadTypeSelector';
+// import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { useWorkflowForm } from './WorkflowFormProvider';
 
 export type WorkflowStep = 'event-type' | 'event-details' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
@@ -15,7 +15,7 @@ export interface WorkflowStepInfo {
   id: WorkflowStep;
   title: string;
   description: string;
-  icon: any;
+  icon: unknown;
   status: StepStatus;
   itemCount?: number;
   dependencies?: WorkflowStep[];

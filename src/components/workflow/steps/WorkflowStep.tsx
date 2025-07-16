@@ -23,7 +23,7 @@ export default function WorkflowStep() {
     handleImagesComplete 
   } = useWorkflow();
 
-  const renderWikidataPlaceholder = () => (
+  const _renderWikidataPlaceholder = () => (
     <div className="space-y-6">
       <div className="text-center">
         <div className="text-6xl mb-4">🗃️</div>

@@ -2,10 +2,10 @@
 
 import { ImagePlus } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
-import { ImageFile } from '@/app/page';
-import { MusicEventMetadata } from '@/types/music';
-import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
-import { UploadType } from '@/components/selectors/UploadTypeSelector';
+// import { ImageFile } from '@/app/page';
+// import { MusicEventMetadata } from '@/types/music';
+// import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
+// import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
 import { useWorkflowUI } from '../providers/WorkflowUIProvider';
 import ImageUploader from '@/components/upload/ImageUploader';
@@ -27,7 +27,7 @@ export default function ImagesPane({
   const soccerMatchData = form.watch('soccerMatchData');
   const selectedPlayers = form.watch('selectedPlayers') || [];
   const musicEventData = form.watch('musicEventData');
-  const eventDetails = watch('eventDetails');
+  const _eventDetails = watch('eventDetails');
   const completedCount = (images || []).filter(image => {
     const { description, author, selectedBand } = image.metadata;
     const hasBasicInfo = description.trim() && author.trim();
