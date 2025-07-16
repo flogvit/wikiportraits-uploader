@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import UploadTypeSelector, { UploadType } from '../UploadTypeSelector'
+import UploadTypeSelector from '../UploadTypeSelector'
 
 describe('UploadTypeSelector', () => {
   const mockOnTypeSelect = jest.fn()

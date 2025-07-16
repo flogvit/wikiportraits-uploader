@@ -33,8 +33,7 @@ interface ArtistSelectorProps {
 export default function ArtistSelector({
   onArtistSelect,
   selectedArtist,
-  placeholder = "Search for artist...",
-  label = "Artist"
+  placeholder = "Search for artist..."
 }: ArtistSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UnifiedArtistResult[]>([]);

@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, X, User, Music, Globe, Calendar, Plus, UserPlus } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, X, User, Music, Globe, Calendar, UserPlus } from 'lucide-react';
 import { BandMember, PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
 import { 
   saveBandMembers, 
-  loadBandMembers, 
+  // loadBandMembers, 
   savePendingBandMembers, 
   loadPendingBandMembers,
   saveSelectedBandMembers,
-  loadSelectedBandMembers
+  loadSelectedBandMembers,
+  clearBandMemberData
 } from '@/utils/localStorage';
 import { getCountryWikidataId } from '@/utils/countries';
 import CountrySelector from './CountrySelector';
@@ -35,36 +36,56 @@ export default function BandMemberSelector({
   pendingMembers = [],
   placeholder = "Select band members...",
 }: BandMemberSelectorProps) {
-  const [members, setMembers] = useState<BandMember[]>([]);
+  const [members, setMembers] = useState<BandMember[]>([]); // Original band members
+  const [searchResults, setSearchResults] = useState<BandMember[]>([]); // Search results
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [showAddMemberForm, setShowAddMemberForm] = useState(false);
-  const [newMemberName, setNewMemberName] = useState('');
-  const [newMemberInstruments, setNewMemberInstruments] = useState('');
-  const [newMemberNationality, setNewMemberNationality] = useState('');
-  const [newMemberGender, setNewMemberGender] = useState('');
-  const [newMemberLegalName, setNewMemberLegalName] = useState('');
-  const [newMemberBirthYear, setNewMemberBirthYear] = useState('');
+  const [showAddArtistForm, setShowAddArtistForm] = useState(false);
+  const [newArtistName, setNewArtistName] = useState('');
+  const [newArtistInstruments, setNewArtistInstruments] = useState('');
+  const [newArtistNationality, setNewArtistNationality] = useState('');
+  const [newArtistGender, setNewArtistGender] = useState('');
+  const [newArtistLegalName, setNewArtistLegalName] = useState('');
+  const [newArtistBirthYear, setNewArtistBirthYear] = useState('');
+  const [newArtistIsBandMember, setNewArtistIsBandMember] = useState(false);
   const [localPendingMembers, setLocalPendingMembers] = useState<PendingWikidataEntity[]>([]);
+  const [previousBandId, setPreviousBandId] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (bandName || bandId) {
-      fetchBandMembers();
-    }
-  }, [bandName, bandId]);
-
-  // Load persisted data on mount
-  useEffect(() => {
-    const currentBandId = bandId || `pending-band-${bandName}`;
-    if (currentBandId) {
-      // Load persisted members
-      const persistedMembers = loadBandMembers(currentBandId);
-      if (persistedMembers.length > 0) {
-        setMembers(persistedMembers);
+      const currentBandId = bandId || `pending-band-${bandName}`;
+      
+      // Clear previous band data if band has changed (but not on initial load)
+      if (previousBandId && previousBandId !== currentBandId) {
+        clearBandMemberData(previousBandId);
+        
+        // Clear existing state when band changes
+        setMembers([]);
+        setSearchResults([]);
+        setLocalPendingMembers([]);
+        setSearchTerm('');
+        setIsOpen(false);
+        // Clear selected members when band changes
+        onMembersChange([]);
       }
       
+      // Set the current band ID for future comparisons
+      if (previousBandId !== currentBandId) {
+        setPreviousBandId(currentBandId);
+      }
+      
+      // Auto-load band members and add them to the available artists
+      fetchBandMembers();
+    }
+  }, [bandName, bandId, onMembersChange]);
+
+  // Load persisted data after band data is fetched
+  useEffect(() => {
+    const currentBandId = bandId || `pending-band-${bandName}`;
+    if (currentBandId && !loading) {
       // Load persisted pending members
       const persistedPendingMembers = loadPendingBandMembers(currentBandId);
       setLocalPendingMembers(persistedPendingMembers);
@@ -75,7 +96,7 @@ export default function BandMemberSelector({
         onMembersChange(persistedSelectedMembers);
       }
     }
-  }, [bandId, bandName, onMembersChange]);
+  }, [bandId, bandName, onMembersChange, loading]);
 
   // Sync pending members to form state when they're loaded
   useEffect(() => {
@@ -110,6 +131,18 @@ export default function BandMemberSelector({
       const fetchedMembers = data.members || [];
       setMembers(fetchedMembers);
       
+      // Auto-select all fetched members
+      if (fetchedMembers.length > 0) {
+        const memberIds = fetchedMembers.map(member => member.id);
+        onMembersChange(memberIds);
+        
+        // Persist selected members
+        const currentBandId = bandId || `pending-band-${bandName}`;
+        if (currentBandId) {
+          saveSelectedBandMembers(currentBandId, memberIds);
+        }
+      }
+      
       // Persist fetched members
       const currentBandId = bandId || `pending-band-${bandName}`;
       if (currentBandId && fetchedMembers.length > 0) {
@@ -118,6 +151,46 @@ export default function BandMemberSelector({
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch band members');
       setMembers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const searchArtists = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsOpen(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/music/artist-search?q=${encodeURIComponent(query)}&limit=10&wikidata_only=true`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to search artists');
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+      
+      // Convert search results to BandMember format for consistency
+      const artistMembers: BandMember[] = results.map((result: any) => ({
+        id: result.id,
+        name: result.name,
+        wikidataUrl: result.wikidataUrl,
+        wikipediaUrl: result.wikipediaUrl,
+        instruments: result.entityType === 'group' ? ['band'] : undefined,
+        nationality: result.country,
+      }));
+
+      setSearchResults(artistMembers);
+      setIsOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to search artists');
+      setSearchResults([]);
     } finally {
       setLoading(false);
     }
@@ -156,13 +229,32 @@ export default function BandMemberSelector({
   });
   
   const allMembers = Array.from(allMembersMap.values());
-
-  const filteredMembers = allMembers.filter(member =>
-    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.instruments?.some(instrument => 
-      instrument.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+  
+  // Filter search results to exclude already selected members
+  const filteredSearchResults = searchResults.filter(member => 
+    !selectedMembers.includes(member.id)
   );
+  
+  // Show search results only when searching (2+ characters) and there are unselected results
+  const hasSearchResults = searchTerm.length >= 2 && filteredSearchResults.length > 0;
+
+  // Add search delay for artist search with improved debouncing
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        searchArtists(searchTerm);
+        setIsOpen(true); // Open dropdown when search starts
+      } else if (searchTerm.length === 1) {
+        setSearchResults([]);
+        setIsOpen(true); // Keep dropdown open for single character to show existing members
+      } else {
+        setSearchResults([]);
+        setIsOpen(false); // Close dropdown when search term is cleared
+      }
+    }, 500); // Increased debounce to 500ms for better UX
+
+    return () => clearTimeout(delayedSearch);
+  }, [searchTerm]);
 
   const selectedMemberObjects = allMembers.filter(member => 
     selectedMembers.includes(member.id)
@@ -181,6 +273,15 @@ export default function BandMemberSelector({
     if (currentBandId) {
       saveSelectedBandMembers(currentBandId, newSelected);
     }
+    
+    // Clear search and close dropdown after selection
+    setSearchTerm('');
+    setIsOpen(false);
+    
+    // Restore focus to input
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
 
   const removeMember = (memberId: string) => {
@@ -194,48 +295,49 @@ export default function BandMemberSelector({
     }
   };
 
-  const handleAddNewMember = () => {
-    if (!newMemberName.trim() || !newMemberGender.trim()) return;
+  const handleAddNewArtist = () => {
+    if (!newArtistName.trim() || !newArtistGender.trim()) return;
 
     // Auto-generate description based on WikiPortraits format: nationality + occupation
-    const occupation = newMemberInstruments.trim() ? 
-      `${newMemberInstruments.split(',')[0].trim()} player` : 
+    const occupation = newArtistInstruments.trim() ? 
+      `${newArtistInstruments.split(',')[0].trim()} player` : 
       'musician';
     
-    const description = newMemberNationality.trim() ? 
-      `${newMemberNationality.trim()} ${occupation}` : 
+    const description = newArtistNationality.trim() ? 
+      `${newArtistNationality.trim()} ${occupation}` : 
       occupation;
 
     // Get Wikidata Q-code for nationality
-    const nationalityQCode = newMemberNationality.trim() ? getCountryWikidataId(newMemberNationality.trim()) : undefined;
+    const nationalityQCode = newArtistNationality.trim() ? getCountryWikidataId(newArtistNationality.trim()) : undefined;
     
-    const pendingMember: PendingWikidataEntity = {
-      id: `pending-member-${Date.now()}`,
-      type: 'band_member',
+    const pendingArtist: PendingWikidataEntity = {
+      id: `pending-artist-${Date.now()}`,
+      type: newArtistIsBandMember ? 'band_member' : 'artist',
       status: 'pending',
-      name: newMemberName.trim(),
+      name: newArtistName.trim(),
       description: description,
       data: {
-        name: newMemberName.trim(),
-        legalName: newMemberLegalName.trim() || undefined,
-        instruments: newMemberInstruments.trim() ? newMemberInstruments.split(',').map(i => i.trim()) : undefined,
-        bandId: bandId || `pending-band-${bandName}`,
+        name: newArtistName.trim(),
+        legalName: newArtistLegalName.trim() || undefined,
+        instruments: newArtistInstruments.trim() ? newArtistInstruments.split(',').map(i => i.trim()) : undefined,
+        bandId: (newArtistIsBandMember && (bandId || `pending-band-${bandName}`)) || undefined,
         nationality: nationalityQCode || undefined, // Store Q-code instead of string
-        nationalityName: newMemberNationality.trim() || undefined, // Also store display name
-        gender: newMemberGender as any,
-        birthYear: newMemberBirthYear.trim() || undefined,
+        nationalityName: newArtistNationality.trim() || undefined, // Also store display name
+        gender: newArtistGender as any,
+        birthYear: newArtistBirthYear.trim() || undefined,
+        isBandMember: newArtistIsBandMember,
       } as PendingBandMemberData,
     };
 
     // Add to pending members callback
-    onPendingMemberAdd?.(pendingMember);
+    onPendingMemberAdd?.(pendingArtist);
     
     // Add to local pending members
-    const newLocalPendingMembers = [...localPendingMembers, pendingMember];
+    const newLocalPendingMembers = [...localPendingMembers, pendingArtist];
     setLocalPendingMembers(newLocalPendingMembers);
 
     // Add to selected members
-    const newSelectedMembers = [...selectedMembers, pendingMember.id];
+    const newSelectedMembers = [...selectedMembers, pendingArtist.id];
     onMembersChange(newSelectedMembers);
     
     // Persist data
@@ -246,20 +348,21 @@ export default function BandMemberSelector({
     }
 
     // Reset form
-    setNewMemberName('');
-    setNewMemberInstruments('');
-    setNewMemberNationality('');
-    setNewMemberGender('');
-    setNewMemberLegalName('');
-    setNewMemberBirthYear('');
-    setShowAddMemberForm(false);
+    setNewArtistName('');
+    setNewArtistInstruments('');
+    setNewArtistNationality('');
+    setNewArtistGender('');
+    setNewArtistLegalName('');
+    setNewArtistBirthYear('');
+    setNewArtistIsBandMember(false);
+    setShowAddArtistForm(false);
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-4 border border-gray-300 rounded-lg bg-gray-50">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Loading band members...</span>
+        <span className="ml-2 text-gray-600">Searching artists...</span>
       </div>
     );
   }
@@ -322,107 +425,209 @@ export default function BandMemberSelector({
         <div className="relative">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <input
+            ref={inputRef}
             type="text"
-            placeholder={placeholder}
+            placeholder={placeholder || "Search for artists..."}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setIsOpen(true)}
+            onFocus={() => {
+              // Only open dropdown if there's a search term
+              if (searchTerm.length > 0) {
+                setIsOpen(true);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setIsOpen(false);
+                setSearchTerm('');
+                inputRef.current?.blur();
+              }
+            }}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
-        {/* Dropdown */}
-        {isOpen && (
+        {/* Dropdown - only show search results */}
+        {isOpen && searchTerm.length >= 2 && (
           <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-            {filteredMembers.length === 0 ? (
-              <div className="p-4 text-gray-500 text-center">
-                {members.length === 0 ? 'No band members found' : 'No matching members'}
-              </div>
-            ) : (
-              filteredMembers.map(member => (
-                <div
-                  key={member.id}
-                  className={`p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 ${
-                    selectedMembers.includes(member.id) ? 'bg-blue-50' : ''
-                  }`}
-                  onClick={() => toggleMember(member.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-gray-400" />
-                        <h3 className="font-medium text-gray-900">{member.name}</h3>
-                        {selectedMembers.includes(member.id) && (
-                          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                        )}
-                      </div>
-                      
-                      {member.instruments && member.instruments.length > 0 && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Music className="w-3 h-3 text-gray-400" />
-                          <span className="text-sm text-gray-600">
-                            {member.instruments.join(', ')}
-                          </span>
+            {/* Show search results only */}
+            {hasSearchResults && (
+              <>
+                {filteredSearchResults.map(member => (
+                  <div
+                    key={member.id}
+                    className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      toggleMember(member.id);
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <h3 className="font-medium text-gray-900">{member.name}</h3>
                         </div>
-                      )}
-                      
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                        {member.birthDate && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            <span>{new Date(member.birthDate).getFullYear()}</span>
+                        
+                        {member.instruments && member.instruments.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Music className="w-3 h-3 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {member.instruments.join(', ')}
+                            </span>
                           </div>
                         )}
                         
-                        {member.nationality && (
-                          <span>{member.nationality}</span>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          {member.birthDate && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(member.birthDate).getFullYear()}</span>
+                            </div>
+                          )}
+                          
+                          {member.nationality && (
+                            <span>{member.nationality}</span>
+                          )}
+                          
+                          {member.wikipediaUrl && (
+                            <a
+                              href={member.wikipediaUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Globe className="w-3 h-3" />
+                              <span>Wikipedia</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {member.imageUrl && (
+                        <img
+                          src={member.imageUrl}
+                          alt={member.name}
+                          className="w-12 h-12 rounded-full object-cover ml-3"
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+            
+            {/* Show search results when searching */}
+            {hasSearchResults && (
+              <>
+                <div className="px-3 py-2 bg-green-50 border-b border-green-200">
+                  <span className="text-xs font-medium text-green-700">Search Results</span>
+                </div>
+                {searchResults.map(member => (
+                  <div
+                    key={member.id}
+                    className={`p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 ${
+                      selectedMembers.includes(member.id) ? 'bg-blue-50' : ''
+                    }`}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      toggleMember(member.id);
+                    }}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-gray-400" />
+                          <h3 className="font-medium text-gray-900">{member.name}</h3>
+                          {selectedMembers.includes(member.id) && (
+                            <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                          )}
+                        </div>
+                        
+                        {member.instruments && member.instruments.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <Music className="w-3 h-3 text-gray-400" />
+                            <span className="text-sm text-gray-600">
+                              {member.instruments.join(', ')}
+                            </span>
+                          </div>
                         )}
                         
-                        {member.wikipediaUrl && (
-                          <a
-                            href={member.wikipediaUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <Globe className="w-3 h-3" />
-                            <span>Wikipedia</span>
-                          </a>
-                        )}
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          {member.birthDate && (
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(member.birthDate).getFullYear()}</span>
+                            </div>
+                          )}
+                          
+                          {member.nationality && (
+                            <span>{member.nationality}</span>
+                          )}
+                          
+                          {member.wikipediaUrl && (
+                            <a
+                              href={member.wikipediaUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Globe className="w-3 h-3" />
+                              <span>Wikipedia</span>
+                            </a>
+                          )}
+                        </div>
                       </div>
+                      
+                      {member.imageUrl && (
+                        <img
+                          src={member.imageUrl}
+                          alt={member.name}
+                          className="w-12 h-12 rounded-full object-cover ml-3"
+                        />
+                      )}
                     </div>
-                    
-                    {member.imageUrl && (
-                      <img
-                        src={member.imageUrl}
-                        alt={member.name}
-                        className="w-12 h-12 rounded-full object-cover ml-3"
-                      />
-                    )}
                   </div>
-                </div>
-              ))
+                ))}
+              </>
+            )}
+            
+            {/* Show loading state when searching */}
+            {searchTerm.length >= 2 && loading && (
+              <div className="p-4 text-gray-500 text-center">
+                Searching Wikidata...
+              </div>
+            )}
+            
+            {/* Show empty state */}
+            {filteredExistingMembers.length === 0 && !hasSearchResults && !loading && (
+              <div className="p-4 text-gray-500 text-center">
+                {searchTerm.length < 2 ? 'Keep typing to search for artists...' : 'No artists found'}
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Add New Member Section */}
+      {/* Add New Artist Section */}
       <div className="mt-4 flex gap-2">
         <button
-          onClick={() => setShowAddMemberForm(!showAddMemberForm)}
+          onClick={() => setShowAddArtistForm(!showAddArtistForm)}
           className="flex items-center gap-1 text-sm text-green-600 hover:text-green-700 underline"
         >
           <UserPlus className="w-4 h-4" />
-          Add new member
+          Add artist
         </button>
       </div>
 
-      {/* Add New Member Form */}
-      {showAddMemberForm && (
+      {/* Add New Artist Form */}
+      {showAddArtistForm && (
         <div className="mt-3 border border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-          <h4 className="font-medium text-sm mb-3">Add New Band Member</h4>
+          <h4 className="font-medium text-sm mb-3">Add New Artist</h4>
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
             Following WikiPortraits requirements for Wikidata entity creation. Fields marked with * are mandatory.
           </p>
@@ -430,15 +635,28 @@ export default function BandMemberSelector({
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Member Name *
+                Artist Name *
               </label>
               <input
                 type="text"
-                value={newMemberName}
-                onChange={(e) => setNewMemberName(e.target.value)}
-                placeholder="Enter member name"
+                value={newArtistName}
+                onChange={(e) => setNewArtistName(e.target.value)}
+                placeholder="Enter artist name"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isBandMember"
+                checked={newArtistIsBandMember}
+                onChange={(e) => setNewArtistIsBandMember(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="isBandMember" className="text-xs text-gray-700 dark:text-gray-300">
+                This artist is a band member of {bandName}
+              </label>
             </div>
             
             <div>
@@ -447,8 +665,8 @@ export default function BandMemberSelector({
               </label>
               <input
                 type="text"
-                value={newMemberLegalName}
-                onChange={(e) => setNewMemberLegalName(e.target.value)}
+                value={newArtistLegalName}
+                onChange={(e) => setNewArtistLegalName(e.target.value)}
                 placeholder="Full legal name if different from stage name"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
@@ -460,8 +678,8 @@ export default function BandMemberSelector({
                 Gender *
               </label>
               <select
-                value={newMemberGender}
-                onChange={(e) => setNewMemberGender(e.target.value)}
+                value={newArtistGender}
+                onChange={(e) => setNewArtistGender(e.target.value)}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">Select gender</option>
@@ -475,16 +693,16 @@ export default function BandMemberSelector({
             
             <div>
               <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Instruments (optional)
+                Instruments/Role (optional)
               </label>
               <input
                 type="text"
-                value={newMemberInstruments}
-                onChange={(e) => setNewMemberInstruments(e.target.value)}
-                placeholder="e.g., vocals, guitar, bass"
+                value={newArtistInstruments}
+                onChange={(e) => setNewArtistInstruments(e.target.value)}
+                placeholder="e.g., vocals, guitar, bass, or guest vocalist"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
-              <p className="text-xs text-gray-500 mt-1">Separate multiple instruments with commas</p>
+              <p className="text-xs text-gray-500 mt-1">Separate multiple instruments/roles with commas</p>
             </div>
             
             <div className="grid grid-cols-2 gap-3">
@@ -493,8 +711,8 @@ export default function BandMemberSelector({
                   Nationality (optional)
                 </label>
                 <CountrySelector
-                  value={newMemberNationality}
-                  onChange={(country) => setNewMemberNationality(country)}
+                  value={newArtistNationality}
+                  onChange={(country) => setNewArtistNationality(country)}
                   placeholder="Select country..."
                   className="text-sm"
                 />
@@ -507,8 +725,8 @@ export default function BandMemberSelector({
                 </label>
                 <input
                   type="text"
-                  value={newMemberBirthYear}
-                  onChange={(e) => setNewMemberBirthYear(e.target.value)}
+                  value={newArtistBirthYear}
+                  onChange={(e) => setNewArtistBirthYear(e.target.value)}
                   placeholder="e.g., 1990"
                   className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 />
@@ -519,21 +737,22 @@ export default function BandMemberSelector({
           
           <div className="flex gap-2 mt-4">
             <button
-              onClick={handleAddNewMember}
-              disabled={!newMemberName.trim() || !newMemberGender.trim()}
+              onClick={handleAddNewArtist}
+              disabled={!newArtistName.trim() || !newArtistGender.trim()}
               className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Add Member
+              Add Artist
             </button>
             <button
               onClick={() => {
-                setShowAddMemberForm(false);
-                setNewMemberName('');
-                setNewMemberInstruments('');
-                setNewMemberNationality('');
-                setNewMemberGender('');
-                setNewMemberLegalName('');
-                setNewMemberBirthYear('');
+                setShowAddArtistForm(false);
+                setNewArtistName('');
+                setNewArtistInstruments('');
+                setNewArtistNationality('');
+                setNewArtistGender('');
+                setNewArtistLegalName('');
+                setNewArtistBirthYear('');
+                setNewArtistIsBandMember(false);
               }}
               className="px-3 py-1 text-sm bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
             >
@@ -542,7 +761,7 @@ export default function BandMemberSelector({
           </div>
           
           <p className="text-xs text-gray-500 mt-2">
-            This member will be created in Wikidata during the publishing process, following WikiPortraits standards.
+            This artist will be created in Wikidata during the publishing process, following WikiPortraits standards.
           </p>
         </div>
       )}

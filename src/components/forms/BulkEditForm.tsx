@@ -3,9 +3,10 @@
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import ArtistSelector from '../selectors/ArtistSelector';
 import FieldSelector from './FieldSelector';
+import { MusicArtist } from '@/types/music';
 
 const bulkEditSchema = z.object({
   authorUsername: z.string().optional(),
@@ -273,12 +274,10 @@ export default function BulkEditForm({ images, onBulkUpdate, onClose }: BulkEdit
                 setValue('selectedBand', artist.name);
                 handleUpdateChange('selectedBand', artist.name);
               }}
-              selectedArtist={{ id: '', name: watchedData.selectedBand || '' }}
+              selectedArtist={{ id: 'empty', name: watchedData.selectedBand || '' } as MusicArtist}
               placeholder="Search for band/artist..."
               label=""
               type="band"
-              defaultLanguage="en"
-              currentLanguage="en"
             />
           </div>
         )}

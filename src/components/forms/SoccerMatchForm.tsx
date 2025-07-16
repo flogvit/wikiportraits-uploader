@@ -6,32 +6,9 @@ import { WorkflowFormData } from '../workflow/providers/WorkflowFormProvider';
 import TeamSelector from '../selectors/TeamSelector';
 import PlayerSelector from '../selectors/PlayerSelector';
 
-export interface SoccerTeam {
-  id: string;
-  name: string;
-  country?: string;
-  league?: string;
-  wikipediaUrl?: string;
-}
+import { SoccerTeam, SoccerPlayer, SoccerMatchMetadata } from '@/types/soccer';
 
-export interface SoccerPlayer {
-  id: string;
-  name: string;
-  position?: string;
-  number?: string;
-  team: string;
-  wikipediaUrl?: string;
-}
-
-export interface SoccerMatchMetadata {
-  homeTeam: SoccerTeam | null;
-  awayTeam: SoccerTeam | null;
-  date: string;
-  venue: string;
-  competition: string;
-  matchday?: string;
-  result?: string;
-}
+export type { SoccerTeam, SoccerPlayer, SoccerMatchMetadata } from '@/types/soccer';
 
 interface SoccerMatchFormProps {
   onComplete?: () => void;
@@ -52,7 +29,7 @@ export default function SoccerMatchForm({ onComplete }: SoccerMatchFormProps) {
   };
   const selectedPlayers = watch('selectedPlayers') || [];
 
-  const handleMatchDataChange = (field: keyof SoccerMatchMetadata, value: any) => {
+  const handleMatchDataChange = (field: keyof SoccerMatchMetadata, value: unknown) => {
     const updatedData = { ...soccerMatchData, [field]: value };
     setValue('soccerMatchData', updatedData);
   };
@@ -62,14 +39,9 @@ export default function SoccerMatchForm({ onComplete }: SoccerMatchFormProps) {
     handleMatchDataChange(field, team);
   };
 
-  const handlePlayerSelect = (player: SoccerPlayer) => {
-    const updatedPlayers = [...selectedPlayers, player];
-    setValue('selectedPlayers', updatedPlayers);
-  };
 
-  const handlePlayerRemove = (playerId: string) => {
-    const updatedPlayers = selectedPlayers.filter(p => p.id !== playerId);
-    setValue('selectedPlayers', updatedPlayers);
+  const handlePlayersUpdate = (players: SoccerPlayer[]) => {
+    setValue('selectedPlayers', players);
   };
 
   const isMatchDataComplete = soccerMatchData.homeTeam && soccerMatchData.awayTeam && 
@@ -180,11 +152,9 @@ export default function SoccerMatchForm({ onComplete }: SoccerMatchFormProps) {
           </div>
           
           <PlayerSelector
-            homeTeam={soccerMatchData.homeTeam}
-            awayTeam={soccerMatchData.awayTeam}
+            teams={[soccerMatchData.homeTeam, soccerMatchData.awayTeam]}
             selectedPlayers={selectedPlayers}
-            onPlayerSelect={handlePlayerSelect}
-            onPlayerRemove={handlePlayerRemove}
+            onPlayersUpdate={handlePlayersUpdate}
           />
         </div>
       )}

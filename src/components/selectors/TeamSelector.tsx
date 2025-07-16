@@ -51,7 +51,7 @@ export default function TeamSelector({ onTeamSelect, selectedTeam, placeholder =
         const data = await response.json();
         setResults(data.results || []);
         setIsOpen(true);
-      } catch (err) {
+      } catch (_err) {
         setError('Failed to search for teams');
         setResults([]);
       } finally {

@@ -82,7 +82,7 @@ export default function PlayerSelector({ teams, selectedPlayers, onPlayersUpdate
       return;
     }
 
-    const team = teams.find(t => t && t.name === wikipediaPlayer.team);
+    const _team = teams.find(t => t && t.name === wikipediaPlayer.team);
     
     const player: SoccerPlayer = {
       id: wikipediaPlayer.id,

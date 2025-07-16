@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useEffect, useMemo } from 'react';
 import { RotateCcw } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { MusicEventMetadata, BandMember } from '@/types/music';
 import { updateImageWikitext, regenerateImageWikitext } from '@/utils/commons-template';
 import { extractCategoriesFromWikitext } from '@/utils/category-extractor';
@@ -56,8 +56,8 @@ export default function ImageMetadataForm({
 }: ImageMetadataFormProps) {
   const defaultValues = useMemo(() => ({
     description: image.metadata.description || '',
-    authorUsername: image.metadata.authorUsername || '',
-    authorFullName: image.metadata.authorFullName || '',
+    authorUsername: '',
+    authorFullName: '',
     author: image.metadata.author || '',
     date: image.metadata.date || '',
     time: image.metadata.time || '',

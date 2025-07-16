@@ -160,12 +160,13 @@ export default function EventDetailsForm({
             
             setValue('eventDetails.selectedBand', newBand);
           }}
-          selectedArtist={eventDetails.selectedBand || { id: '', name: '' }}
+          selectedArtist={eventDetails.selectedBand ? {
+            id: eventDetails.selectedBand.id || 'empty',
+            name: eventDetails.selectedBand.name || ''
+          } : { id: 'empty', name: '' }}
           placeholder="Search for band/artist..."
           label=""
           type="band"
-          defaultLanguage={eventDetails.country || 'en'}
-          currentLanguage={eventDetails.country || 'en'}
         />
         {eventDetails.selectedBand?.name && (
           <p className="text-sm text-muted-foreground mt-1">
@@ -174,14 +175,14 @@ export default function EventDetailsForm({
         )}
       </div>
 
-      {/* Band Members Section */}
+      {/* Artists Section */}
       {eventDetails.selectedBand?.name && (
         <div>
           <label className="block text-sm font-medium text-card-foreground mb-1">
-            Band Members
+            Artists & Performers
           </label>
           <p className="text-sm text-muted-foreground mb-3">
-            Select band members that will be featured in your images. This helps with tagging and categorization.
+            Search for and select artists, band members, and performers who will be featured in your images. This includes band members, guest artists, and opening acts.
           </p>
           <Controller
             name="eventDetails.selectedBandMembers"
@@ -195,7 +196,7 @@ export default function EventDetailsForm({
                 onPendingMemberAdd={handlePendingMemberAdd}
                 onPendingMembersSync={handlePendingMembersSync}
                 pendingMembers={pendingWikidataEntities}
-                placeholder="Search and select band members..."
+                placeholder="Search for artists, band members, and performers..."
               />
             )}
           />
@@ -221,6 +222,7 @@ export default function EventDetailsForm({
               checked={field.value}
               onChange={(e) => field.onChange(e.target.checked)}
               className="rounded border-border text-primary focus:ring-primary"
+              value={undefined}
             />
           )}
         />

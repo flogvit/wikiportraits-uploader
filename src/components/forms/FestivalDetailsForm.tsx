@@ -19,8 +19,6 @@ export default function FestivalDetailsForm({
   // Load stored values when component mounts or when musicEventData changes
   useEffect(() => {
     if (musicEventData?.eventType === 'festival' && onMusicEventUpdate) {
-      const storedUsername = getItem(KEYS.AUTHOR_USERNAME);
-      const storedFullName = getItem(KEYS.AUTHOR_FULLNAME);
       const storedFestivalName = getItem(KEYS.FESTIVAL_NAME);
       const storedFestivalYear = getItem(KEYS.FESTIVAL_YEAR);
       const storedFestivalLocation = getItem(KEYS.FESTIVAL_LOCATION);
@@ -72,12 +70,7 @@ export default function FestivalDetailsForm({
         needsUpdate = true;
       }
 
-      // Update author fields if stored values exist and current values are empty
-      if ((storedUsername || storedFullName) && (!musicEventData.festivalData?.authorUsername && !musicEventData.festivalData?.authorFullName)) {
-        updates.festivalData!.authorUsername = storedUsername;
-        updates.festivalData!.authorFullName = storedFullName;
-        needsUpdate = true;
-      }
+      // Author fields are now handled by the photographer wikidata ID
 
       // Update band if stored values exist and current band is empty
       if (storedBandName && (!musicEventData.festivalData?.selectedBands?.length || !musicEventData.festivalData.selectedBands[0]?.name)) {
@@ -88,8 +81,8 @@ export default function FestivalDetailsForm({
           wikidataUrl: storedBandWikidata || undefined,
           musicbrainzId: storedBandMusicbrainz || undefined,
           country: storedBandCountry || undefined,
-          entityType: 'band' as const,
-          source: 'stored' as const
+          entityType: 'group' as const,
+          source: 'wikidata' as const
         };
         
         updates.festivalData!.selectedBands = [storedBand];
