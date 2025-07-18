@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { UploadType } from '../selectors/UploadTypeSelector';
 import { SoccerMatchMetadata, SoccerPlayer } from '../forms/SoccerMatchForm';
 import { MusicEventMetadata } from '@/types/music';
@@ -15,8 +15,11 @@ interface ImageUploaderProps {
   onImagesAdded: (images: ImageFile[]) => void;
   existingImages: ImageFile[];
   uploadType: UploadType;
-  soccerMatchData?: SoccerMatchMetadata | null;
+  eventDetails?: any;
+  bandPerformers?: any;
   selectedPlayers?: SoccerPlayer[];
+  // Legacy props for backward compatibility
+  soccerMatchData?: SoccerMatchMetadata | null;
   musicEventData?: MusicEventMetadata | null;
   onSoccerDataUpdate?: (matchData: SoccerMatchMetadata, players: SoccerPlayer[]) => void;
   onMusicEventUpdate?: (eventData: MusicEventMetadata) => void;
@@ -26,8 +29,10 @@ export default function ImageUploader({
   onImagesAdded, 
   existingImages, 
   uploadType, 
-  soccerMatchData, 
+  eventDetails,
+  bandPerformers,
   selectedPlayers = [], 
+  soccerMatchData, 
   musicEventData, 
   onSoccerDataUpdate 
 }: ImageUploaderProps) {

@@ -1,10 +1,10 @@
 'use client';
 
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { extractExifData, formatDateForCommons, formatTimeForCommons } from '@/utils/exif-reader';
 import { generateCommonsWikitext } from '@/utils/commons-template';
 import { generateTemplateName } from '@/utils/template-generator';
-import { UploadType } from '../selectors/UploadTypeSelector';
+import { UploadType } from '@/types/upload';
 import { SoccerMatchMetadata, SoccerPlayer } from '../forms/SoccerMatchForm';
 import { generateSoccerCategories, generateMatchDescription } from '@/utils/soccer-categories';
 import { MusicEventMetadata } from '@/types/music';

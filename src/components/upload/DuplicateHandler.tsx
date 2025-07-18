@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { detectDuplicates, DuplicateInfo } from '@/utils/duplicate-detection';
 import DuplicateWarningModal from '../modals/DuplicateWarningModal';
 
@@ -16,11 +16,12 @@ export default function DuplicateHandler({ onImagesProcessed, existingImages }: 
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   const _handleNewImages = (newImages: ImageFile[]) => {
-    // Check for duplicates
-    const duplicateResults = detectDuplicates(newImages, existingImages);
+    // Extract File objects from ImageFile objects
+    const newFiles = newImages.map(img => img.file);
+    const result = detectDuplicates(newFiles, existingImages);
     
-    if (duplicateResults.length > 0) {
-      setDuplicates(duplicateResults);
+    if (result.duplicates.length > 0) {
+      setDuplicates(result.duplicates);
       setPendingFiles(newImages);
       setShowDuplicateModal(true);
     } else {
@@ -45,7 +46,7 @@ export default function DuplicateHandler({ onImagesProcessed, existingImages }: 
         isOpen={showDuplicateModal}
         onClose={() => setShowDuplicateModal(false)}
         duplicates={duplicates}
-        onConfirm={handleDuplicateDecision}
+        onAddAnyway={() => handleDuplicateDecision(true)}
       />
       {/* This component manages duplicate detection state */}
       {null}
@@ -60,10 +61,11 @@ export const useDuplicateHandler = (existingImages: ImageFile[]) => {
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   const checkForDuplicates = (newImages: ImageFile[]): boolean => {
-    const duplicateResults = detectDuplicates(newImages, existingImages);
+    const newFiles = newImages.map(img => img.file);
+    const result = detectDuplicates(newFiles, existingImages);
     
-    if (duplicateResults.length > 0) {
-      setDuplicates(duplicateResults);
+    if (result.duplicates.length > 0) {
+      setDuplicates(result.duplicates);
       setPendingFiles(newImages);
       setShowDuplicateModal(true);
       return true;
