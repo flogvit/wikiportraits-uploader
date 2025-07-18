@@ -19,6 +19,7 @@ interface WikidataEntityResponse {
         P136?: Array<{ mainsnak: { datavalue: { value: { id: string } } } }>;
         P434?: Array<{ mainsnak: { datavalue: { value: string } } }>;
         P571?: Array<{ mainsnak: { datavalue: { value: { time: string } } } }>;
+        P569?: Array<{ mainsnak: { datavalue: { value: { time: string } } } }>;
       };
       sitelinks?: {
         [key: string]: {
@@ -40,6 +41,7 @@ interface ProcessedArtist {
   genres?: string[];
   musicbrainzId?: string;
   formedYear?: string;
+  birthDate?: string;
   wikipediaUrl?: string;
   wikidataUrl: string;
   isMusicRelated: boolean;
@@ -153,6 +155,16 @@ export async function GET(request: NextRequest) {
       const formedClaims = entity.claims?.P571 || [];
       const formedYear = formedClaims[0]?.mainsnak.datavalue.value.time?.match(/\+(\d{4})/)?.[1];
 
+      // Get birth date (convert to ISO format for consistency)
+      const birthClaims = entity.claims?.P569 || [];
+      const birthDateFull = birthClaims[0]?.mainsnak.datavalue.value.time;
+      let birthDate: string | undefined;
+      if (birthDateFull) {
+        // Convert Wikidata format "+1979-05-19T00:00:00Z" to "1979-05-19"
+        const match = birthDateFull.match(/\+(\d{4}-\d{2}-\d{2})/);
+        birthDate = match ? match[1] : undefined;
+      }
+
       // Get Wikipedia URL (prefer language-specific, fallback to English)
       let wikipediaUrl: string | undefined;
       const sitelinks = entity.sitelinks || {};
@@ -181,6 +193,7 @@ export async function GET(request: NextRequest) {
           countryCode: countryInfo?.code,
           musicbrainzId,
           formedYear,
+          birthDate,
           wikipediaUrl,
           wikidataUrl,
           isMusicRelated,

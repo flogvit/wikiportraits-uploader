@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const categories = page.categories || [];
 
     // Look for player categories with more comprehensive patterns
-    const playerCategories = categories
+    const playerCategories = (categories as any[])
       .map((cat: Record<string, unknown>) => cat.title)
       .filter((title: string) => {
         const lowerTitle = title.toLowerCase();
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         const membersUrl = new URL('https://en.wikipedia.org/w/api.php');
         membersUrl.searchParams.set('action', 'query');
         membersUrl.searchParams.set('list', 'categorymembers');
-        membersUrl.searchParams.set('cmtitle', categoryTitle);
+        membersUrl.searchParams.set('cmtitle', categoryTitle as string);
         membersUrl.searchParams.set('cmlimit', Math.min(limit, 100).toString());
         membersUrl.searchParams.set('cmnamespace', '0'); // Main namespace only
         membersUrl.searchParams.set('format', 'json');
@@ -75,10 +75,10 @@ export async function GET(request: NextRequest) {
 
         if (membersData.query && membersData.query.categorymembers) {
           const players = membersData.query.categorymembers.map((member: Record<string, unknown>) => ({
-            id: member.title.replace(/\s+/g, '_'),
+            id: (member.title as string).replace(/\s+/g, '_'),
             name: member.title,
             wikipedia_title: member.title,
-            wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(member.title)}`,
+            wikipedia_url: `https://en.wikipedia.org/wiki/${encodeURIComponent(member.title as string)}`,
             team: teamTitle,
             category: categoryTitle
           }));
@@ -92,8 +92,8 @@ export async function GET(request: NextRequest) {
 
     // Remove duplicates and limit results
     const uniquePlayers = allPlayers
-      .filter((player, index, self) => 
-        index === self.findIndex(p => p.name === player.name)
+      .filter((player: any, index, self) => 
+        index === self.findIndex((p: any) => p.name === player.name)
       )
       .slice(0, limit);
 

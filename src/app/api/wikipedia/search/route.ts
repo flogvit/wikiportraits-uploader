@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     // For teams, try to get additional info
     if (category === 'teams' && results.length > 0) {
       // Get page info for the first few results to identify actual football teams
-      const pageInfoPromises = results.slice(0, 5).map(async (result: unknown) => {
+      const pageInfoPromises = results.slice(0, 5).map(async (result: any) => {
         try {
           const pageTitle = result.title;
           const pageInfoUrl = new URL('https://en.wikipedia.org/w/api.php');
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
           if (pageData.query && pageData.query.pages) {
             const page = Object.values(pageData.query.pages)[0] as Record<string, unknown>;
             const isFootballTeam = page.categories && 
-              page.categories.some((cat: Record<string, unknown>) => 
+              (page.categories as any[]).some((cat: any) => 
                 cat.title.includes('football') || 
                 cat.title.includes('soccer') ||
                 cat.title.includes('Football')
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
             return {
               ...result,
               isFootballTeam,
-              extract: page.extract ? page.extract.substring(0, 200) + '...' : result.description
+              extract: page.extract ? (page.extract as string).substring(0, 200) + '...' : (result as any).description
             };
           }
         } catch (error) {

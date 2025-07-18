@@ -8,6 +8,7 @@ interface WikidataArtist {
   countryCode?: string;
   musicbrainzId?: string;
   formedYear?: string;
+  birthDate?: string;
   wikipediaUrl?: string;
   wikidataUrl: string;
   isMusicRelated: boolean;
@@ -32,6 +33,7 @@ interface UnifiedArtist {
   countryCode?: string;
   musicbrainzId?: string;
   formedYear?: string;
+  birthDate?: string;
   wikipediaUrl?: string;
   wikidataUrl?: string;
   isMusicRelated: boolean;
@@ -75,6 +77,7 @@ export async function GET(request: NextRequest) {
           countryCode: artist.countryCode,
           musicbrainzId: artist.musicbrainzId,
           formedYear: artist.formedYear,
+          birthDate: artist.birthDate,
           wikipediaUrl: artist.wikipediaUrl,
           wikidataUrl: artist.wikidataUrl,
           isMusicRelated: artist.isMusicRelated,
@@ -123,8 +126,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Filter out Wikipedia results if wikidata_only is true
+    const filteredResults = wikidataOnly 
+      ? results.filter(result => result.source === 'wikidata')
+      : results;
+
     // Step 3: Sort results (Wikidata music-related first, then Wikipedia music-related, then others)
-    results.sort((a, b) => {
+    filteredResults.sort((a, b) => {
       // Prioritize Wikidata results
       if (a.source === 'wikidata' && b.source === 'wikipedia') return -1;
       if (a.source === 'wikipedia' && b.source === 'wikidata') return 1;
@@ -136,15 +144,27 @@ export async function GET(request: NextRequest) {
       return 0;
     });
 
+    const finalResults = filteredResults.slice(0, limit);
+    
+    // Debug logging
+    console.log('API Debug:', {
+      query,
+      wikidataOnly,
+      totalResults: results.length,
+      filteredResults: filteredResults.length,
+      finalResults: finalResults.length,
+      sources: finalResults.map(r => ({ name: r.name, source: r.source }))
+    });
+
     return NextResponse.json({
       query,
       language,
-      results: results.slice(0, limit),
+      results: finalResults,
       sources: {
-        wikidata: results.filter(r => r.source === 'wikidata').length,
-        wikipedia: results.filter(r => r.source === 'wikipedia').length
+        wikidata: filteredResults.filter(r => r.source === 'wikidata').length,
+        wikipedia: filteredResults.filter(r => r.source === 'wikipedia').length
       },
-      total: results.length
+      total: filteredResults.length
     });
 
   } catch (error) {

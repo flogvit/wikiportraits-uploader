@@ -222,15 +222,15 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
         }]
       } : {}),
       
-      // P569: date of birth (if birth year is specified)
-      ...(memberData.birthYear ? {
+      // P569: date of birth (if birth date is specified)
+      ...(memberData.birthDate ? {
         P569: [{
           mainsnak: {
             snaktype: 'value',
             property: 'P569',
             datavalue: {
               value: {
-                time: `+${memberData.birthYear}-01-01T00:00:00Z`,
+                time: memberData.birthDate,
                 timezone: 0,
                 before: 0,
                 after: 0,

@@ -118,8 +118,8 @@ async function fetchMemberDetailsWithRoles(memberClaims: unknown[]): Promise<Ban
   // Collect all role IDs to resolve in batch
   const roleIds = new Set<string>();
 
-  memberClaims.forEach((claim: unknown) => {
-    const memberId = claim.mainsnak.datavalue?.value?.id;
+  memberClaims.forEach((claim: any) => {
+    const memberId = claim.mainsnak?.datavalue?.value?.id;
     if (!memberId) return;
 
     const roles: string[] = [];
@@ -127,7 +127,7 @@ async function fetchMemberDetailsWithRoles(memberClaims: unknown[]): Promise<Ban
     
     // Extract roles from P3831 (object of statement has role)
     const roleClaims = qualifiers.P3831 || [];
-    roleClaims.forEach((roleClaim: unknown) => {
+    roleClaims.forEach((roleClaim: any) => {
       const roleId = roleClaim.datavalue?.value?.id;
       if (roleId) {
         roles.push(roleId);
@@ -225,7 +225,7 @@ async function fetchMemberDetailsWithRoles(memberClaims: unknown[]): Promise<Ban
       wikidataUrl: `https://www.wikidata.org/wiki/${memberInfo.id}`,
       wikipediaUrl,
       instruments: instruments.length > 0 ? instruments : undefined,
-      birthDate: birthDate ? new Date(birthDate).getFullYear().toString() : undefined,
+      birthDate: birthDate ? birthDate.replace(/^\+/, '').split('T')[0] : undefined,
       nationality: nationalityId, // This would need to be resolved to a human name
       imageUrl: imageUrl ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageUrl}` : undefined,
       // Add band-specific time period
@@ -294,10 +294,10 @@ async function processMembersFromEntityData(entities: Record<string, unknown>): 
   const instrumentIds = new Set<string>();
   
   Object.keys(entities).forEach(entityId => {
-    const entity = entities[entityId];
+    const entity = entities[entityId] as any;
     const instrumentClaims = entity.claims?.P1303 || [];
-    instrumentClaims.forEach((claim: unknown) => {
-      const instrumentId = claim.mainsnak.datavalue?.value?.id;
+    instrumentClaims.forEach((claim: any) => {
+      const instrumentId = claim.mainsnak?.datavalue?.value?.id;
       if (instrumentId) {
         instrumentIds.add(instrumentId);
       }
@@ -329,7 +329,7 @@ async function processMembersFromEntityData(entities: Record<string, unknown>): 
   }
 
   Object.keys(entities).forEach(entityId => {
-    const entity = entities[entityId];
+    const entity = entities[entityId] as any;
     
     // Get the member name
     const name = entity.labels?.en?.value || entityId;
@@ -338,8 +338,8 @@ async function processMembersFromEntityData(entities: Record<string, unknown>): 
     const instrumentClaims = entity.claims?.P1303 || [];
     const instruments: string[] = [];
     
-    instrumentClaims.forEach((claim: unknown) => {
-      const instrumentId = claim.mainsnak.datavalue?.value?.id;
+    instrumentClaims.forEach((claim: any) => {
+      const instrumentId = claim.mainsnak?.datavalue?.value?.id;
       if (instrumentId) {
         // Use resolved name or fall back to ID
         instruments.push(instrumentNames[instrumentId] || instrumentId);
@@ -370,7 +370,7 @@ async function processMembersFromEntityData(entities: Record<string, unknown>): 
       wikidataUrl: `https://www.wikidata.org/wiki/${entityId}`,
       wikipediaUrl,
       instruments: instruments.length > 0 ? instruments : undefined,
-      birthDate: birthDate ? new Date(birthDate).getFullYear().toString() : undefined,
+      birthDate: birthDate ? birthDate.replace(/^\+/, '').split('T')[0] : undefined,
       nationality: nationalityId, // This would need to be resolved to a human name
       imageUrl: imageUrl ? `https://commons.wikimedia.org/wiki/Special:FilePath/${imageUrl}` : undefined,
     });
@@ -382,7 +382,7 @@ async function processMembersFromEntityData(entities: Record<string, unknown>): 
 function processSparqlBandMembersData(bindings: unknown[]): BandMember[] {
   const memberMap = new Map<string, BandMember>();
 
-  bindings.forEach((binding) => {
+  bindings.forEach((binding: any) => {
     const memberId = binding.member.value.split('/').pop();
     const memberName = binding.memberLabel.value;
 
@@ -393,7 +393,7 @@ function processSparqlBandMembersData(bindings: unknown[]): BandMember[] {
         wikidataUrl: binding.member.value,
         wikipediaUrl: binding.wikipedia?.value,
         instruments: [],
-        birthDate: binding.birthDate?.value ? new Date(binding.birthDate.value).getFullYear().toString() : undefined,
+        birthDate: binding.birthDate?.value ? new Date(binding.birthDate.value.replace(/^\+/, '')).getFullYear().toString() : undefined,
         nationality: binding.nationalityLabel?.value,
         imageUrl: binding.image?.value ? `https://commons.wikimedia.org/wiki/Special:FilePath/${binding.image.value}` : undefined,
       });
