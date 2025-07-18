@@ -21,6 +21,9 @@ export interface BandMember {
   birthDate?: string;
   nationality?: string;
   imageUrl?: string;
+  bandQID?: string; // Wikidata ID of the band this member belongs to
+  new?: boolean; // True if this is a new performer to be created in Wikidata
+  type?: 'band_member' | 'additional_artist'; // Type for categorization on reload
 }
 
 export interface Band extends MusicArtist {
@@ -91,6 +94,7 @@ export interface PendingWikidataEntity {
   data: PendingBandData | PendingBandMemberData;
   wikidataId?: string; // Set after successful creation
   error?: string;
+  new?: boolean; // Mark as new for later WD creation
 }
 
 export interface PendingBandData {
@@ -110,9 +114,12 @@ export interface PendingBandMemberData {
   nationality?: string; // Wikidata Q-code for country of citizenship
   nationalityName?: string; // Display name for nationality
   gender?: 'male' | 'female' | 'non-binary gender' | 'trans man' | 'trans woman';
-  birthYear?: string; // Birth year for P569 (date of birth)
+  birthDate?: string; // Birth date for P569 (date of birth)
   bandId?: string; // ID of the band (existing or pending)
   isBandMember?: boolean; // Whether this artist is a band member or guest/other
+  wikidataUrl?: string; // URL to Wikidata page
+  wikipediaUrl?: string; // URL to Wikipedia page
+  imageUrl?: string; // URL to image on Commons
 }
 
 export interface WikidataCreationPlan {

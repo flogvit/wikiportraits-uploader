@@ -1,4 +1,4 @@
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 
 /**
  * Extract all categories from image wikitext using regex

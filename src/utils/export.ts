@@ -1,4 +1,4 @@
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { generateCommonsWikitext, generateFilename } from './commons-template';
 
 export function exportMetadataAsJSON(images: ImageFile[]): void {

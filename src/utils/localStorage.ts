@@ -75,53 +75,46 @@ export const KEYS = {
   SELECTED_BAND_MEMBERS: 'music-event-selected-band-members',
 };
 
-// Band member utilities
+// Simplified performer utilities
 export const saveBandMembers = (bandId: string, members: any[]) => {
   if (!bandId) return;
-  const key = `${KEYS.BAND_MEMBERS}-${bandId}`;
+  const key = `band-members-${bandId}`;
   setJsonItem(key, members);
 };
 
 export const loadBandMembers = (bandId: string): any[] => {
   if (!bandId) return [];
-  const key = `${KEYS.BAND_MEMBERS}-${bandId}`;
+  const key = `band-members-${bandId}`;
   return getJsonItem(key, []);
 };
 
-export const savePendingBandMembers = (bandId: string, pendingMembers: any[]) => {
+export const saveSelectedPerformers = (bandId: string, performers: any[]) => {
   if (!bandId) return;
-  const key = `${KEYS.PENDING_BAND_MEMBERS}-${bandId}`;
-  setJsonItem(key, pendingMembers);
+  const key = `selected-performers-${bandId}`;
+  setJsonItem(key, performers);
 };
 
-export const loadPendingBandMembers = (bandId: string): any[] => {
+export const loadSelectedPerformers = (bandId: string): any[] => {
   if (!bandId) return [];
-  const key = `${KEYS.PENDING_BAND_MEMBERS}-${bandId}`;
+  const key = `selected-performers-${bandId}`;
   return getJsonItem(key, []);
 };
 
-export const saveSelectedBandMembers = (bandId: string, selectedMembers: string[]) => {
+export const clearPerformerData = (bandId: string) => {
   if (!bandId) return;
-  const key = `${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`;
-  setJsonItem(key, selectedMembers);
-};
-
-export const loadSelectedBandMembers = (bandId: string): string[] => {
-  if (!bandId) return [];
-  const key = `${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`;
-  return getJsonItem(key, []);
-};
-
-export const clearBandMemberData = (bandId: string) => {
-  if (!bandId) return;
-  const bandMembersKey = `${KEYS.BAND_MEMBERS}-${bandId}`;
-  const pendingMembersKey = `${KEYS.PENDING_BAND_MEMBERS}-${bandId}`;
-  const selectedMembersKey = `${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`;
+  const bandMembersKey = `band-members-${bandId}`;
+  const selectedPerformersKey = `selected-performers-${bandId}`;
   
   removeItem(bandMembersKey);
-  removeItem(pendingMembersKey);
-  removeItem(selectedMembersKey);
+  removeItem(selectedPerformersKey);
+  
+  // Also remove old keys for migration
+  removeItem(`${KEYS.BAND_MEMBERS}-${bandId}`);
+  removeItem(`${KEYS.PENDING_BAND_MEMBERS}-${bandId}`);
+  removeItem(`${KEYS.SELECTED_BAND_MEMBERS}-${bandId}`);
+  removeItem('music-event-festival-performers');
 };
+
 
 // Author utilities - Q-ID only, names fetched from Wikidata
 export const saveAuthorWikidataQid = (qid: string) => {

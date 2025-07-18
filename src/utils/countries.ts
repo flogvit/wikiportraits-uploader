@@ -266,9 +266,14 @@ export function getCountryByCode(code: string): Country | undefined {
  * Get country by exact name match
  */
 export function getCountryByName(name: string): Country | undefined {
+  if (!name || typeof name !== 'string') {
+    return undefined;
+  }
+  
+  const lowerName = name.toLowerCase();
   return COUNTRIES.find(country => 
-    country.name.toLowerCase() === name.toLowerCase() ||
-    country.searchTerms.includes(name.toLowerCase())
+    country.name.toLowerCase() === lowerName ||
+    country.searchTerms.includes(lowerName)
   );
 }
 

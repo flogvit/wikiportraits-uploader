@@ -1,4 +1,4 @@
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { generateTemplateName } from '@/utils/template-generator';
 import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { SoccerMatchMetadata } from '@/components/forms/SoccerMatchForm';
@@ -159,12 +159,17 @@ export function regenerateImageWikitext(image: ImageFile): ImageFile {
   return updateImageWikitext(image, wikitext, false);
 }
 
-export function generateFilename(image: ImageFile, imageIndex?: number): string {
+export function generateFilename(image: ImageFile, imageIndex?: number, musicEventData?: any): string {
   const { metadata } = image;
   const originalName = image.file.name;
   const extension = originalName.split('.').pop();
   
-  // Generate context-aware filename for music events
+  // Generate context-aware filename for music events (new workflow)
+  if (musicEventData?.eventType === 'festival' && musicEventData.festivalData) {
+    return generateMusicEventFilenameFromWorkflow(musicEventData, metadata, extension, imageIndex);
+  }
+  
+  // Generate context-aware filename for music events (legacy)
   if (metadata.musicEvent) {
     return generateMusicEventFilename(metadata.musicEvent, metadata, extension, imageIndex);
   }
@@ -187,6 +192,45 @@ export function generateFilename(image: ImageFile, imageIndex?: number): string 
   }
   
   return originalName;
+}
+
+function generateMusicEventFilenameFromWorkflow(
+  musicEventData: any,
+  metadata: ImageFile['metadata'], 
+  extension: string | undefined, 
+  imageIndex?: number
+): string {
+  const counter = imageIndex ? ` ${String(imageIndex).padStart(2, '0')}` : '';
+  
+  if (musicEventData.eventType === 'festival' && musicEventData.festivalData) {
+    const { festival } = musicEventData.festivalData;
+    
+    // Use selected band from metadata if available
+    const bandName = metadata.selectedBand || extractArtistFromDescription(metadata.description);
+    
+    if (bandName && festival?.name) {
+      // Format: "Band at Festival xx.jpg" 
+      const filename = sanitizeFilename(`${bandName} at ${festival.name}${counter}`);
+      return `${filename}.${extension}`;
+    }
+    
+    // Fallback to festival name if no band selected
+    if (festival?.name) {
+      const filename = sanitizeFilename(`${festival.name}${counter}`);
+      return `${filename}.${extension}`;
+    }
+  }
+  
+  // Fallback to description-based naming
+  if (metadata.description) {
+    const cleanDescription = metadata.description
+      .replace(/[^a-zA-Z0-9\s-]/g, '')
+      .replace(/\s+/g, '_')
+      .substring(0, 100);
+    return `${cleanDescription}${counter}.${extension}`;
+  }
+  
+  return `music_event${counter}.${extension}`;
 }
 
 function generateMusicEventFilename(
