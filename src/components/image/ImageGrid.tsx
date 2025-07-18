@@ -15,7 +15,9 @@ interface ImageGridProps {
   onExportMetadata: () => void;
   onBulkEdit: () => void;
   onScrollToImage: (imageId: string) => void;
-  musicEventData?: MusicEventMetadata;
+  eventDetails?: any;
+  bandPerformers?: any;
+  musicEventData?: MusicEventMetadata; // Keep for backward compatibility
 }
 
 export default function ImageGrid({ 
@@ -24,32 +26,15 @@ export default function ImageGrid({
   onImageRemove, 
   onImageClick, 
   onExportMetadata, 
+  eventDetails,
+  bandPerformers,
   musicEventData 
 }: ImageGridProps) {
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
 
   const handleBulkUpdate = (updates: Partial<ImageFile['metadata']>) => {
     images.forEach(image => {
-      const finalUpdates = { ...updates };
-      
-      // If username or fullName are being updated, automatically format the author field
-      if (updates.authorUsername !== undefined || updates.authorFullName !== undefined) {
-        const username = updates.authorUsername !== undefined ? updates.authorUsername : image.metadata.authorUsername;
-        const fullName = updates.authorFullName !== undefined ? updates.authorFullName : image.metadata.authorFullName;
-        
-        let formattedAuthor = '';
-        if (username && fullName) {
-          formattedAuthor = `[[User:${username}|${fullName}]]`;
-        } else if (fullName) {
-          formattedAuthor = fullName;
-        } else if (username) {
-          formattedAuthor = `[[User:${username}]]`;
-        }
-        
-        finalUpdates.author = formattedAuthor;
-      }
-      
-      onImageUpdate(image.id, finalUpdates);
+      onImageUpdate(image.id, updates);
     });
   };
 
@@ -58,7 +43,7 @@ export default function ImageGrid({
     const hasBasicInfo = description.trim() && author.trim();
     
     // For music events, also require a selected band
-    if (musicEventData?.eventType === 'festival') {
+    if (bandPerformers?.selectedBand) {
       return hasBasicInfo && selectedBand?.trim();
     }
     
@@ -92,7 +77,7 @@ export default function ImageGrid({
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {images.map((image, index) => (
           <ImageCard
             key={image.id}
@@ -101,6 +86,8 @@ export default function ImageGrid({
             onUpdate={onImageUpdate}
             onRemove={onImageRemove}
             onImageClick={onImageClick}
+            eventDetails={eventDetails}
+            bandPerformers={bandPerformers}
             musicEventData={musicEventData}
           />
         ))}

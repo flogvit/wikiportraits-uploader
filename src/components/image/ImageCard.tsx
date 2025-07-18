@@ -7,6 +7,7 @@ import { MusicEventMetadata } from '@/types/music';
 import { generateFilename } from '@/utils/commons-template';
 import ImagePreview from './ImagePreview';
 import ImageMetadataForm from '../forms/ImageMetadataForm';
+import CompactPerformerSelector from './CompactPerformerSelector';
 
 interface ImageCardProps {
   image: ImageFile;
@@ -14,7 +15,9 @@ interface ImageCardProps {
   onUpdate: (id: string, metadata: Partial<ImageFile['metadata']>) => void;
   onRemove: (id: string) => void;
   onImageClick: (image: ImageFile) => void;
-  musicEventData?: MusicEventMetadata;
+  eventDetails?: any;
+  bandPerformers?: any;
+  musicEventData?: MusicEventMetadata; // Keep for backward compatibility
 }
 
 export default function ImageCard({ 
@@ -23,6 +26,8 @@ export default function ImageCard({
   onUpdate, 
   onRemove, 
   onImageClick, 
+  eventDetails,
+  bandPerformers,
   musicEventData 
 }: ImageCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -40,7 +45,7 @@ export default function ImageCard({
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-card-foreground truncate">
-            {generateFilename(image, index)}
+            {generateFilename(image, index, musicEventData)}
           </h3>
           <button
             onClick={() => setIsExpanded(!isExpanded)}
@@ -60,11 +65,22 @@ export default function ImageCard({
           </button>
         </div>
 
+        {/* Performer selector - always visible in same position */}
+        <CompactPerformerSelector
+          image={image}
+          eventDetails={eventDetails}
+          bandPerformers={bandPerformers}
+          musicEventData={musicEventData}
+          onMembersChange={(imageId, memberIds) => onUpdate(imageId, { selectedBandMembers: memberIds })}
+        />
+
         {isExpanded && (
           <ImageMetadataForm
             image={image}
             index={index}
             onUpdate={onUpdate}
+            eventDetails={eventDetails}
+            bandPerformers={bandPerformers}
             musicEventData={musicEventData}
           />
         )}

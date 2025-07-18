@@ -8,14 +8,15 @@ import { generateCommonsWikitext, generateFilename } from '@/utils/commons-templ
 interface CommonsPreviewProps {
   image: ImageFile;
   index?: number;
+  musicEventData?: any;
 }
 
-export default function CommonsPreview({ image, index }: CommonsPreviewProps) {
+export default function CommonsPreview({ image, index, musicEventData }: CommonsPreviewProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const wikitext = image.metadata.wikitext || generateCommonsWikitext(image);
-  const suggestedFilename = generateFilename(image, index);
+  const suggestedFilename = generateFilename(image, index, musicEventData);
 
   const copyToClipboard = async () => {
     try {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, Download, FileText, Table, Code, Database } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { 
   exportMetadataAsJSON, 
   exportMetadataAsCSV, 

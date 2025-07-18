@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 // import { generateFilename } from '@/utils/commons-template';
 import { MusicEventMetadata } from '@/types/music';
 

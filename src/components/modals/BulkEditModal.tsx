@@ -1,7 +1,7 @@
 'use client';
 
 import { X, Edit3, Users } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import BulkEditForm from '../forms/BulkEditForm';
 
 interface BulkEditModalProps {

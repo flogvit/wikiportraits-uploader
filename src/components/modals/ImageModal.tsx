@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 
 interface ImageModalProps {
   image: ImageFile | null;
