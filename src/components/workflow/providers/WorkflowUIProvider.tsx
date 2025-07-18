@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext } from 'react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 
 interface WorkflowUIActions {
   onExportMetadata: () => void;

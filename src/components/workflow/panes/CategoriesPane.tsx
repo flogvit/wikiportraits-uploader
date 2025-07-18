@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { FolderPlus, Check, AlertCircle, Eye, Plus, X } from 'lucide-react';
 import { WorkflowFormData } from '../providers/WorkflowFormProvider';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
 import { generateSoccerCategories, getCategoriesToCreate as getSoccerCategoriesToCreate } from '@/utils/soccer-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';

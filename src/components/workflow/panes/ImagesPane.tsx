@@ -2,7 +2,7 @@
 
 import { ImagePlus } from 'lucide-react';
 import { useFormContext } from 'react-hook-form';
-// import { ImageFile } from '@/app/page';
+// import { ImageFile } from '@/types';
 // import { MusicEventMetadata } from '@/types/music';
 // import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
 // import { UploadType } from '@/components/selectors/UploadTypeSelector';
@@ -24,16 +24,16 @@ export default function ImagesPane({
   
   // Get data from the unified form  
   const uploadType = form.watch('uploadType');
-  const soccerMatchData = form.watch('soccerMatchData');
+  const eventType = form.watch('eventType');
   const selectedPlayers = form.watch('selectedPlayers') || [];
-  const musicEventData = form.watch('musicEventData');
-  const _eventDetails = watch('eventDetails');
+  const eventDetails = form.watch('eventDetails');
+  const bandPerformers = form.watch('bandPerformers') || { performers: [] };
   const completedCount = (images || []).filter(image => {
     const { description, author, selectedBand } = image.metadata;
     const hasBasicInfo = description.trim() && author.trim();
     
     // For music events, also require a selected band
-    if (musicEventData?.eventType === 'festival') {
+    if (uploadType === 'music' && eventType === 'festival') {
       return hasBasicInfo && selectedBand?.trim();
     }
     
@@ -46,18 +46,15 @@ export default function ImagesPane({
   const getMissingEventDetails = () => {
     const missing: string[] = [];
     
-    if (uploadType === 'music' && musicEventData?.eventType === 'festival') {
-      if (!musicEventData.festivalData?.authorUsername && !musicEventData.festivalData?.authorFullName) {
-        missing.push('Author information (username or full name)');
-      }
-      if (!musicEventData.festivalData?.selectedBands?.length) {
+    if (uploadType === 'music' && eventType === 'festival') {
+      if (!bandPerformers.selectedBand?.name) {
         missing.push('Selected band/artist');
       }
-      if (!musicEventData.festivalData?.festival?.name) {
+      if (!eventDetails?.name) {
         missing.push('Festival name');
       }
     } else if (uploadType === 'soccer') {
-      if (!soccerMatchData?.homeTeam?.name || !soccerMatchData?.awayTeam?.name) {
+      if (!eventDetails?.homeTeam?.name || !eventDetails?.awayTeam?.name) {
         missing.push('Team information');
       }
       if (!selectedPlayers?.length) {
@@ -107,14 +104,16 @@ export default function ImagesPane({
         onImagesAdded={addImages}
         existingImages={images}
         uploadType={uploadType}
-        soccerMatchData={soccerMatchData}
         selectedPlayers={selectedPlayers}
-        musicEventData={musicEventData}
+        eventDetails={eventDetails}
+        bandPerformers={bandPerformers}
         onSoccerDataUpdate={(matchData, players) => {
-          form.setValue('soccerMatchData', matchData);
+          form.setValue('eventDetails', { ...eventDetails, ...matchData });
           form.setValue('selectedPlayers', players);
         }}
-        onMusicEventUpdate={(eventData) => form.setValue('musicEventData', eventData)}
+        onMusicEventUpdate={(eventData) => {
+          form.setValue('eventDetails', { ...eventDetails, ...eventData });
+        }}
       />
       
       {(images?.length || 0) > 0 && (
@@ -127,7 +126,8 @@ export default function ImagesPane({
             onBulkEdit={onBulkEdit}
             onScrollToImage={onScrollToImage}
             onImageClick={onImageClick}
-            musicEventData={musicEventData}
+            eventDetails={eventDetails}
+            bandPerformers={bandPerformers}
           />
 
           {/* Completion status */}
@@ -161,7 +161,7 @@ export default function ImagesPane({
               {(images?.length || 0) - completedCount > 0 && (
                 <p className="text-muted-foreground text-xs mt-2">
                   Missing metadata for {(images?.length || 0) - completedCount} image(s). 
-                  Each image needs at least a description and author{musicEventData?.eventType === 'festival' ? ', and selected band' : ''}.
+                  Each image needs at least a description and author{eventType === 'festival' ? ', and selected band' : ''}.
                 </p>
               )}
             </div>

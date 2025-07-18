@@ -1,14 +1,13 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-// import { ImageFile } from '@/app/page';
+// import { ImageFile } from '@/types';
 // import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
 import { MusicEventMetadata } from '@/types/music';
-import { getItem, KEYS } from '@/utils/localStorage';
 // import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { useWorkflowForm } from './WorkflowFormProvider';
 
-export type WorkflowStep = 'event-type' | 'event-details' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
+export type WorkflowStep = 'wiki-portraits' | 'event-type' | 'event-details' | 'band-performers' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
 export type StepStatus = 'pending' | 'ready' | 'in-progress' | 'completed' | 'error';
 
 export interface WorkflowStepInfo {
@@ -28,8 +27,10 @@ interface WorkflowContextType {
   updateStepStatus: (step: WorkflowStep, status: StepStatus) => void;
   canAccessStep: (step: WorkflowStepInfo) => boolean;
   handleStepClick: (stepId: WorkflowStep) => void;
+  handleWikiPortraitsComplete: () => void;
   handleEventTypeComplete: () => void;
   handleEventDetailsComplete: () => void;
+  handleBandPerformersComplete: () => void;
   handleCategoriesComplete: () => void;
   handleTemplatesComplete: () => void;
   handleImagesComplete: () => void;
@@ -44,23 +45,22 @@ interface WorkflowProviderProps {
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);
 
 export function WorkflowProvider({ 
-  children, 
-  musicEventData, 
-  onMusicEventUpdate 
+  children
 }: WorkflowProviderProps) {
   const { form } = useWorkflowForm();
   const uploadType = form.watch('uploadType');
   
   const getInitialTab = useCallback((): WorkflowStep => {
-    if (uploadType === 'music') return 'event-type';
-    if (uploadType === 'soccer') return 'event-details';
-    return 'images';
+    // Always start with WikiPortraits workflow choice
+    return 'wiki-portraits';
   }, [uploadType]);
 
   const [activeTab, setActiveTab] = useState<WorkflowStep>('images'); // Default fallback
   const [stepStatuses, setStepStatuses] = useState<Record<WorkflowStep, StepStatus>>({
-    'event-type': 'ready',
+    'wiki-portraits': 'ready',
+    'event-type': 'pending',
     'event-details': 'pending',
+    'band-performers': 'pending',
     categories: 'pending',
     images: 'pending',
     templates: 'pending',
@@ -75,31 +75,41 @@ export function WorkflowProvider({
     setActiveTab(getInitialTab());
   }, [getInitialTab]);
 
-  // Load stored music event data when switching to event-details
+  // Watch WikiPortraits form value and auto-complete step when selection is made
   useEffect(() => {
-    if (activeTab === 'event-details' && uploadType === 'music' && musicEventData?.eventType === 'festival' && onMusicEventUpdate) {
-      const storedName = getItem(KEYS.FESTIVAL_NAME);
-      const storedYear = getItem(KEYS.FESTIVAL_YEAR);
-      const storedLocation = getItem(KEYS.FESTIVAL_LOCATION);
-      const storedCountry = getItem(KEYS.FESTIVAL_COUNTRY);
-      
-      if (storedName || storedYear || storedLocation || storedCountry) {
-        onMusicEventUpdate({
-          ...musicEventData,
-          festivalData: {
-            ...musicEventData.festivalData!,
-            festival: {
-              ...musicEventData.festivalData!.festival,
-              name: storedName || musicEventData.festivalData!.festival?.name || '',
-              year: storedYear || musicEventData.festivalData!.festival?.year || '',
-              location: storedLocation || musicEventData.festivalData!.festival?.location || '',
-              country: storedCountry || musicEventData.festivalData!.festival?.country || ''
-            }
-          }
-        });
+    const subscription = form.watch((value, { name }) => {
+      if (name?.startsWith('wikiPortraits.isWikiPortraitsJob') || name === 'wikiPortraits') {
+        const wikiPortraits = value.wikiPortraits;
+        if (wikiPortraits?.isWikiPortraitsJob !== undefined) {
+          updateStepStatus('wiki-portraits', 'completed');
+        }
       }
+      
+      // Watch event details and auto-complete when required fields are filled
+      if (name?.startsWith('eventDetails.') || name === 'eventDetails') {
+        const eventDetails = value.eventDetails;
+        if (eventDetails?.name && eventDetails?.year) {
+          updateStepStatus('event-details', 'completed');
+        } else {
+          updateStepStatus('event-details', 'pending');
+        }
+      }
+    });
+    
+    // Also check initial values
+    const wikiPortraits = form.getValues('wikiPortraits');
+    if (wikiPortraits?.isWikiPortraitsJob !== undefined) {
+      updateStepStatus('wiki-portraits', 'completed');
     }
-  }, [activeTab, uploadType]);
+    
+    const eventDetails = form.getValues('eventDetails');
+    if (eventDetails?.name && eventDetails?.year) {
+      updateStepStatus('event-details', 'completed');
+    }
+    
+    return () => subscription.unsubscribe();
+  }, [form]);
+
 
   const updateStepStatus = (step: WorkflowStep, status: StepStatus) => {
     setStepStatuses(prev => ({ ...prev, [step]: status }));
@@ -114,6 +124,21 @@ export function WorkflowProvider({
     setActiveTab(stepId);
   };
 
+  const handleWikiPortraitsComplete = () => {
+    updateStepStatus('wiki-portraits', 'completed');
+    const { uploadType } = form.getValues();
+    if (uploadType === 'music') {
+      updateStepStatus('event-type', 'ready');
+      setActiveTab('event-type');
+    } else if (uploadType === 'soccer') {
+      updateStepStatus('event-details', 'ready');
+      setActiveTab('event-details');
+    } else {
+      updateStepStatus('images', 'ready');
+      setActiveTab('images');
+    }
+  };
+
   const handleEventTypeComplete = () => {
     updateStepStatus('event-type', 'completed');
     updateStepStatus('event-details', 'ready');
@@ -122,8 +147,20 @@ export function WorkflowProvider({
 
   const handleEventDetailsComplete = () => {
     updateStepStatus('event-details', 'completed');
-    updateStepStatus('categories', 'ready');
-    setActiveTab('categories');
+    const { uploadType } = form.getValues();
+    if (uploadType === 'music') {
+      updateStepStatus('band-performers', 'ready');
+      setActiveTab('band-performers');
+    } else {
+      updateStepStatus('categories', 'ready');
+      setActiveTab('categories');
+    }
+  };
+
+  const handleBandPerformersComplete = () => {
+    updateStepStatus('band-performers', 'completed');
+    updateStepStatus('images', 'ready');
+    setActiveTab('images');
   };
 
   const handleCategoriesComplete = () => {
@@ -151,8 +188,10 @@ export function WorkflowProvider({
     updateStepStatus,
     canAccessStep,
     handleStepClick,
+    handleWikiPortraitsComplete,
     handleEventTypeComplete,
     handleEventDetailsComplete,
+    handleBandPerformersComplete,
     handleCategoriesComplete,
     handleTemplatesComplete,
     handleImagesComplete

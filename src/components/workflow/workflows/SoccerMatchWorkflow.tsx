@@ -4,7 +4,7 @@ import { useCallback, useEffect } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { SoccerMatchMetadata, SoccerPlayer } from '../../forms/SoccerMatchForm';
 import SoccerMatchForm from '../../forms/SoccerMatchForm';
 import FileDropzone from '../../upload/FileDropzone';

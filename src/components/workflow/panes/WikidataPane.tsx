@@ -15,6 +15,7 @@ export default function WikidataPane({
 }: WikidataPaneProps) {
   const { watch, setValue } = useFormContext<WorkflowFormData>();
   const pendingWikidataEntities = watch('pendingWikidataEntities') || [];
+  const performers = watch('performers') || [];
   const [editingEntity, setEditingEntity] = useState<string | null>(null);
 
   const handleEntityUpdate = (entityId: string, updates: Partial<PendingWikidataEntity>) => {
@@ -327,7 +328,7 @@ function BandMemberEntityCard({ entity, isEditing, onEdit, onUpdate, onDelete, o
             )}
           </p>
           <p>
-            <strong>Birth Year:</strong> {memberData.birthYear || 'Not specified'}
+            <strong>Birth Date:</strong> {memberData.birthDate || 'Not specified'}
           </p>
           {memberData.legalName && (
             <p>

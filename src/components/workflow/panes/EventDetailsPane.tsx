@@ -1,13 +1,9 @@
 'use client';
 
 import { Calendar } from 'lucide-react';
-import { useFormContext } from 'react-hook-form';
-// import { SoccerMatchMetadata, SoccerPlayer } from '../../forms/SoccerMatchForm';
-// import { MusicEventMetadata } from '@/types/music';
-// import { UploadType } from '@/components/selectors/UploadTypeSelector';
-import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
+import { useWorkflowForm } from '../providers/WorkflowFormProvider';
 import SoccerMatchForm from '../../forms/SoccerMatchForm';
-import FestivalDetailsForm from '../../forms/FestivalDetailsForm';
+import EventDetailsForm from '../../forms/EventDetailsForm';
 
 interface EventDetailsPaneProps {
   onComplete?: () => void;
@@ -18,13 +14,6 @@ export default function EventDetailsPane({
 }: EventDetailsPaneProps) {
   const { form } = useWorkflowForm();
   const uploadType = form.watch('uploadType');
-  const _soccerMatchData = form.watch('soccerMatchData');
-  const _selectedPlayers = form.watch('selectedPlayers') || [];
-  const musicEventData = form.watch('musicEventData');
-  const { watch } = useFormContext<WorkflowFormData>();
-  
-  // Get event details from the unified form
-  const _eventDetails = watch('eventDetails');
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -39,22 +28,8 @@ export default function EventDetailsPane({
         <SoccerMatchForm
           onComplete={onComplete}
         />
-      ) : uploadType === 'music' && musicEventData ? (
-        <div className="space-y-6">
-          {musicEventData.eventType === 'festival' ? (
-            <FestivalDetailsForm
-              musicEventData={musicEventData}
-              onMusicEventUpdate={(eventData) => form.setValue('musicEventData', eventData)}
-              onComplete={onComplete}
-            />
-          ) : (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-card-foreground mb-4">Concert Details</h3>
-              {/* Concert form would go here - similar structure to festival */}
-              <p className="text-muted-foreground">Concert form implementation needed...</p>
-            </div>
-          )}
-        </div>
+      ) : uploadType === 'music' ? (
+        <EventDetailsForm onComplete={onComplete} />
       ) : null}
     </div>
   );

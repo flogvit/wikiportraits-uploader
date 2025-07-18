@@ -2,8 +2,10 @@
 
 import { useWorkflow } from '../providers/WorkflowProvider';
 import { useWorkflowForm } from '../providers/WorkflowFormProvider';
+import WikiPortraitsPane from '../panes/WikiPortraitsPane';
 import EventTypePane from '../panes/EventTypePane';
 import EventDetailsPane from '../panes/EventDetailsPane';
+import BandPerformersPane from '../panes/BandPerformersPane';
 import CategoriesPane from '../panes/CategoriesPane';
 import ImagesPane from '../panes/ImagesPane';
 import TemplatesPane from '../panes/TemplatesPane';
@@ -12,12 +14,14 @@ import UploadPane from '../panes/UploadPane';
 
 export default function WorkflowStep() {
   const { form } = useWorkflowForm();
-  const musicEventData = form.watch('musicEventData');
+  const eventType = form.watch('eventType');
   
   const { 
     activeTab, 
+    handleWikiPortraitsComplete,
     handleEventTypeComplete, 
     handleEventDetailsComplete, 
+    handleBandPerformersComplete, 
     handleCategoriesComplete, 
     handleTemplatesComplete, 
     handleImagesComplete 
@@ -33,7 +37,7 @@ export default function WorkflowStep() {
         </p>
       </div>
       
-      {!musicEventData?.eventType ? (
+      {!eventType ? (
         <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
           <p className="text-warning font-medium">⚠️ Event Information Required</p>
           <p className="text-muted-foreground text-sm mt-1">
@@ -61,7 +65,7 @@ export default function WorkflowStep() {
         </p>
       </div>
       
-      {!musicEventData?.eventType ? (
+      {!eventType ? (
         <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
           <p className="text-warning font-medium">⚠️ Event Information Required</p>
           <p className="text-muted-foreground text-sm mt-1">
@@ -81,6 +85,13 @@ export default function WorkflowStep() {
 
   const renderActiveStep = () => {
     switch (activeTab) {
+      case 'wiki-portraits':
+        return (
+          <WikiPortraitsPane
+            onComplete={handleWikiPortraitsComplete}
+          />
+        );
+
       case 'event-type':
         return (
           <EventTypePane
@@ -92,6 +103,13 @@ export default function WorkflowStep() {
         return (
           <EventDetailsPane
             onComplete={handleEventDetailsComplete}
+          />
+        );
+
+      case 'band-performers':
+        return (
+          <BandPerformersPane
+            onComplete={handleBandPerformersComplete}
           />
         );
 

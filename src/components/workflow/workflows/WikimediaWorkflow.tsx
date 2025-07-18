@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ImageFile } from '@/app/page';
+import { ImageFile } from '@/types';
 import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { WorkflowFormProvider, useWorkflowForm } from '../providers/WorkflowFormProvider';
 import { WorkflowUIProvider } from '../providers/WorkflowUIProvider';
