@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: https:",
+              "img-src 'self' data: https: blob:",
               "connect-src 'self' https://*.wikimedia.org https://*.wikipedia.org https://*.wikidata.org",
               "font-src 'self'",
               "object-src 'none'",
