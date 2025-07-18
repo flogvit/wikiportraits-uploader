@@ -18,20 +18,21 @@ export default function SoccerMatchForm({ onComplete }: SoccerMatchFormProps) {
   const { watch, setValue } = useFormContext<WorkflowFormData>();
   
   // Get current data from form
-  const soccerMatchData = watch('soccerMatchData') || {
-    homeTeam: null,
-    awayTeam: null,
-    date: '',
-    venue: '',
-    competition: '',
-    matchday: '',
-    result: ''
+  const eventDetails = watch('eventDetails') || {};
+  const soccerMatchData = {
+    homeTeam: eventDetails.homeTeam || null,
+    awayTeam: eventDetails.awayTeam || null,
+    date: eventDetails.date || '',
+    venue: eventDetails.venue || '',
+    competition: eventDetails.competition || '',
+    matchday: eventDetails.matchday || '',
+    result: eventDetails.result || ''
   };
   const selectedPlayers = watch('selectedPlayers') || [];
 
   const handleMatchDataChange = (field: keyof SoccerMatchMetadata, value: unknown) => {
-    const updatedData = { ...soccerMatchData, [field]: value };
-    setValue('soccerMatchData', updatedData);
+    const updatedData = { ...eventDetails, [field]: value };
+    setValue('eventDetails', updatedData);
   };
 
   const handleTeamSelect = (team: SoccerTeam, isHome: boolean) => {

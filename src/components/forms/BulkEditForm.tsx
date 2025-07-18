@@ -9,8 +9,7 @@ import FieldSelector from './FieldSelector';
 import { MusicArtist } from '@/types/music';
 
 const bulkEditSchema = z.object({
-  authorUsername: z.string().optional(),
-  authorFullName: z.string().optional(),
+  author: z.string().optional(),
   date: z.string().optional(),
   time: z.string().optional(),
   source: z.string().optional(),
@@ -39,8 +38,7 @@ export default function BulkEditForm({ images, onBulkUpdate, onClose }: BulkEdit
   const { control, watch, setValue, getValues, reset } = useForm<BulkEditFormData>({
     resolver: zodResolver(bulkEditSchema),
     defaultValues: {
-      authorUsername: '',
-      authorFullName: '',
+      author: '',
       date: '',
       time: '',
       source: '',
@@ -95,14 +93,14 @@ export default function BulkEditForm({ images, onBulkUpdate, onClose }: BulkEdit
   return (
     <div className="space-y-6">
       <FieldSelector
-        fieldId="authorUsername"
-        fieldName="Username"
-        description="Wiki username (will format author field automatically)"
-        isSelected={selectedFields.has('authorUsername')}
+        fieldId="author"
+        fieldName="Author"
+        description="Author information (use [[User:Username|Full Name]] format for wiki users)"
+        isSelected={selectedFields.has('author')}
         onToggle={handleFieldToggle}
       >
         <Controller
-          name="authorUsername"
+          name="author"
           control={control}
           render={({ field }) => (
             <input
@@ -111,35 +109,9 @@ export default function BulkEditForm({ images, onBulkUpdate, onClose }: BulkEdit
               value={field.value || ''}
               onChange={(e) => {
                 field.onChange(e.target.value);
-                handleUpdateChange('authorUsername', e.target.value);
+                handleUpdateChange('author', e.target.value);
               }}
-              placeholder="YourUsername"
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
-            />
-          )}
-        />
-      </FieldSelector>
-
-      <FieldSelector
-        fieldId="authorFullName"
-        fieldName="Full Name"
-        description="Full name (will format author field automatically)"
-        isSelected={selectedFields.has('authorFullName')}
-        onToggle={handleFieldToggle}
-      >
-        <Controller
-          name="authorFullName"
-          control={control}
-          render={({ field }) => (
-            <input
-              {...field}
-              type="text"
-              value={field.value || ''}
-              onChange={(e) => {
-                field.onChange(e.target.value);
-                handleUpdateChange('authorFullName', e.target.value);
-              }}
-              placeholder="Your Full Name"
+              placeholder="[[User:YourUsername|Your Full Name]] or Your Full Name"
               className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
             />
           )}

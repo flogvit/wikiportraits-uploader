@@ -11,12 +11,10 @@ import { updateImageWikitext, regenerateImageWikitext } from '@/utils/commons-te
 import { extractCategoriesFromWikitext } from '@/utils/category-extractor';
 import CommonsPreview from '../image/CommonsPreview';
 import CategoryForm from './CategoryForm';
-import ImageBandMemberTagger from '../image/ImageBandMemberTagger';
+import CompactPerformerSelector from '../image/CompactPerformerSelector';
 
 const metadataSchema = z.object({
   description: z.string().optional(),
-  authorUsername: z.string().optional(),
-  authorFullName: z.string().optional(),
   author: z.string().optional(),
   date: z.string().optional(),
   time: z.string().optional(),
@@ -37,7 +35,9 @@ interface ImageMetadataFormProps {
   image: ImageFile;
   index: number;
   onUpdate: (id: string, metadata: Partial<ImageFile['metadata']>) => void;
-  musicEventData?: MusicEventMetadata;
+  eventDetails?: any;
+  bandPerformers?: any;
+  musicEventData?: MusicEventMetadata; // Keep for backward compatibility
 }
 
 const LICENSE_OPTIONS = [
@@ -52,12 +52,12 @@ export default function ImageMetadataForm({
   image, 
   index, 
   onUpdate, 
+  eventDetails,
+  bandPerformers,
   musicEventData 
 }: ImageMetadataFormProps) {
   const defaultValues = useMemo(() => ({
     description: image.metadata.description || '',
-    authorUsername: '',
-    authorFullName: '',
     author: image.metadata.author || '',
     date: image.metadata.date || '',
     time: image.metadata.time || '',
@@ -110,35 +110,6 @@ export default function ImageMetadataForm({
     }
   };
 
-  const handleAuthorChange = (field: 'authorUsername' | 'authorFullName', value: string) => {
-    setValue(field, value);
-    
-    const currentValues = getValues();
-    const username = field === 'authorUsername' ? value : currentValues.authorUsername;
-    const fullName = field === 'authorFullName' ? value : currentValues.authorFullName;
-    
-    let formattedAuthor = '';
-    if (username && fullName) {
-      formattedAuthor = `[[User:${username}|${fullName}]]`;
-    } else if (fullName) {
-      formattedAuthor = fullName;
-    } else if (username) {
-      formattedAuthor = `[[User:${username}]]`;
-    }
-    
-    setValue('author', formattedAuthor);
-    onUpdate(image.id, { [field]: value, author: formattedAuthor });
-    
-    // Trigger wikitext regeneration if not manually modified
-    if (!watchedData.wikitextModified) {
-      setTimeout(() => {
-        const updatedImage = { ...image, metadata: { ...image.metadata, [field]: value, author: formattedAuthor } };
-        const newWikitext = regenerateImageWikitext(updatedImage);
-        setValue('wikitext', newWikitext.metadata.wikitext || '');
-        onUpdate(image.id, { wikitext: newWikitext.metadata.wikitext, wikitextModified: false });
-      }, 100);
-    }
-  };
 
   const handleWikitextChange = (wikitext: string) => {
     setValue('wikitext', wikitext);
@@ -200,19 +171,6 @@ export default function ImageMetadataForm({
     onUpdate(imageId, { selectedBandMembers: memberIds });
   };
 
-  // Get available band members from music event data
-  const availableMembers: BandMember[] = useMemo(() => {
-    if (musicEventData?.eventType === 'festival' && musicEventData.festivalData?.selectedBands) {
-      return musicEventData.festivalData.selectedBands.flatMap(band => band.members || []);
-    }
-    if (musicEventData?.eventType === 'concert' && musicEventData.concertData?.concert.artist) {
-      // For concerts, we might need to fetch members of the main artist if it's a band
-      // For now, return empty array - this can be expanded later
-      return [];
-    }
-    return [];
-  }, [musicEventData]);
-
   return (
     <div className="space-y-4">
       <div>
@@ -238,50 +196,26 @@ export default function ImageMetadataForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-card-foreground mb-1">
-            Username
-          </label>
-          <Controller
-            name="authorUsername"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                value={field.value || ''}
-                onChange={(e) => {
-                  field.onChange(e.target.value);
-                  handleAuthorChange('authorUsername', e.target.value);
-                }}
-                placeholder="YourUsername"
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
-              />
-            )}
-          />
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-card-foreground mb-1">
-            Full Name
-          </label>
-          <Controller
-            name="authorFullName"
-            control={control}
-            render={({ field }) => (
-              <input
-                {...field}
-                value={field.value || ''}
-                onChange={(e) => {
-                  field.onChange(e.target.value);
-                  handleAuthorChange('authorFullName', e.target.value);
-                }}
-                placeholder="Your Full Name"
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
-              />
-            )}
-          />
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-card-foreground mb-1">
+          Author *
+        </label>
+        <Controller
+          name="author"
+          control={control}
+          render={({ field }) => (
+            <input
+              {...field}
+              value={field.value || ''}
+              onChange={(e) => {
+                field.onChange(e.target.value);
+                handleMetadataChange('author', e.target.value);
+              }}
+              placeholder="[[User:YourUsername|Your Full Name]] or Your Full Name"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card"
+            />
+          )}
+        />
       </div>
     
       <div className="space-y-4">
@@ -418,21 +352,12 @@ export default function ImageMetadataForm({
         </div>
       )}
 
+
       <CategoryForm
         categories={watchedData.categories || []}
         onCategoriesChange={handleCategoriesChange}
       />
 
-      {/* Band Members Tagger */}
-      {availableMembers.length > 0 && (
-        <div className="pt-4 border-t border-border">
-          <ImageBandMemberTagger
-            image={image}
-            availableMembers={availableMembers}
-            onMembersChange={handleBandMembersChange}
-          />
-        </div>
-      )}
 
       {/* Template Editor */}
       <div className="pt-4 border-t border-border">
@@ -504,7 +429,7 @@ export default function ImageMetadataForm({
       </div>
 
       <div className="pt-4 border-t border-border">
-        <CommonsPreview image={image} index={index} />
+        <CommonsPreview image={image} index={index} musicEventData={musicEventData} />
       </div>
     </div>
   );
