@@ -1,7 +1,7 @@
 'use client';
 
 import { useWorkflow } from '../providers/WorkflowProvider';
-import { useWorkflowForm } from '../providers/WorkflowFormProvider';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import WikiPortraitsPane from '../panes/WikiPortraitsPane';
 import EventTypePane from '../panes/EventTypePane';
 import EventDetailsPane from '../panes/EventDetailsPane';
@@ -13,8 +13,8 @@ import WikidataPane from '../panes/WikidataPane';
 import UploadPane from '../panes/UploadPane';
 
 export default function WorkflowStep() {
-  const { form } = useWorkflowForm();
-  const eventType = form.watch('eventType');
+  const { watch } = useUniversalForm();
+  const eventType = watch('workflowType') === 'music-event' ? 'festival' : 'general';
   
   const { 
     activeTab, 
@@ -26,34 +26,6 @@ export default function WorkflowStep() {
     handleTemplatesComplete, 
     handleImagesComplete 
   } = useWorkflow();
-
-  const _renderWikidataPlaceholder = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="text-6xl mb-4">🗃️</div>
-        <h3 className="text-xl font-semibold text-card-foreground mb-2">Wikidata</h3>
-        <p className="text-muted-foreground">
-          Connect your event to Wikidata for better discoverability
-        </p>
-      </div>
-      
-      {!eventType ? (
-        <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-          <p className="text-warning font-medium">⚠️ Event Information Required</p>
-          <p className="text-muted-foreground text-sm mt-1">
-            Please complete the event setup steps to create Wikidata entries.
-          </p>
-        </div>
-      ) : (
-        <div className="bg-info/10 border border-info/20 rounded-lg p-4">
-          <p className="text-info font-medium">🚧 Wikidata - Coming Soon</p>
-          <p className="text-muted-foreground text-sm mt-1">
-            This step will create or link to Wikidata entries for your event and artists.
-          </p>
-        </div>
-      )}
-    </div>
-  );
 
   const renderWikipediaPlaceholder = () => (
     <div className="space-y-6">

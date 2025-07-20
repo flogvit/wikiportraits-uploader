@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ImageFile } from '@/types';
 import { UploadType } from '@/components/selectors/UploadTypeSelector';
-import { WorkflowFormProvider, useWorkflowForm } from '../providers/WorkflowFormProvider';
+import { UniversalFormProvider, useUniversalForm } from '@/providers/UniversalFormProvider';
 import { WorkflowUIProvider } from '../providers/WorkflowUIProvider';
 import ExportModal from '@/components/modals/ExportModal';
 import BulkEditModal from '@/components/modals/BulkEditModal';
@@ -19,7 +19,16 @@ interface WikimediaWorkflowProps {
 
 // Internal component that handles modal state and UI operations
 function WorkflowWithModals() {
-  const { images, updateImage } = useWorkflowForm();
+  const { watch, setValue, getValues } = useUniversalForm();
+  const images = watch('files.queue') || [];
+  
+  const updateImage = (imageId: string, updates: Partial<ImageFile>) => {
+    const currentImages = getValues('files.queue') || [];
+    const updatedImages = currentImages.map((img: any) => 
+      img.id === imageId ? { ...img, ...updates } : img
+    );
+    setValue('files.queue', updatedImages, { shouldDirty: true });
+  };
   const [showExportModal, setShowExportModal] = useState(false);
   const [showBulkEditModal, setShowBulkEditModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
@@ -105,8 +114,8 @@ function WorkflowWithModals() {
 
 // Component that routes to the appropriate workflow
 function WorkflowRouter() {
-  const { form } = useWorkflowForm();
-  const uploadType = form.watch('uploadType');
+  const { watch } = useUniversalForm();
+  const uploadType = watch('workflowType') === 'music-event' ? 'music' : 'general';
 
   const renderWorkflow = () => {
     switch (uploadType) {
@@ -133,11 +142,24 @@ function WorkflowRouter() {
 export default function WikimediaWorkflow({ 
   uploadType
 }: WikimediaWorkflowProps) {
+  // Map uploadType to workflowType for UniversalFormData
+  const workflowType = uploadType === 'music' ? 'music-event' : 'soccer-match';
+  
   return (
-    <WorkflowFormProvider
-      uploadType={uploadType}
+    <UniversalFormProvider 
+      sessionId={`workflow-${uploadType}`}
+      defaultValues={{ 
+        workflowType,
+        eventDetails: {
+          common: {
+            title: '',
+            language: 'en'
+          }
+        }
+      }}
+      autoSave={true}
     >
       <WorkflowWithModals />
-    </WorkflowFormProvider>
+    </UniversalFormProvider>
   );
 }

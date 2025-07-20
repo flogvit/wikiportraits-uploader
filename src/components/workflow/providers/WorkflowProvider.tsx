@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 // import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
 import { MusicEventMetadata } from '@/types/music';
 // import { UploadType } from '@/components/selectors/UploadTypeSelector';
-import { useWorkflowForm } from './WorkflowFormProvider';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
 
 export type WorkflowStep = 'wiki-portraits' | 'event-type' | 'event-details' | 'band-performers' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
 export type StepStatus = 'pending' | 'ready' | 'in-progress' | 'completed' | 'error';
@@ -47,8 +47,9 @@ const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined
 export function WorkflowProvider({ 
   children
 }: WorkflowProviderProps) {
-  const { form } = useWorkflowForm();
-  const uploadType = form.watch('uploadType');
+  const { watch, getValues } = useUniversalForm();
+  const workflowType = watch('workflowType');
+  const uploadType = workflowType === 'music-event' ? 'music' : 'general';
   
   const getInitialTab = useCallback((): WorkflowStep => {
     // Always start with WikiPortraits workflow choice
@@ -75,40 +76,40 @@ export function WorkflowProvider({
     setActiveTab(getInitialTab());
   }, [getInitialTab]);
 
-  // Watch WikiPortraits form value and auto-complete step when selection is made
+  // Watch form values and auto-complete steps when required fields are filled
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
-      if (name?.startsWith('wikiPortraits.isWikiPortraitsJob') || name === 'wikiPortraits') {
-        const wikiPortraits = value.wikiPortraits;
-        if (wikiPortraits?.isWikiPortraitsJob !== undefined) {
-          updateStepStatus('wiki-portraits', 'completed');
-        }
-      }
-      
+    const subscription = watch((value, { name }) => {
       // Watch event details and auto-complete when required fields are filled
       if (name?.startsWith('eventDetails.') || name === 'eventDetails') {
         const eventDetails = value.eventDetails;
-        if (eventDetails?.name && eventDetails?.year) {
+        if (eventDetails?.common?.title && eventDetails?.common?.date) {
           updateStepStatus('event-details', 'completed');
         } else {
           updateStepStatus('event-details', 'pending');
         }
       }
+      
+      // Watch workflow type selection
+      if (name === 'workflowType') {
+        if (value.workflowType) {
+          updateStepStatus('wiki-portraits', 'completed');
+        }
+      }
     });
     
     // Also check initial values
-    const wikiPortraits = form.getValues('wikiPortraits');
-    if (wikiPortraits?.isWikiPortraitsJob !== undefined) {
+    const currentWorkflowType = getValues('workflowType');
+    if (currentWorkflowType) {
       updateStepStatus('wiki-portraits', 'completed');
     }
     
-    const eventDetails = form.getValues('eventDetails');
-    if (eventDetails?.name && eventDetails?.year) {
+    const eventDetails = getValues('eventDetails');
+    if (eventDetails?.common?.title && eventDetails?.common?.date) {
       updateStepStatus('event-details', 'completed');
     }
     
     return () => subscription.unsubscribe();
-  }, [form]);
+  }, [watch, getValues]);
 
 
   const updateStepStatus = (step: WorkflowStep, status: StepStatus) => {
@@ -126,11 +127,11 @@ export function WorkflowProvider({
 
   const handleWikiPortraitsComplete = () => {
     updateStepStatus('wiki-portraits', 'completed');
-    const { uploadType } = form.getValues();
-    if (uploadType === 'music') {
+    const workflowType = getValues('workflowType');
+    if (workflowType === 'music-event') {
       updateStepStatus('event-type', 'ready');
       setActiveTab('event-type');
-    } else if (uploadType === 'soccer') {
+    } else if (workflowType === 'soccer-match') {
       updateStepStatus('event-details', 'ready');
       setActiveTab('event-details');
     } else {
@@ -147,8 +148,8 @@ export function WorkflowProvider({
 
   const handleEventDetailsComplete = () => {
     updateStepStatus('event-details', 'completed');
-    const { uploadType } = form.getValues();
-    if (uploadType === 'music') {
+    const workflowType = getValues('workflowType');
+    if (workflowType === 'music-event') {
       updateStepStatus('band-performers', 'ready');
       setActiveTab('band-performers');
     } else {
