@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
-import { useWorkflowForm } from '@/components/workflow/providers/WorkflowFormProvider';
+import { useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 
 interface BandMemberFetcherProps {
   bandName?: string;
@@ -13,9 +13,9 @@ export default function BandMemberFetcher({
   bandName,
   bandId,
 }: BandMemberFetcherProps) {
-  const { getAllPerformers, addPerformer } = useWorkflowForm();
+  const entities = useUniversalFormEntities();
   
-  const allPerformers = getAllPerformers();
+  const allPerformers = entities.people || [];
   const currentBandId = bandId || `pending-band-${bandName}`;
   const hasExistingPerformers = allPerformers.some(p => p.data?.bandId === currentBandId && !p.new);
   
@@ -53,11 +53,11 @@ export default function BandMemberFetcher({
               bandId: bandId || currentBandId
             }
           };
-          addPerformer(performerEntity);
+          entities.addPerson(performerEntity);
         }
       });
     }
-  }, [performers, hasExistingPerformers, bandId, currentBandId, addPerformer, allPerformers]);
+  }, [performers, hasExistingPerformers, bandId, currentBandId, entities, allPerformers]);
   
   // Show loading indicator only when first fetching
   if (!hasExistingPerformers && loading) {

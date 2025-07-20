@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { BandMember } from '@/types/music';
 import PerformerCard from '@/components/common/PerformerCard';
-import { useWorkflowForm } from '@/components/workflow/providers/WorkflowFormProvider';
+import { useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import { flattenPerformer, getPerformerVariant } from '@/utils/performer-utils';
 
@@ -18,9 +18,27 @@ export default function BandMemberSelector({
   bandId,
   showTitle = true,
 }: BandMemberSelectorProps) {
-  const { removePerformer, getAllPerformers } = useWorkflowForm();
+  const { people, removePerson } = useUniversalFormEntities();
   
-  const allPerformers = getAllPerformers();
+  // Convert UniversalForm people to old format for compatibility
+  const allPerformers = people.map((person, index) => ({
+    id: person.entity.id || `person-${index}`,
+    name: person.entity.labels?.en?.value || 'Unknown',
+    type: person.roles.includes('band-member') ? 'band_member' : 'additional_artist',
+    data: {
+      name: person.entity.labels?.en?.value || 'Unknown',
+      instruments: person.metadata?.instruments || [],
+      nationality: person.metadata?.nationality,
+      birthDate: person.metadata?.birthDate,
+      bandId: bandId,
+      isBandMember: person.roles.includes('band-member'),
+      wikidataUrl: person.metadata?.wikidataUrl,
+      wikipediaUrl: person.metadata?.wikipediaUrl,
+      imageUrl: person.metadata?.imageUrl
+    },
+    new: person.isNew || false,
+    bandQID: bandId
+  }));
   // Use actual Wikidata ID if available, otherwise fall back to pending format
   const currentBandId = bandId || `pending-band-${bandName}`;
   
@@ -38,7 +56,10 @@ export default function BandMemberSelector({
   })));
 
   const handleRemove = (performerId: string) => {
-    removePerformer(performerId);
+    const personIndex = people.findIndex(p => p.entity.id === performerId);
+    if (personIndex >= 0) {
+      removePerson(personIndex);
+    }
   };
 
   if (allDisplayPerformers.length === 0) {

@@ -11,7 +11,7 @@ interface UploadTypeSelectorProps {
 
 const uploadTypes = [
   {
-    id: 'general' as UploadType,
+    id: 'general' as const,
     title: 'General Upload',
     description: 'Standard WikiPortraits upload with basic metadata',
     icon: FileImage,
@@ -19,7 +19,7 @@ const uploadTypes = [
     disabled: true
   },
   {
-    id: 'soccer' as UploadType,
+    id: 'soccer' as const,
     title: 'Soccer Match',
     description: 'Upload players from a soccer match with team tagging',
     icon: Users,
@@ -35,7 +35,7 @@ const uploadTypes = [
     disabled: false
   },
   {
-    id: 'portraits' as UploadType,
+    id: 'portraits' as const,
     title: 'Portrait Session',
     description: 'Upload portrait photos with enhanced metadata',
     icon: Camera,
@@ -47,10 +47,12 @@ const uploadTypes = [
 export default function UploadTypeSelector({ onTypeSelect, selectedType }: UploadTypeSelectorProps) {
   const [selected, setSelected] = useState<UploadType | undefined>(selectedType);
 
-  const handleSelect = (type: UploadType, disabled: boolean) => {
+  const handleSelect = (type: any, disabled: boolean) => {
     if (disabled) return;
-    setSelected(type);
-    onTypeSelect(type);
+    if (type === 'music') {
+      setSelected(type);
+      onTypeSelect(type);
+    }
   };
 
   return (

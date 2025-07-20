@@ -5,7 +5,7 @@ import { Search, User, Music, Globe, Calendar } from 'lucide-react';
 import { PendingWikidataEntity } from '@/types/music';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import PerformerCard from '@/components/common/PerformerCard';
-import { useWorkflowForm } from '@/components/workflow/providers/WorkflowFormProvider';
+import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 
 interface AdditionalArtistSelectorProps {
   bandName?: string;
@@ -20,9 +20,29 @@ export default function AdditionalArtistSelector({
   placeholder = "Search for additional artists and performers...",
   showTitle = true,
 }: AdditionalArtistSelectorProps) {
-  const { form, addPerformer: addPerformerToForm, removePerformer: removePerformerFromForm, getAllPerformers: getAllPerformersFromForm } = useWorkflowForm();
-  const allPerformers = getAllPerformersFromForm();
-  const pendingPerformers = form.watch('pendingWikidataEntities') || [];
+  const form = useUniversalForm();
+  const { people, addPerson, removePerson } = useUniversalFormEntities();
+  
+  // Convert UniversalForm people to old format for compatibility
+  const allPerformers = people.map((person, index) => ({
+    id: person.entity.id || `person-${index}`,
+    name: person.entity.labels?.en?.value || 'Unknown',
+    type: person.roles.includes('band-member') ? 'band_member' : 'additional_artist',
+    data: {
+      name: person.entity.labels?.en?.value || 'Unknown',
+      instruments: person.metadata?.instruments || [],
+      nationality: person.metadata?.nationality,
+      birthDate: person.metadata?.birthDate,
+      bandId: bandId,
+      isBandMember: person.roles.includes('band-member'),
+      wikidataUrl: person.metadata?.wikidataUrl,
+      wikipediaUrl: person.metadata?.wikipediaUrl,
+      imageUrl: person.metadata?.imageUrl
+    },
+    new: person.isNew || false
+  }));
+  
+  const pendingPerformers = allPerformers.filter(p => p.new);
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -98,7 +118,39 @@ export default function AdditionalArtistSelector({
             imageUrl: undefined // Will be fetched asynchronously
           }
         };
-        addPerformerToForm(additionalArtist);
+        // Add to UniversalForm entities
+        addPerson({
+          entity: {
+            id: searchResult.id,
+            type: 'item',
+            labels: {
+              en: {
+                language: 'en',
+                value: searchResult.name
+              }
+            },
+            descriptions: {},
+            claims: {},
+            sitelinks: searchResult.wikipediaUrl ? {
+              enwiki: {
+                site: 'enwiki',
+                title: searchResult.wikipediaUrl.split('/').pop() || searchResult.name
+              }
+            } : {}
+          },
+          roles: ['performer', 'featured-person'],
+          isNew: false,
+          source: 'additional-artist-selector',
+          metadata: {
+            name: searchResult.name,
+            instruments: searchResult.instruments || [],
+            nationality: searchResult.nationality,
+            birthDate: searchResult.birthDate,
+            wikidataUrl: searchResult.wikidataUrl,
+            wikipediaUrl: searchResult.wikipediaUrl,
+            imageUrl: undefined
+          }
+        });
         
         // Fetch image URL asynchronously
         fetchImageForArtist(searchResult.id, searchResult.name);
@@ -110,7 +162,10 @@ export default function AdditionalArtistSelector({
   };
 
   const handleRemove = (performerId: string) => {
-    removePerformerFromForm(performerId);
+    const personIndex = people.findIndex(p => p.entity.id === performerId);
+    if (personIndex >= 0) {
+      removePerson(personIndex);
+    }
   };
 
   const fetchImageForArtist = async (artistId: string, artistName: string) => {
@@ -126,27 +181,21 @@ export default function AdditionalArtistSelector({
       const data = await response.json();
       
       if (data.imageUrl) {
-        // Update the performer with the image URL
-        const allPerformers = getAllPerformersFromForm();
-        const performer = allPerformers.find(p => p.id === artistId);
-        
-        if (performer) {
-          // Update the performer's data with the image URL
-          const updatedPerformer: PendingWikidataEntity = {
-            id: performer.id,
-            type: 'artist',
-            status: 'created',
-            name: performer.name,
-            new: false,
-            data: {
-              ...performer.data,
+        // Update the person with the image URL
+        const personIndex = people.findIndex(p => p.entity.id === artistId);
+        if (personIndex >= 0) {
+          const person = people[personIndex];
+          const updatedPerson = {
+            ...person,
+            metadata: {
+              ...person.metadata,
               imageUrl: data.imageUrl
             }
           };
           
-          // Remove and re-add the performer to update the form
-          removePerformerFromForm(artistId);
-          addPerformerToForm(updatedPerformer);
+          // Update the person in the form
+          removePerson(personIndex);
+          addPerson(updatedPerson);
           
           console.log(`✅ Updated image for ${artistName}: ${data.imageUrl}`);
         }

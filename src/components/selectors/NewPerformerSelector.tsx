@@ -6,7 +6,7 @@ import { PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
 import { COMMON_INSTRUMENTS, COMMON_ROLES, InstrumentRole } from '@/hooks/useWikidataPersons';
 import CountrySelector from './CountrySelector';
 import PerformerCard from '@/components/common/PerformerCard';
-import { useWorkflowForm } from '@/components/workflow/providers/WorkflowFormProvider';
+import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 
 interface NewPerformerSelectorProps {
   bandName?: string;
@@ -19,8 +19,10 @@ export default function NewPerformerSelector({
   bandId,
   showTitle = true,
 }: NewPerformerSelectorProps) {
-  const { form, addPerformer, removePerformer, getPendingPerformers } = useWorkflowForm();
-  const pendingPerformers = getPendingPerformers();
+  const { getValues, setValue } = useUniversalForm();
+  const entities = useUniversalFormEntities();
+  const people = entities.people || [];
+  const pendingPerformers = people.filter((p: any) => p.new === true);
   const [showAddArtistForm, setShowAddArtistForm] = useState(false);
   const [newArtistName, setNewArtistName] = useState('');
   const [newArtistInstruments, setNewArtistInstruments] = useState<string[]>([]);
@@ -73,8 +75,8 @@ export default function NewPerformerSelector({
       } as PendingBandMemberData
     };
 
-    // Add to form - the form provider will handle storage format
-    addPerformer(newArtist);
+    // Add to form - add to entities.people
+    entities.addPerson(newArtist);
 
     // Reset form
     setNewArtistName('');
@@ -88,7 +90,11 @@ export default function NewPerformerSelector({
   };
 
   const handleRemove = (performerId: string) => {
-    removePerformer(performerId);
+    const currentPeople = getValues('entities.people') || [];
+    const index = currentPeople.findIndex((p: any) => p.id === performerId);
+    if (index >= 0) {
+      entities.removePerson(index);
+    }
   };
 
   const selectedPendingPerformers = pendingPerformersForDisplay;
