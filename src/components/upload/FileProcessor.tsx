@@ -5,24 +5,18 @@ import { extractExifData, formatDateForCommons, formatTimeForCommons } from '@/u
 import { generateCommonsWikitext } from '@/utils/commons-template';
 import { generateTemplateName } from '@/utils/template-generator';
 import { UploadType } from '@/types/upload';
-import { SoccerMatchMetadata, SoccerPlayer } from '../forms/SoccerMatchForm';
-import { generateSoccerCategories, generateMatchDescription } from '@/utils/soccer-categories';
 import { MusicEventMetadata } from '@/types/music';
 import { generateEventDescription } from '@/utils/music-categories';
 import { generateAuthorField, getCurrentPhotographerQid } from '@/utils/photographer';
 
 interface FileProcessorProps {
   uploadType: UploadType;
-  soccerMatchData?: SoccerMatchMetadata | null;
-  selectedPlayers?: SoccerPlayer[];
   musicEventData?: MusicEventMetadata | null;
 }
 
 export class FileProcessor {
   constructor(
     private uploadType: UploadType,
-    private soccerMatchData?: SoccerMatchMetadata | null,
-    private selectedPlayers?: SoccerPlayer[],
     private musicEventData?: MusicEventMetadata | null
   ) {}
 
@@ -61,7 +55,7 @@ export class FileProcessor {
         source: 'own work',
         license: 'CC-BY-SA-4.0',
         categories: [] as string[],
-        wikiPortraitsEvent: this.uploadType === 'general' ? 'general' : (this.uploadType === 'soccer' ? 'soccer' : 'music'),
+        wikiPortraitsEvent: 'music',
         wikitext: '',
         wikitextModified: false,
         template: '',
@@ -70,17 +64,7 @@ export class FileProcessor {
       };
 
       // Add upload type specific metadata
-      if (this.uploadType === 'soccer' && this.soccerMatchData) {
-        const soccerCategories = generateSoccerCategories(this.soccerMatchData);
-        const soccerDescription = generateMatchDescription(this.soccerMatchData);
-        
-        initialMetadata = {
-          ...initialMetadata,
-          description: soccerDescription,
-          categories: soccerCategories,
-          template: generateTemplateName(this.soccerMatchData),
-        };
-      } else if (this.uploadType === 'music' && this.musicEventData) {
+      if (this.uploadType === 'music' && this.musicEventData) {
         const musicDescription = generateEventDescription(this.musicEventData);
         initialMetadata = {
           ...initialMetadata,
@@ -109,8 +93,6 @@ export class FileProcessor {
   static createProcessor(props: FileProcessorProps): FileProcessor {
     return new FileProcessor(
       props.uploadType,
-      props.soccerMatchData,
-      props.selectedPlayers,
       props.musicEventData
     );
   }

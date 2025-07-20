@@ -2,14 +2,12 @@
 
 import { useCallback } from 'react';
 import { ImageFile } from '@/types';
-import { UploadType } from '../selectors/UploadTypeSelector';
-import { SoccerMatchMetadata, SoccerPlayer } from '../forms/SoccerMatchForm';
+import { UploadType } from '@/types/upload';
 import { MusicEventMetadata } from '@/types/music';
 import FileDropzone from './FileDropzone';
 import { FileProcessor } from './FileProcessor';
 import { useDuplicateHandler } from './DuplicateHandler';
 import DuplicateWarningModal from '../modals/DuplicateWarningModal';
-import SoccerMatchWorkflow from '../workflow/workflows/SoccerMatchWorkflow';
 
 interface ImageUploaderProps {
   onImagesAdded: (images: ImageFile[]) => void;
@@ -17,11 +15,7 @@ interface ImageUploaderProps {
   uploadType: UploadType;
   eventDetails?: any;
   bandPerformers?: any;
-  selectedPlayers?: SoccerPlayer[];
-  // Legacy props for backward compatibility
-  soccerMatchData?: SoccerMatchMetadata | null;
   musicEventData?: MusicEventMetadata | null;
-  onSoccerDataUpdate?: (matchData: SoccerMatchMetadata, players: SoccerPlayer[]) => void;
   onMusicEventUpdate?: (eventData: MusicEventMetadata) => void;
 }
 
@@ -31,10 +25,8 @@ export default function ImageUploader({
   uploadType, 
   eventDetails,
   bandPerformers,
-  selectedPlayers = [], 
-  soccerMatchData, 
   musicEventData, 
-  onSoccerDataUpdate 
+  onMusicEventUpdate 
 }: ImageUploaderProps) {
   const {
     duplicates,
@@ -50,8 +42,6 @@ export default function ImageUploader({
     // Create file processor
     const processor = FileProcessor.createProcessor({
       uploadType,
-      soccerMatchData,
-      selectedPlayers,
       musicEventData
     });
 
@@ -64,7 +54,7 @@ export default function ImageUploader({
     if (!hasDuplicates) {
       onImagesAdded(imageFiles);
     }
-  }, [uploadType, soccerMatchData, selectedPlayers, musicEventData, checkForDuplicates, onImagesAdded]);
+  }, [uploadType, musicEventData, checkForDuplicates, onImagesAdded]);
 
   const handleDuplicateConfirm = (addAll: boolean) => {
     const imagesToAdd = handleDuplicateDecision(addAll);
