@@ -18,9 +18,6 @@ export interface ImageMetadata {
   license: string;
   categories: string[];
   wikiPortraitsEvent: string;
-  // Soccer-specific fields
-  soccerMatch?: SoccerMatchMetadata;
-  soccerPlayer?: SoccerPlayerMetadata;
   // Music-specific fields
   musicEvent?: MusicEventMetadata;
   selectedBand?: string; // Band name selected for this specific image
@@ -35,27 +32,10 @@ export interface ImageMetadata {
   templateModified?: boolean; // Track if user has manually edited template
 }
 
-export interface SoccerMatchMetadata {
-  homeTeam: string;
-  awayTeam: string;
-  date: string;
-  venue: string;
-  competition: string;
-  result?: string;
-}
-
-export interface SoccerPlayerMetadata {
-  name: string;
-  team: string;
-  position?: string;
-  number?: string;
-  wikipediaUrl?: string;
-}
-
 export interface GPSMetadata {
   latitude: number;
   longitude: number;
   source: 'exif' | 'event' | 'manual';
 }
 
-export type UploadType = 'general' | 'soccer' | 'music' | 'portraits';
+export type UploadType = 'music';
