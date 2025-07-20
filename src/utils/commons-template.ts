@@ -1,7 +1,6 @@
 import { ImageFile } from '@/types';
 import { generateTemplateName } from '@/utils/template-generator';
-import { UploadType } from '@/components/selectors/UploadTypeSelector';
-import { SoccerMatchMetadata } from '@/components/forms/SoccerMatchForm';
+import { UploadType } from '@/types/upload';
 
 interface MetadataTemplate {
   description: string;
@@ -65,8 +64,6 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
   let uploadType: UploadType = 'general';
   if (metadata.musicEvent) {
     uploadType = 'music';
-  } else if (metadata.soccerMatch || metadata.soccerPlayer) {
-    uploadType = 'soccer';
   }
 
   // Generate template line - use custom template if set, otherwise auto-generate
@@ -76,23 +73,9 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
     templateLine = metadata.template.trim() ? `\n{{${metadata.template.trim()}}}\n` : '';
   } else if (uploadType !== 'general') {
     // Auto-generate template for events
-    // Convert simplified soccer match to full format for template generation
-    let soccerMatchData: SoccerMatchMetadata | null = null;
-    if (metadata.soccerMatch) {
-      soccerMatchData = {
-        homeTeam: { id: '', name: metadata.soccerMatch.homeTeam },
-        awayTeam: { id: '', name: metadata.soccerMatch.awayTeam },
-        date: metadata.soccerMatch.date,
-        venue: metadata.soccerMatch.venue,
-        competition: metadata.soccerMatch.competition,
-        result: metadata.soccerMatch.result
-      } as SoccerMatchMetadata;
-    }
-    
     const templateName = generateTemplateName(
       uploadType,
-      metadata.musicEvent,
-      soccerMatchData
+      metadata.musicEvent
     );
     templateLine = `\n{{${templateName}}}\n`;
   }
@@ -174,10 +157,6 @@ export function generateFilename(image: ImageFile, imageIndex?: number, musicEve
     return generateMusicEventFilename(metadata.musicEvent, metadata, extension, imageIndex);
   }
   
-  // Generate context-aware filename for soccer events
-  if (metadata.soccerMatch || metadata.soccerPlayer) {
-    return generateSoccerEventFilename(metadata, extension, imageIndex);
-  }
   
   // Create a descriptive filename based on description (fallback)
   if (metadata.description) {
@@ -280,28 +259,6 @@ function generateMusicEventFilename(
   return `music_event${counter}.${extension}`;
 }
 
-function generateSoccerEventFilename(
-  metadata: ImageFile['metadata'], 
-  extension: string | undefined, 
-  imageIndex?: number
-): string {
-  const counter = imageIndex ? ` ${String(imageIndex).padStart(2, '0')}` : '';
-  
-  if (metadata.soccerPlayer && metadata.soccerMatch) {
-    // Format: "Player name at Team vs Team 15.jpg"
-    const playerName = metadata.soccerPlayer.name;
-    const match = `${metadata.soccerMatch.homeTeam} vs ${metadata.soccerMatch.awayTeam}`;
-    const filename = sanitizeFilename(`${playerName} at ${match}${counter}`);
-    return `${filename}.${extension}`;
-  } else if (metadata.soccerMatch) {
-    // Format: "Team vs Team 15.jpg"
-    const match = `${metadata.soccerMatch.homeTeam} vs ${metadata.soccerMatch.awayTeam}`;
-    const filename = sanitizeFilename(`${match}${counter}`);
-    return `${filename}.${extension}`;
-  }
-  
-  return `soccer_match${counter}.${extension}`;
-}
 
 function extractArtistFromDescription(description: string): string | null {
   if (!description) return null;
