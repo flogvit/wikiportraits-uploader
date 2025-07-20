@@ -1,8 +1,7 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
 import { Camera, Globe, CheckCircle } from 'lucide-react';
-import { WorkflowFormData } from '../providers/WorkflowFormProvider';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
 
 interface WikiPortraitsPaneProps {
   onComplete?: () => void;
@@ -11,30 +10,35 @@ interface WikiPortraitsPaneProps {
 export default function WikiPortraitsPane({
   onComplete
 }: WikiPortraitsPaneProps) {
-  const { watch, setValue } = useFormContext<WorkflowFormData>();
+  const { watch, setValue } = useUniversalForm();
   
-  const wikiPortraits = watch('wikiPortraits');
-  const eventType = watch('eventType');
+  const workflowType = watch('workflowType');
+  const isWikiPortraitsJob = watch('isWikiPortraitsJob');
   
-  const handleWorkflowChoice = (isWikiPortraitsJob: boolean) => {
-    setValue('wikiPortraits.isWikiPortraitsJob', isWikiPortraitsJob);
-    
-    // If choosing WikiPortraits for music events, also set the concert category flag
-    if (isWikiPortraitsJob && (eventType === 'festival' || eventType === 'concert')) {
-      setValue('wikiPortraits.addToWikiPortraitsConcerts', true);
-    } else {
-      setValue('wikiPortraits.addToWikiPortraitsConcerts', false);
-    }
+  const handleWorkflowChoice = (isWikiPortraitsChoice: boolean) => {
+    setValue('isWikiPortraitsJob', isWikiPortraitsChoice);
+    // Auto-advance to next step immediately
+    onComplete?.();
   };
 
-  const canComplete = wikiPortraits.isWikiPortraitsJob !== undefined;
+  const canComplete = isWikiPortraitsJob !== undefined;
+
+  // Get the display title based on selection
+  const getWorkflowTitle = () => {
+    if (isWikiPortraitsJob === true) return 'WikiPortraits Assignment';
+    if (isWikiPortraitsJob === false) return 'Wikimedia Commons';
+    return 'Upload Workflow';
+  };
 
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-card-foreground mb-2">Upload Workflow</h2>
+        <h2 className="text-2xl font-bold text-card-foreground mb-2">{getWorkflowTitle()}</h2>
         <p className="text-muted-foreground">
-          Choose whether this is a WikiPortraits assignment or a general Wikimedia Commons upload
+          {isWikiPortraitsJob === undefined 
+            ? 'Choose whether this is a WikiPortraits assignment or a general Wikimedia Commons upload'
+            : `You selected: ${isWikiPortraitsJob ? 'WikiPortraits Assignment' : 'Wikimedia Commons'}`
+          }
         </p>
       </div>
 
@@ -42,7 +46,7 @@ export default function WikiPortraitsPane({
         {/* WikiPortraits Option */}
         <div 
           className={`border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 ${
-            wikiPortraits.isWikiPortraitsJob === true
+            isWikiPortraitsJob === true
               ? 'border-blue-500 bg-blue-50 shadow-lg'
               : 'border-gray-200 hover:border-blue-300 hover:bg-blue-25'
           }`}
@@ -53,7 +57,7 @@ export default function WikiPortraitsPane({
               <Camera className="w-8 h-8 text-blue-600" />
               <h3 className="text-lg font-semibold text-gray-900">WikiPortraits Assignment</h3>
             </div>
-            {wikiPortraits.isWikiPortraitsJob === true && (
+            {isWikiPortraitsJob === true && (
               <CheckCircle className="w-6 h-6 text-blue-600" />
             )}
           </div>
@@ -63,8 +67,14 @@ export default function WikiPortraitsPane({
             <p>✓ Automatic WikiPortraits categorization</p>
             <p>✓ Enhanced metadata and attribution</p>
             <p>✓ Integration with WikiPortraits workflows</p>
-            {(eventType === 'festival' || eventType === 'concert') && (
-              <p>✓ Added to "Category:WikiPortraits at Concerts"</p>
+            {workflowType === 'music-event' && (
+              <p>✓ Added to "Category:WikiPortraits at music events"</p>
+            )}
+            {workflowType === 'soccer-match' && (
+              <p>✓ Added to "Category:WikiPortraits at sporting events"</p>
+            )}
+            {workflowType && workflowType !== 'music-event' && workflowType !== 'soccer-match' && (
+              <p>✓ Added to relevant WikiPortraits categories</p>
             )}
           </div>
         </div>
@@ -72,7 +82,7 @@ export default function WikiPortraitsPane({
         {/* Wikimedia Commons Option */}
         <div 
           className={`border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 ${
-            wikiPortraits.isWikiPortraitsJob === false
+            isWikiPortraitsJob === false
               ? 'border-green-500 bg-green-50 shadow-lg'
               : 'border-gray-200 hover:border-green-300 hover:bg-green-25'
           }`}
@@ -83,7 +93,7 @@ export default function WikiPortraitsPane({
               <Globe className="w-8 h-8 text-green-600" />
               <h3 className="text-lg font-semibold text-gray-900">Wikimedia Commons</h3>
             </div>
-            {wikiPortraits.isWikiPortraitsJob === false && (
+            {isWikiPortraitsJob === false && (
               <CheckCircle className="w-6 h-6 text-green-600" />
             )}
           </div>
@@ -99,12 +109,11 @@ export default function WikiPortraitsPane({
 
       {canComplete && (
         <div className="text-center">
-          <button
-            onClick={() => onComplete?.()}
-            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-          >
-            {wikiPortraits.isWikiPortraitsJob ? 'Continue with WikiPortraits Workflow' : 'Continue with Commons Workflow'}
-          </button>
+          <div className="inline-flex items-center px-4 py-2 bg-success/10 border border-success/20 rounded-lg">
+            <span className="text-sm text-success">
+              ✓ Selected: {isWikiPortraitsJob ? 'WikiPortraits Assignment' : 'Wikimedia Commons'}
+            </span>
+          </div>
         </div>
       )}
     </div>

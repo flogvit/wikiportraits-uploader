@@ -1,9 +1,8 @@
 'use client';
 
 import { Settings, Users, Mic } from 'lucide-react';
-import { MusicEventMetadata, MusicEventType } from '@/types/music';
-import { useWorkflowForm } from '../providers/WorkflowFormProvider';
-// import { useWorkflow } from '../providers/WorkflowProvider';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
+import { MusicEventType, needsEventTypeSelection, getEventTypesForWorkflow } from '@/types/event-types';
 
 interface EventTypePaneProps {
   onComplete?: () => void;
@@ -12,44 +11,23 @@ interface EventTypePaneProps {
 export default function EventTypePane({
   onComplete
 }: EventTypePaneProps) {
-  const { form } = useWorkflowForm();
-  const musicEventData = form.watch('musicEventData');
+  const { watch, setValue } = useUniversalForm();
+  const workflowType = watch('workflowType');
+  const eventDetails = watch('eventDetails');
+  
+  // Only show event type selection for workflows that need it
+  if (!needsEventTypeSelection(workflowType)) {
+    // Auto-complete for workflows that don't need selection
+    onComplete?.();
+    return null;
+  }
+  
   const handleEventTypeSelect = (type: MusicEventType) => {
-    
-    const baseData = {
-      eventType: type,
-      festivalData: type === 'festival' ? {
-        festival: {
-          id: '',
-          name: '',
-          year: '',
-          location: '',
-          country: ''
-        },
-        selectedBands: [],
-        addToWikiPortraitsConcerts: false,
-        authorUsername: '',
-        authorFullName: ''
-      } : undefined,
-      concertData: type === 'concert' ? {
-        concert: {
-          id: '',
-          artist: {
-            id: '',
-            name: ''
-          },
-          venue: '',
-          date: '',
-          city: '',
-          country: ''
-        },
-        addToWikiPortraitsConcerts: false,
-        authorUsername: '',
-        authorFullName: ''
-      } : undefined
-    };
-    
-    form.setValue('musicEventData', baseData as MusicEventMetadata);
+    // Simply store the event type in the unified structure
+    setValue('eventDetails', {
+      ...eventDetails,
+      type: type
+    });
     onComplete?.();
   };
 
@@ -67,7 +45,7 @@ export default function EventTypePane({
         <button
           onClick={() => handleEventTypeSelect('festival')}
           className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
-            musicEventData?.eventType === 'festival'
+            eventDetails?.type === 'festival'
               ? 'border-primary bg-primary/10 shadow-md'
               : 'border-border hover:border-primary/50 hover:bg-primary/5'
           }`}
@@ -87,7 +65,7 @@ export default function EventTypePane({
         <button
           onClick={() => handleEventTypeSelect('concert')}
           className={`p-6 border-2 rounded-lg text-left transition-all duration-200 ${
-            musicEventData?.eventType === 'concert'
+            eventDetails?.type === 'concert'
               ? 'border-primary bg-primary/10 shadow-md'
               : 'border-border hover:border-primary/50 hover:bg-primary/5'
           }`}
@@ -105,11 +83,11 @@ export default function EventTypePane({
         </button>
       </div>
 
-      {musicEventData?.eventType && (
+      {eventDetails?.type && (
         <div className="text-center">
           <div className="inline-flex items-center px-4 py-2 bg-success/10 border border-success/20 rounded-lg">
             <span className="text-sm text-success">
-              ✓ Selected: {musicEventData.eventType.charAt(0).toUpperCase() + musicEventData.eventType.slice(1)}
+              ✓ Selected: {eventDetails.type.charAt(0).toUpperCase() + eventDetails.type.slice(1)}
             </span>
           </div>
         </div>

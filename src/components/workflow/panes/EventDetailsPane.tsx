@@ -1,8 +1,7 @@
 'use client';
 
 import { Calendar } from 'lucide-react';
-import { useWorkflowForm } from '../providers/WorkflowFormProvider';
-import SoccerMatchForm from '../../forms/SoccerMatchForm';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import EventDetailsForm from '../../forms/EventDetailsForm';
 
 interface EventDetailsPaneProps {
@@ -12,8 +11,9 @@ interface EventDetailsPaneProps {
 export default function EventDetailsPane({
   onComplete
 }: EventDetailsPaneProps) {
-  const { form } = useWorkflowForm();
-  const uploadType = form.watch('uploadType');
+  const { watch } = useUniversalForm();
+  const workflowType = watch('workflowType');
+  const uploadType = workflowType === 'music-event' ? 'music' : 'general';
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -24,11 +24,7 @@ export default function EventDetailsPane({
         </p>
       </div>
 
-      {uploadType === 'soccer' ? (
-        <SoccerMatchForm
-          onComplete={onComplete}
-        />
-      ) : uploadType === 'music' ? (
+      {uploadType === 'music' ? (
         <EventDetailsForm onComplete={onComplete} />
       ) : null}
     </div>

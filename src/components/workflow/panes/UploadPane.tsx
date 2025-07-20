@@ -1,9 +1,8 @@
 'use client';
 
-import React from 'react';
-import { useFormContext } from 'react-hook-form';
+import React, { useState } from 'react';
 import { CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
-import { WorkflowFormData } from '../providers/WorkflowFormProvider';
+import { useUniversalForm, useUniversalFormFiles } from '@/providers/UniversalFormProvider';
 import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
 
@@ -24,17 +23,60 @@ interface UploadStepInfo {
 export default function UploadPane({
   onComplete
 }: UploadPaneProps) {
-  const { watch, setValue } = useFormContext<WorkflowFormData>();
-
-  // Get all data from the unified form
-  const uploadType = watch('uploadType');
-  const images = watch('images');
-  const soccerMatchData = watch('soccerMatchData');
-  const musicEventData = watch('musicEventData');
+  const form = useUniversalForm();
+  const { queue: images } = useUniversalFormFiles();
   
-  const uploadData = watch('upload');
-  const { currentStep, stepStatuses, templateCreated, uploadProgress, currentUploadIndex } = uploadData;
+  // Get data from the universal form structure
+  const workflowType = form.watch('workflowType');
+  const eventDetails = form.watch('eventDetails');
+  const publishingStatus = form.watch('publishing.status');
+  const publishingActions = form.watch('publishing.actions');
+  
+  // Create temporary upload state since it's not in UniversalFormData yet
+  const [uploadState, setUploadState] = React.useState({
+    currentStep: 'template' as UploadStep,
+    stepStatuses: {
+      template: 'pending' as StepStatus,
+      images: 'pending' as StepStatus,
+      complete: 'pending' as StepStatus
+    },
+    templateCreated: false,
+    uploadProgress: 0,
+    currentUploadIndex: 0
+  });
+  
+  const { currentStep, stepStatuses, templateCreated, uploadProgress, currentUploadIndex } = uploadState;
 
+  // Convert UniversalFormData to old format for template generation
+  const musicEventData = workflowType === 'music-event' ? {
+    eventType: 'concert' as const,
+    concertData: {
+      concert: {
+        artist: eventDetails.musicEvent?.mainBand ? {
+          name: eventDetails.musicEvent.mainBand.labels?.en?.value || 'Unknown Artist',
+          id: eventDetails.musicEvent.mainBand.id
+        } : undefined,
+        venue: eventDetails.musicEvent?.venue ? {
+          name: eventDetails.musicEvent.venue.labels?.en?.value || 'Unknown Venue'
+        } : undefined,
+        date: eventDetails.common?.date
+      }
+    }
+  } : undefined;
+  
+  const soccerMatchData = workflowType === 'soccer-match' ? {
+    homeTeam: eventDetails.soccerMatch?.homeTeam ? {
+      name: eventDetails.soccerMatch.homeTeam.labels?.en?.value || 'Unknown Team'
+    } : undefined,
+    awayTeam: eventDetails.soccerMatch?.awayTeam ? {
+      name: eventDetails.soccerMatch.awayTeam.labels?.en?.value || 'Unknown Team'
+    } : undefined
+  } : undefined;
+  
+  // Map workflow types
+  const uploadType = workflowType === 'music-event' ? 'music' : 
+                     workflowType === 'soccer-match' ? 'soccer' : 'general';
+  
   const templateName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
   const templateCode = generateTemplate(uploadType, musicEventData, soccerMatchData);
   const templateUrl = `https://commons.wikimedia.org/wiki/Template:${encodeURIComponent(templateName)}`;
@@ -61,7 +103,10 @@ export default function UploadPane({
   ];
 
   const updateStepStatus = (step: UploadStep, status: StepStatus) => {
-    setValue('upload.stepStatuses', { ...stepStatuses, [step]: status });
+    setUploadState(prev => ({
+      ...prev,
+      stepStatuses: { ...prev.stepStatuses, [step]: status }
+    }));
   };
 
   const getStatusIcon = (status: StepStatus) => {
@@ -106,9 +151,12 @@ export default function UploadPane({
       const result = await response.json();
       console.log('Template creation result:', result);
       
-      setValue('upload.templateCreated', true);
+      setUploadState(prev => ({
+        ...prev,
+        templateCreated: true,
+        currentStep: 'images'
+      }));
       updateStepStatus('template', 'completed');
-      setValue('upload.currentStep', 'images');
       
     } catch (error) {
       console.error('Template creation failed:', error);
@@ -123,17 +171,23 @@ export default function UploadPane({
       // TODO: Implement actual image upload
       // For now, simulate upload progress
       for (let i = 0; i < (images?.length || 0); i++) {
-        setValue('upload.currentUploadIndex', i);
-        setValue('upload.uploadProgress', (i / (images?.length || 1)) * 100);
+        setUploadState(prev => ({
+          ...prev,
+          currentUploadIndex: i,
+          uploadProgress: (i / (images?.length || 1)) * 100
+        }));
         
         // Simulate upload delay
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
       
-      setValue('upload.uploadProgress', 100);
+      setUploadState(prev => ({
+        ...prev,
+        uploadProgress: 100,
+        currentStep: 'complete'
+      }));
       updateStepStatus('images', 'completed');
       updateStepStatus('complete', 'completed');
-      setValue('upload.currentStep', 'complete');
       
     } catch (error) {
       console.error('Image upload failed:', error);

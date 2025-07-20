@@ -6,7 +6,7 @@ import { useFormContext } from 'react-hook-form';
 // import { MusicEventMetadata } from '@/types/music';
 // import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
 // import { UploadType } from '@/components/selectors/UploadTypeSelector';
-import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
+import { useUniversalForm, useUniversalFormFiles } from '@/providers/UniversalFormProvider';
 import { useWorkflowUI } from '../providers/WorkflowUIProvider';
 import ImageUploader from '@/components/upload/ImageUploader';
 import ImageGrid from '@/components/image/ImageGrid';
@@ -19,15 +19,19 @@ export default function ImagesPane({
   onComplete
 }: ImagesPaneProps) {
   const { onExportMetadata, onBulkEdit, onScrollToImage, onImageClick } = useWorkflowUI();
-  const { images, addImages, updateImage, removeImage, form } = useWorkflowForm();
-  const { watch } = useFormContext<WorkflowFormData>();
+  const { watch, setValue, getValues } = useUniversalForm();
+  const filesForm = useUniversalFormFiles();
   
   // Get data from the unified form  
-  const uploadType = form.watch('uploadType');
-  const eventType = form.watch('eventType');
-  const selectedPlayers = form.watch('selectedPlayers') || [];
-  const eventDetails = form.watch('eventDetails');
-  const bandPerformers = form.watch('bandPerformers') || { performers: [] };
+  const workflowType = watch('workflowType');
+  const uploadType = workflowType === 'music-event' ? 'music' : 'soccer';
+  const eventType = workflowType === 'music-event' ? 'festival' : 'match';
+  const eventDetails = watch('eventDetails');
+  const selectedPlayers = watch('entities.people') || [];
+  const bandPerformers = { performers: watch('entities.people') || [] };
+  
+  // Get images from files.queue
+  const images = filesForm.queue || [];
   const completedCount = (images || []).filter(image => {
     const { description, author, selectedBand } = image.metadata;
     const hasBasicInfo = description.trim() && author.trim();
@@ -101,18 +105,18 @@ export default function ImagesPane({
       )}
       
       <ImageUploader
-        onImagesAdded={addImages}
+        onImagesAdded={filesForm.addToQueue}
         existingImages={images}
         uploadType={uploadType}
         selectedPlayers={selectedPlayers}
         eventDetails={eventDetails}
         bandPerformers={bandPerformers}
         onSoccerDataUpdate={(matchData, players) => {
-          form.setValue('eventDetails', { ...eventDetails, ...matchData });
-          form.setValue('selectedPlayers', players);
+          setValue('eventDetails', { ...eventDetails, ...matchData }, { shouldDirty: true });
+          setValue('entities.people', players, { shouldDirty: true });
         }}
         onMusicEventUpdate={(eventData) => {
-          form.setValue('eventDetails', { ...eventDetails, ...eventData });
+          setValue('eventDetails', { ...eventDetails, ...eventData }, { shouldDirty: true });
         }}
       />
       
@@ -120,8 +124,14 @@ export default function ImagesPane({
         <>
           <ImageGrid
             images={images || []}
-            onImageUpdate={updateImage}
-            onImageRemove={removeImage}
+            onImageUpdate={(id, updates) => {
+              const currentQueue = getValues('files.queue') || [];
+              const updatedQueue = currentQueue.map((img: any) => 
+                img.id === id ? { ...img, ...updates } : img
+              );
+              setValue('files.queue', updatedQueue, { shouldDirty: true });
+            }}
+            onImageRemove={filesForm.removeFromQueue}
             onExportMetadata={onExportMetadata}
             onBulkEdit={onBulkEdit}
             onScrollToImage={onScrollToImage}

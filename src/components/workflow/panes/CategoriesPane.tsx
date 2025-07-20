@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 import { FolderPlus, Check, AlertCircle, Eye, Plus, X } from 'lucide-react';
-import { WorkflowFormData } from '../providers/WorkflowFormProvider';
 import { ImageFile } from '@/types';
 import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
-import { generateSoccerCategories, getCategoriesToCreate as getSoccerCategoriesToCreate } from '@/utils/soccer-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
 
@@ -35,8 +33,6 @@ export default function CategoriesPane({
   // Get all data from the unified form
   const uploadType = watch('uploadType');
   const images = watch('images');
-  const soccerMatchData = watch('soccerMatchData');
-  const selectedPlayers = watch('selectedPlayers');
   const musicEventData = watch('musicEventData');
   
   const watchedData = watch('categories');
@@ -75,8 +71,6 @@ export default function CategoriesPane({
     let eventCategories: string[] = [];
     if (uploadType === 'music' && musicEventData) {
       eventCategories = generateMusicCategories(musicEventData);
-    } else if (uploadType === 'soccer' && soccerMatchData && selectedPlayers.length > 0) {
-      eventCategories = generateSoccerCategories(soccerMatchData, selectedPlayers);
     }
     
     // Combine all categories and remove duplicates
@@ -86,8 +80,6 @@ export default function CategoriesPane({
     let toCreate: CategoryCreationInfo[] = [];
     if (uploadType === 'music' && musicEventData) {
       toCreate = getMusicCategoriesToCreate(musicEventData);
-    } else if (uploadType === 'soccer' && soccerMatchData && selectedPlayers.length > 0) {
-      toCreate = getSoccerCategoriesToCreate(soccerMatchData, selectedPlayers);
     }
     
     // Add categories that need creation to the unified list
@@ -95,7 +87,7 @@ export default function CategoriesPane({
     
     setValue('categories.selectedCategories', Array.from(combinedCategories).sort());
     setCategoriesToCreate(toCreate);
-  }, [uploadType, musicEventData, soccerMatchData, selectedPlayers, images, setValue]);
+  }, [uploadType, musicEventData, images, setValue]);
 
 
   const handleAddCategory = () => {
@@ -132,9 +124,6 @@ export default function CategoriesPane({
              ((musicEventData.eventType === 'festival' && musicEventData.festivalData?.festival?.name) ||
               (musicEventData.eventType === 'concert' && musicEventData.concertData?.concert?.artist?.name));
     }
-    if (uploadType === 'soccer') {
-      return soccerMatchData?.homeTeam?.name && soccerMatchData?.awayTeam?.name && selectedPlayers.length > 0;
-    }
     return true; // Allow general uploads to proceed
   };
 
@@ -162,13 +151,7 @@ export default function CategoriesPane({
             {uploadType === 'music' && (
               <>
                 <li>• Event Type: {musicEventData?.eventType ? '✅' : '❌'} Select festival or concert</li>
-                <li>• Event Details: {(musicEventData?.festivalData?.festival?.name || musicEventData?.concertData?.concert?.artist?.name) ? '✅' : '❌'} Add event information</li>
-              </>
-            )}
-            {uploadType === 'soccer' && (
-              <>
-                <li>• Match Details: {soccerMatchData?.homeTeam?.name && soccerMatchData?.awayTeam?.name ? '✅' : '❌'} Add team information</li>
-                <li>• Players: {selectedPlayers.length > 0 ? '✅' : '❌'} Select players</li>
+                <li>• Event Details: {(musicEventData?.festivalData?.festival?.name || musicEventData?.concertData?.concert?.artist?.name || (workflowType === 'music-event' && eventDetails.musicEvent?.mainBand)) ? '✅' : '❌'} Add event information</li>
               </>
             )}
           </ul>

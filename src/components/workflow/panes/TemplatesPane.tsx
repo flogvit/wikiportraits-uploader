@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
 import { FileText } from 'lucide-react';
-import { WorkflowFormData, useWorkflowForm } from '../providers/WorkflowFormProvider';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
 // import { ImageFile } from '@/types';
 import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
@@ -15,17 +15,24 @@ interface TemplatesPaneProps {
 export default function TemplatesPane({
   onComplete
 }: TemplatesPaneProps) {
-  const { updateImage } = useWorkflowForm();
-  const { control, watch, setValue } = useFormContext<WorkflowFormData>();
+  const { watch, setValue, getValues } = useUniversalForm();
+  
+  const updateImage = (imageId: string, updates: any) => {
+    const currentQueue = getValues('files.queue') || [];
+    const updatedQueue = currentQueue.map((img: any) => 
+      img.id === imageId ? { ...img, ...updates } : img
+    );
+    setValue('files.queue', updatedQueue, { shouldDirty: true });
+  };
 
   // Get all data from the unified form
-  const uploadType = watch('uploadType');
-  const images = watch('images');
-  const soccerMatchData = watch('soccerMatchData');
-  const musicEventData = watch('musicEventData');
+  const workflowType = watch('workflowType');
+  const uploadType = workflowType === 'music-event' ? 'music' : 'general';
+  const images = watch('files.queue') || [];
+  const musicEventData = watch('eventDetails.musicEvent');
   
-  const templatesData = watch('templates');
-  const { selectedLanguage, customTemplateName } = templatesData;
+  const templatesData = watch('templates') || {};
+  const { selectedLanguage = 'en', customTemplateName } = templatesData;
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -39,16 +46,16 @@ export default function TemplatesPane({
 
   // Initialize template name and code when dependencies change
   useEffect(() => {
-    const generatedName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
+    const generatedName = generateTemplateName(uploadType, musicEventData, undefined);
     if (!customTemplateName) {
       setValue('templates.customTemplateName', generatedName);
     }
     
-    const generatedTemplate = generateTemplate(uploadType, musicEventData, soccerMatchData, selectedLanguage);
+    const generatedTemplate = generateTemplate(uploadType, musicEventData, undefined, selectedLanguage);
     setValue('templates.templateCode', generatedTemplate);
-  }, [uploadType, musicEventData, soccerMatchData, selectedLanguage, customTemplateName, setValue]);
+  }, [uploadType, musicEventData, selectedLanguage, customTemplateName, setValue]);
 
-  const templateName = customTemplateName || generateTemplateName(uploadType, musicEventData, soccerMatchData);
+  const templateName = customTemplateName || generateTemplateName(uploadType, musicEventData, undefined);
   const templateUrl = `https://commons.wikimedia.org/wiki/Template:${encodeURIComponent(templateName)}`;
 
   const updateAllImagesTemplate = () => {
@@ -84,7 +91,7 @@ export default function TemplatesPane({
           <label className="text-sm font-medium text-card-foreground">Wikipedia Language:</label>
           <Controller
             name="templates.selectedLanguage"
-            control={control}
+            control={useUniversalForm().control}
             render={({ field }) => (
               <select
                 {...field}
@@ -119,7 +126,7 @@ export default function TemplatesPane({
         </div>
         <Controller
           name="templates.customTemplateName"
-          control={control}
+          control={useUniversalForm().control}
           render={({ field }) => (
             <input
               {...field}
@@ -156,7 +163,7 @@ export default function TemplatesPane({
             <label className="text-sm font-medium text-card-foreground">Template Code (editable):</label>
             <Controller
               name="templates.templateCode"
-              control={control}
+              control={useUniversalForm().control}
               render={({ field }) => (
                 <textarea
                   {...field}

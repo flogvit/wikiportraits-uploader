@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useFormContext } from 'react-hook-form';
 import { Database, User, Users, Edit3, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
-import { WorkflowFormData } from '../providers/WorkflowFormProvider';
+import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { PendingWikidataEntity, PendingBandMemberData, PendingBandData } from '@/types/music';
 
 interface WikidataPaneProps {
@@ -13,24 +12,117 @@ interface WikidataPaneProps {
 export default function WikidataPane({
   onComplete
 }: WikidataPaneProps) {
-  const { watch, setValue } = useFormContext<WorkflowFormData>();
-  const pendingWikidataEntities = watch('pendingWikidataEntities') || [];
-  const performers = watch('performers') || [];
+  const form = useUniversalForm();
+  const { people, organizations, removePerson, removeOrganization } = useUniversalFormEntities();
+  
+  // Convert UniversalForm entities to old format for compatibility
+  const pendingWikidataEntities = [
+    ...people.filter(p => p.isNew).map((person, index) => ({
+      id: person.entity.id || `person-${index}`,
+      name: person.entity.labels?.en?.value || 'Unknown',
+      type: 'band_member' as const,
+      status: 'created' as const,
+      new: true,
+      data: {
+        name: person.entity.labels?.en?.value || 'Unknown',
+        instruments: person.metadata?.instruments || [],
+        nationality: person.metadata?.nationality,
+        birthDate: person.metadata?.birthDate,
+        bandId: person.metadata?.bandId,
+        isBandMember: person.roles.includes('band-member'),
+        wikidataUrl: person.metadata?.wikidataUrl,
+        wikipediaUrl: person.metadata?.wikipediaUrl,
+        imageUrl: person.metadata?.imageUrl
+      }
+    })),
+    ...organizations.filter(o => o.isNew).map((org, index) => ({
+      id: org.entity.id || `org-${index}`,
+      name: org.entity.labels?.en?.value || 'Unknown',
+      type: 'band' as const,
+      status: 'created' as const,
+      new: true,
+      data: {
+        name: org.entity.labels?.en?.value || 'Unknown'
+      }
+    }))
+  ];
+  
+  const performers = people;
   const [editingEntity, setEditingEntity] = useState<string | null>(null);
 
   const handleEntityUpdate = (entityId: string, updates: Partial<PendingWikidataEntity>) => {
-    const updatedEntities = pendingWikidataEntities.map((entity: PendingWikidataEntity) =>
-      entity.id === entityId ? { ...entity, ...updates } : entity
-    );
-    setValue('pendingWikidataEntities', updatedEntities);
+    // Find and update the entity in people or organizations
+    const personIndex = people.findIndex(p => p.entity.id === entityId);
+    if (personIndex >= 0) {
+      const person = people[personIndex];
+      const updatedPerson = {
+        ...person,
+        entity: {
+          ...person.entity,
+          labels: {
+            ...person.entity.labels,
+            en: {
+              language: 'en' as const,
+              value: updates.name || person.entity.labels?.en?.value || 'Unknown'
+            }
+          }
+        },
+        metadata: {
+          ...person.metadata,
+          ...updates.data
+        }
+      };
+      
+      // Update directly through form setValue instead of using hooks
+      const currentPeople = form.getValues('entities.people');
+      const newPeople = [...currentPeople];
+      newPeople[personIndex] = updatedPerson;
+      form.setValue('entities.people', newPeople, { shouldDirty: true });
+    }
+    
+    const orgIndex = organizations.findIndex(o => o.entity.id === entityId);
+    if (orgIndex >= 0) {
+      const org = organizations[orgIndex];
+      const updatedOrg = {
+        ...org,
+        entity: {
+          ...org.entity,
+          labels: {
+            ...org.entity.labels,
+            en: {
+              language: 'en' as const,
+              value: updates.name || org.entity.labels?.en?.value || 'Unknown'
+            }
+          }
+        },
+        metadata: {
+          ...org.metadata,
+          ...updates.data
+        }
+      };
+      
+      // Update directly through form setValue instead of using hooks
+      const currentOrgs = form.getValues('entities.organizations');
+      const newOrgs = [...currentOrgs];
+      newOrgs[orgIndex] = updatedOrg;
+      form.setValue('entities.organizations', newOrgs, { shouldDirty: true });
+    }
+    
     setEditingEntity(null);
   };
 
   const handleEntityDelete = (entityId: string) => {
-    const updatedEntities = pendingWikidataEntities.filter((entity: PendingWikidataEntity) => 
-      entity.id !== entityId
-    );
-    setValue('pendingWikidataEntities', updatedEntities);
+    // Find and remove the entity from people or organizations
+    const personIndex = people.findIndex(p => p.entity.id === entityId);
+    if (personIndex >= 0) {
+      removePerson(personIndex);
+      return;
+    }
+    
+    const orgIndex = organizations.findIndex(o => o.entity.id === entityId);
+    if (orgIndex >= 0) {
+      removeOrganization(orgIndex);
+    }
   };
 
   const bandEntities = pendingWikidataEntities.filter((entity: PendingWikidataEntity) => entity.type === 'band');

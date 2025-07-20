@@ -1,102 +1,129 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
-import { WorkflowFormData } from '../providers/WorkflowFormProvider';
+import { useEffect } from 'react';
+import { useUniversalForm, useUniversalFormEntities, useUniversalFormEventDetails } from '@/providers/UniversalFormProvider';
 import ArtistSelector from '@/components/selectors/ArtistSelector';
 import BandMemberSelector from '@/components/selectors/BandMemberSelector';
 import BandMemberFetcher from '@/components/selectors/BandMemberFetcher';
 import AdditionalArtistSelector from '@/components/selectors/AdditionalArtistSelector';
 import NewPerformerSelector from '@/components/selectors/NewPerformerSelector';
-import { Users, Globe, MapPin, X } from 'lucide-react';
+import WDOrganizationCard from '@/components/common/WDOrganizationCard';
+import { WikidataEntity } from '@/types/wikidata';
+import { globalEventBus } from '@/utils/event-bus';
 
 interface BandPerformersPaneProps {
-  onComplete?: () => void;
+  onCompleteAction?: () => void;
 }
 
-interface BandCardProps {
-  band: {
-    id: string;
-    name: string;
-    wikipediaUrl?: string;
-    wikidataUrl?: string;
-    musicbrainzId?: string;
-    country?: string;
-    entityType?: string;
-    source?: string;
+// Utility function to convert band data to WikidataEntity format
+function convertBandToWikidataEntity(band: {
+  id?: string;
+  name?: string;
+  wikipediaUrl?: string;
+  wikidataUrl?: string;
+  musicbrainzId?: string;
+  country?: string;
+  entityType?: string;
+  source?: string;
+}): WikidataEntity {
+  return {
+    id: band.id || `band-${Date.now()}`,
+    type: 'item',
+    labels: {
+      en: { 
+        language: 'en', 
+        value: band.name || 'Unknown Band'
+      }
+    },
+    descriptions: {},
+    claims: {},
+    sitelinks: band.wikipediaUrl ? {
+      enwiki: {
+        site: 'enwiki',
+        title: band.wikipediaUrl.split('/').pop() || band.name || 'Unknown'
+      }
+    } : {}
   };
-  onRemove?: () => void;
 }
 
-function BandCard({ band, onRemove }: BandCardProps) {
-  return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-blue-600" />
-            <h3 className="font-semibold text-gray-900">{band.name}</h3>
-            <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-              {band.entityType === 'group' ? 'Band' : 'Artist'}
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            {band.country && (
-              <div className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                <span>{band.country}</span>
-              </div>
-            )}
-            
-            {band.wikidataUrl && (
-              <a
-                href={band.wikidataUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors"
-              >
-                <Globe className="w-3 h-3" />
-                <span>Wikidata</span>
-              </a>
-            )}
-            
-            {band.wikipediaUrl && (
-              <a
-                href={band.wikipediaUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-green-600 hover:text-green-800 transition-colors"
-              >
-                <Globe className="w-3 h-3" />
-                <span>Wikipedia</span>
-              </a>
-            )}
-          </div>
-        </div>
-        
-        {onRemove && (
-          <button
-            onClick={onRemove}
-            className="ml-3 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-            title="Remove band"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export default function BandPerformersPane({ 
-  onComplete 
+  onCompleteAction 
 }: BandPerformersPaneProps) {
-  const { watch, setValue } = useFormContext<WorkflowFormData>();
-
-  const bandPerformers = watch('bandPerformers');
+  const form = useUniversalForm();
+  const { organizations, people, addOrganization, removeOrganization } = useUniversalFormEntities();
+  const { setTitle } = useUniversalFormEventDetails();
   
-  const performers = bandPerformers?.performers || [];
+  // Get the main band from organizations with 'main-band' role
+  const selectedBand = organizations.find(org => org.roles.includes('main-band'));
+  
+  // Convert to old format for compatibility
+  const bandPerformers = {
+    selectedBand: selectedBand ? {
+      id: selectedBand.entity.id,
+      name: selectedBand.entity.labels?.en?.value || 'Unknown Band',
+      wikipediaUrl: selectedBand.metadata?.wikipediaUrl,
+      wikidataUrl: selectedBand.metadata?.wikidataUrl,
+      musicbrainzId: selectedBand.metadata?.musicbrainzId,
+      country: selectedBand.metadata?.country,
+      entityType: selectedBand.metadata?.entityType,
+      source: selectedBand.source
+    } : undefined,
+    performers: people
+  };
+  
+  const performers = people || [];
   const canComplete = bandPerformers?.selectedBand?.name && performers.length > 0;
+
+  // Post semantic data - what we have, not where it should go
+  useEffect(() => {
+    const postSemanticData = async () => {
+      if (bandPerformers?.selectedBand || performers.length > 0) {
+        // Collect all persons (performers, band members, etc.)
+        const allPersons: WikidataEntity[] = [];
+        const allOrganizations: WikidataEntity[] = [];
+
+        // Add main band/organization
+        if (bandPerformers?.selectedBand) {
+          const bandEntity = convertBandToWikidataEntity(bandPerformers.selectedBand);
+          allOrganizations.push(bandEntity);
+        }
+
+        // Add all performers who are persons
+        performers.forEach((performer: any) => {
+          const entity = performer.entity || performer;
+          if (entity) {
+            // Determine if this is a person or organization based on entity type
+            const entityType = entity.claims?.['P31']?.[0]?.mainsnak?.datavalue?.value?.id;
+            if (entityType === 'Q5' || performer.type === 'person') {
+              // This is a person
+              allPersons.push(entity);
+            } else {
+              // This might be a band/organization
+              allOrganizations.push(entity);
+            }
+          }
+        });
+
+        // Post semantic data that any pane can listen to
+        if (allPersons.length > 0) {
+          await globalEventBus.emit('persons:updated', {
+            persons: allPersons,
+            source: 'band-performers'
+          });
+        }
+
+        if (allOrganizations.length > 0) {
+          await globalEventBus.emit('organizations:updated', {
+            organizations: allOrganizations,
+            source: 'band-performers'
+          });
+        }
+      }
+    };
+
+    postSemanticData().catch(console.error);
+  }, [bandPerformers?.selectedBand, performers]);
 
 
   return (
@@ -129,7 +156,46 @@ export default function BandPerformersPane({
               source: artist.source
             };
             
-            setValue('bandPerformers.selectedBand', newBand);
+            // Remove existing main band if any
+            const existingBandIndex = organizations.findIndex(org => org.roles.includes('main-band'));
+            if (existingBandIndex >= 0) {
+              removeOrganization(existingBandIndex);
+            }
+            
+            // Add new main band to organizations
+            addOrganization({
+              entity: {
+                id: artist.id || `band-${Date.now()}`,
+                type: 'item',
+                labels: {
+                  en: {
+                    language: 'en',
+                    value: artist.name || ''
+                  }
+                },
+                descriptions: {},
+                claims: {},
+                sitelinks: artist.wikipediaUrl ? {
+                  enwiki: {
+                    site: 'enwiki',
+                    title: artist.wikipediaUrl.split('/').pop() || artist.name
+                  }
+                } : {}
+              },
+              roles: ['main-band', 'featured-organization'],
+              isNew: false,
+              source: 'band-performers',
+              metadata: {
+                wikipediaUrl: artist.wikipediaUrl,
+                wikidataUrl: artist.wikidataUrl,
+                musicbrainzId: artist.musicbrainzId,
+                country: artist.country,
+                entityType: artist.entityType
+              }
+            });
+            
+            // Update the event title with the band name
+            setTitle(artist.name || '');
           }}
           selectedArtist={bandPerformers?.selectedBand ? {
             id: bandPerformers.selectedBand.id,
@@ -141,13 +207,18 @@ export default function BandPerformersPane({
         />
         {bandPerformers?.selectedBand?.name && (
           <div className="mt-3">
-            <BandCard 
-              band={bandPerformers.selectedBand} 
+            <WDOrganizationCard
+              entity={convertBandToWikidataEntity(bandPerformers.selectedBand)}
+              variant="main"
               onRemove={() => {
-                // Clear form data - form provider will handle localStorage cleanup
-                setValue('bandPerformers.selectedBand', undefined);
-                setValue('bandPerformers.performers', []);
-                setValue('pendingWikidataEntities', []);
+                // Remove the main band from organizations
+                const bandIndex = organizations.findIndex(org => org.roles.includes('main-band'));
+                if (bandIndex >= 0) {
+                  removeOrganization(bandIndex);
+                }
+                
+                // Clear event title
+                setTitle('');
               }}
             />
           </div>
@@ -218,7 +289,7 @@ export default function BandPerformersPane({
       {canComplete && (
         <div className="text-center">
           <button
-            onClick={() => onComplete?.()}
+            onClick={() => onCompleteAction?.()}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             Band & Performers Complete - Continue to Categories
