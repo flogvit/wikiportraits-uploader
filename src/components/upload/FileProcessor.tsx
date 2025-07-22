@@ -3,7 +3,6 @@
 import { ImageFile } from '@/types';
 import { extractExifData, formatDateForCommons, formatTimeForCommons } from '@/utils/exif-reader';
 import { generateCommonsWikitext } from '@/utils/commons-template';
-import { generateTemplateName } from '@/utils/template-generator';
 import { UploadType } from '@/types/upload';
 import { MusicEventMetadata } from '@/types/music';
 import { generateEventDescription } from '@/utils/music-categories';
@@ -21,7 +20,7 @@ export class FileProcessor {
   ) {}
 
   async createImageFiles(files: File[]): Promise<ImageFile[]> {
-    const imageFiles = await Promise.all(files.map(async file => {
+    return Promise.all(files.map(async file => {
       // Extract EXIF data to get actual capture date and time
       const exifData = await extractExifData(file);
       const hasExifDate = Boolean(exifData?.dateTime);
@@ -69,25 +68,21 @@ export class FileProcessor {
         initialMetadata = {
           ...initialMetadata,
           description: musicDescription,
-          selectedBand: this.musicEventData.festivalData?.selectedBands?.[0]?.name || '',
         };
       }
 
       const imageFile: ImageFile = {
-        id: `${file.name}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         file,
         preview,
         metadata: initialMetadata,
       };
 
       // Generate initial wikitext
-      const wikitextResult = generateCommonsWikitext(imageFile);
-      imageFile.metadata.wikitext = wikitextResult.wikitext;
+      imageFile.metadata.wikitext = generateCommonsWikitext(imageFile);
 
       return imageFile;
     }));
-
-    return imageFiles;
   }
 
   static createProcessor(props: FileProcessorProps): FileProcessor {

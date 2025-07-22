@@ -10,23 +10,23 @@ import { useDuplicateHandler } from './DuplicateHandler';
 import DuplicateWarningModal from '../modals/DuplicateWarningModal';
 
 interface ImageUploaderProps {
-  onImagesAdded: (images: ImageFile[]) => void;
+  onImagesAddedAction: (images: ImageFile[]) => void;
   existingImages: ImageFile[];
   uploadType: UploadType;
   eventDetails?: any;
   bandPerformers?: any;
   musicEventData?: MusicEventMetadata | null;
-  onMusicEventUpdate?: (eventData: MusicEventMetadata) => void;
+  onMusicEventUpdateAction?: (eventData: MusicEventMetadata) => void;
 }
 
 export default function ImageUploader({ 
-  onImagesAdded, 
+  onImagesAddedAction, 
   existingImages, 
   uploadType, 
   eventDetails,
   bandPerformers,
   musicEventData, 
-  onMusicEventUpdate 
+  onMusicEventUpdateAction 
 }: ImageUploaderProps) {
   const {
     duplicates,
@@ -52,27 +52,18 @@ export default function ImageUploader({
     const hasDuplicates = checkForDuplicates(imageFiles);
     
     if (!hasDuplicates) {
-      onImagesAdded(imageFiles);
+      onImagesAddedAction(imageFiles);
     }
-  }, [uploadType, musicEventData, checkForDuplicates, onImagesAdded]);
+  }, [uploadType, musicEventData, checkForDuplicates, onImagesAddedAction]);
 
   const handleDuplicateConfirm = (addAll: boolean) => {
     const imagesToAdd = handleDuplicateDecision(addAll);
     if (imagesToAdd.length > 0) {
-      onImagesAdded(imagesToAdd);
+      onImagesAddedAction(imagesToAdd);
     }
   };
 
-  // Show soccer match workflow if soccer type and no match data
-  if (uploadType === 'soccer' && !soccerMatchData) {
-    return (
-      <SoccerMatchWorkflow
-        onMatchDataUpdate={onSoccerDataUpdate!}
-        onImagesAdded={onImagesAdded}
-        existingImages={existingImages}
-      />
-    );
-  }
+  // Only supporting music upload type
 
   return (
     <div className="space-y-6">
@@ -82,7 +73,7 @@ export default function ImageUploader({
         isOpen={showDuplicateModal}
         onClose={closeDuplicateModal}
         duplicates={duplicates}
-        onConfirm={handleDuplicateConfirm}
+        onAddAnyway={() => handleDuplicateConfirm(true)}
       />
     </div>
   );

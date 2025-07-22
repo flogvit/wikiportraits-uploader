@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Controller } from 'react-hook-form';
+import { ArrowRight } from 'lucide-react';
 import { useUniversalForm, useUniversalFormEventDetails } from '@/providers/UniversalFormProvider';
 import CountrySelector from '@/components/selectors/CountrySelector';
+import { dateToYear, yearInputToDate, isValidYearInput, isValidCompleteYear } from '@/utils/date-utils';
 
 
 interface EventDetailsFormProps {
@@ -18,15 +20,15 @@ export default function EventDetailsForm({
   
   // Local state for year input to allow smooth typing
   const [yearInput, setYearInput] = useState(
-    common?.date ? new Date(common.date).getFullYear().toString() : ''
+    common?.date ? dateToYear(common.date)?.toString() || '' : ''
   );
   
   // Map to old format for compatibility
   const eventDetails = {
     name: common?.title || '',
-    year: yearInput || (common?.date ? new Date(common.date).getFullYear().toString() : ''),
-    location: form.watch('eventDetails.custom')?.location || '',
-    country: form.watch('eventDetails.custom')?.country || ''
+    year: yearInput || (common?.date ? dateToYear(common.date)?.toString() || '' : ''),
+    location: form.watch('eventDetails.custom')?.fields?.location || '',
+    country: form.watch('eventDetails.custom')?.fields?.country || ''
   };
   
   const canComplete = eventDetails.name && eventDetails.year;
@@ -39,7 +41,7 @@ export default function EventDetailsForm({
       <div>
         <label className="block text-sm font-medium text-card-foreground mb-1">Event Name *</label>
         <Controller
-          name="eventDetails.common.title"
+          name="eventDetails.title"
           control={form.control}
           render={({ field, fieldState }) => (
             <>
@@ -71,18 +73,20 @@ export default function EventDetailsForm({
             console.log('🔍 Year input changed:', yearStr);
             
             // Allow typing any numeric input up to 4 digits
-            if (yearStr === '' || /^\d{1,4}$/.test(yearStr)) {
+            if (isValidYearInput(yearStr)) {
               setYearInput(yearStr);
               
               // Update form when we have a complete, valid year
               if (yearStr.length === 4) {
-                const year = parseInt(yearStr);
-                if (year > 1800 && year <= new Date().getFullYear() + 10) {
-                  form.setValue('eventDetails.common.date', new Date(year, 0, 1));
-                  console.log('✅ Set year in form:', year);
+                if (isValidCompleteYear(yearStr)) {
+                  const yearDate = yearInputToDate(yearStr);
+                  if (yearDate) {
+                    form.setValue('eventDetails.date' as any, yearDate);
+                    console.log('✅ Set year in form:', yearStr);
+                  }
                 }
               } else if (yearStr === '') {
-                form.setValue('eventDetails.common.date', undefined);
+                form.setValue('eventDetails.date' as any, undefined);
               }
             }
           }}
@@ -95,13 +99,13 @@ export default function EventDetailsForm({
       <div>
         <label className="block text-sm font-medium text-card-foreground mb-1">Location</label>
         <Controller
-          name="eventDetails.custom.location"
+          name="eventDetails.location"
           control={form.control}
           render={({ field }) => (
             <input
               {...field}
               type="text"
-              value={field.value || ''}
+              value={typeof field.value === 'string' ? field.value : field.value?.labels?.en?.value || ''}
               onChange={(e) => {
                 field.onChange(e.target.value);
               }}
@@ -115,11 +119,11 @@ export default function EventDetailsForm({
       <div>
         <label className="block text-sm font-medium text-card-foreground mb-1">Country</label>
         <Controller
-          name="eventDetails.custom.country"
+          name="eventDetails.country"
           control={form.control}
           render={({ field }) => (
             <CountrySelector
-              value={field.value || ''}
+              value={typeof field.value === 'string' ? field.value : field.value?.labels?.en?.value || ''}
               onChange={(country) => {
                 field.onChange(country);
               }}
@@ -134,10 +138,11 @@ export default function EventDetailsForm({
       {canComplete && (
         <div className="text-center">
           <button
-            onClick={() => onComplete?.()}
-            className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            onClick={onComplete}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
           >
-            Festival Details Complete - Continue to Band & Performers
+            Continue to Next Step
+            <ArrowRight className="w-4 h-4" />
           </button>
         </div>
       )}
