@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, User, Music, Globe, Calendar } from 'lucide-react';
-import { PendingWikidataEntity } from '@/types/music';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
-import PerformerCard from '@/components/common/PerformerCard';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
+import { WDPerson } from '@/lib/wikidata-entities';
 
 interface AdditionalArtistSelectorProps {
   bandName?: string;
@@ -23,26 +22,9 @@ export default function AdditionalArtistSelector({
   const form = useUniversalForm();
   const { people, addPerson, removePerson } = useUniversalFormEntities();
   
-  // Convert UniversalForm people to old format for compatibility
-  const allPerformers = people.map((person, index) => ({
-    id: person.entity.id || `person-${index}`,
-    name: person.entity.labels?.en?.value || 'Unknown',
-    type: person.roles.includes('band-member') ? 'band_member' : 'additional_artist',
-    data: {
-      name: person.entity.labels?.en?.value || 'Unknown',
-      instruments: person.metadata?.instruments || [],
-      nationality: person.metadata?.nationality,
-      birthDate: person.metadata?.birthDate,
-      bandId: bandId,
-      isBandMember: person.roles.includes('band-member'),
-      wikidataUrl: person.metadata?.wikidataUrl,
-      wikipediaUrl: person.metadata?.wikipediaUrl,
-      imageUrl: person.metadata?.imageUrl
-    },
-    new: person.isNew || false
-  }));
+  // Work directly with WikidataEntity objects
+  const allPerformers = people || [];
   
-  const pendingPerformers = allPerformers.filter(p => p.new);
   const [isOpen, setIsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -54,11 +36,9 @@ export default function AdditionalArtistSelector({
     searchTerm,
     setSearchTerm,
     searchArtists,
-    getAdditionalArtists,
-  } = useWikidataPersons(bandName, bandId, pendingPerformers);
+  } = useWikidataPersons(bandName, bandId, []);
 
   const currentBandId = bandId || `pending-band-${bandName}`;
-  const additionalArtists = getAdditionalArtists(allPerformers, currentBandId);
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
@@ -88,6 +68,13 @@ export default function AdditionalArtistSelector({
     return () => clearTimeout(delayedSearch);
   }, [searchTerm, searchArtists]);
 
+  const removePerformerFromForm = (performerId: string) => {
+    const personIndex = people.findIndex(p => p.id === performerId);
+    if (personIndex >= 0) {
+      removePerson(personIndex);
+    }
+  };
+
   const togglePerformer = (performerId: string) => {
     // Check if performer is already in the performers array
     const existingPerformer = allPerformers.find(p => p.id === performerId);
@@ -99,58 +86,37 @@ export default function AdditionalArtistSelector({
       // Add to performers
       const searchResult = searchResults.find(p => p.id === performerId);
       if (searchResult) {
-        // Create PendingWikidataEntity for additional artist
-        const additionalArtist: PendingWikidataEntity = {
+        // Create base WikidataEntity
+        const baseEntity = {
           id: searchResult.id,
-          type: 'artist',
-          status: 'created',
-          name: searchResult.name,
-          new: false,
-          data: {
-            name: searchResult.name,
-            instruments: searchResult.instruments || [],
-            nationality: searchResult.nationality,
-            birthDate: searchResult.birthDate,
-            bandId: searchResult.bandQID,
-            isBandMember: false, // This is an additional artist, not a band member
-            wikidataUrl: searchResult.wikidataUrl,
-            wikipediaUrl: searchResult.wikipediaUrl,
-            imageUrl: undefined // Will be fetched asynchronously
-          }
-        };
-        // Add to UniversalForm entities
-        addPerson({
-          entity: {
-            id: searchResult.id,
-            type: 'item',
-            labels: {
-              en: {
-                language: 'en',
-                value: searchResult.name
-              }
-            },
-            descriptions: {},
-            claims: {},
-            sitelinks: searchResult.wikipediaUrl ? {
-              enwiki: {
-                site: 'enwiki',
-                title: searchResult.wikipediaUrl.split('/').pop() || searchResult.name
-              }
-            } : {}
+          type: 'item' as const,
+          labels: {
+            en: {
+              language: 'en',
+              value: searchResult.name
+            }
           },
-          roles: ['performer', 'featured-person'],
-          isNew: false,
-          source: 'additional-artist-selector',
-          metadata: {
-            name: searchResult.name,
-            instruments: searchResult.instruments || [],
-            nationality: searchResult.nationality,
-            birthDate: searchResult.birthDate,
-            wikidataUrl: searchResult.wikidataUrl,
-            wikipediaUrl: searchResult.wikipediaUrl,
-            imageUrl: undefined
-          }
-        });
+          descriptions: {},
+          claims: {},
+          sitelinks: searchResult.wikipediaUrl ? {
+            enwiki: {
+              site: 'enwiki',
+              title: searchResult.wikipediaUrl.split('/').pop() || searchResult.name
+            }
+          } : {}
+        };
+
+        // Use WDPerson class to add properties cleanly
+        const wdPerson = new WDPerson(baseEntity);
+        
+        // Add instruments
+        if (searchResult.instruments && searchResult.instruments.length > 0) {
+          searchResult.instruments.forEach(instrument => {
+            wdPerson.addInstrument(instrument);
+          });
+        }
+        
+        addPerson(wdPerson.rawEntity);
         
         // Fetch image URL asynchronously
         fetchImageForArtist(searchResult.id, searchResult.name);
@@ -162,7 +128,7 @@ export default function AdditionalArtistSelector({
   };
 
   const handleRemove = (performerId: string) => {
-    const personIndex = people.findIndex(p => p.entity.id === performerId);
+    const personIndex = people.findIndex(p => p.id === performerId);
     if (personIndex >= 0) {
       removePerson(personIndex);
     }
@@ -182,20 +148,17 @@ export default function AdditionalArtistSelector({
       
       if (data.imageUrl) {
         // Update the person with the image URL
-        const personIndex = people.findIndex(p => p.entity.id === artistId);
+        const personIndex = people.findIndex(p => p.id === artistId);
         if (personIndex >= 0) {
           const person = people[personIndex];
-          const updatedPerson = {
-            ...person,
-            metadata: {
-              ...person.metadata,
-              imageUrl: data.imageUrl
-            }
-          };
+          const wdPerson = new WDPerson(person);
+          
+          // Set image using WDPerson method
+          wdPerson.setImage(data.imageUrl);
           
           // Update the person in the form
           removePerson(personIndex);
-          addPerson(updatedPerson);
+          addPerson(wdPerson.rawEntity);
           
           console.log(`✅ Updated image for ${artistName}: ${data.imageUrl}`);
         }

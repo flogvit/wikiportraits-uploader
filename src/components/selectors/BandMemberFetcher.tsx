@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import { useUniversalFormEntities } from '@/providers/UniversalFormProvider';
+import { WDPerson } from '@/lib/wikidata-entities';
 
 interface BandMemberFetcherProps {
   bandName?: string;
@@ -17,7 +18,11 @@ export default function BandMemberFetcher({
   
   const allPerformers = entities.people || [];
   const currentBandId = bandId || `pending-band-${bandName}`;
-  const hasExistingPerformers = allPerformers.some(p => p.data?.bandId === currentBandId && !p.new);
+  const hasExistingPerformers = allPerformers.some(p => 
+    // Check if this person is already associated with this band
+    p.claims?.['P361'] && // member of
+    p.claims['P361'].some(claim => claim.mainsnak?.datavalue?.value?.id === bandId)
+  );
   
   console.log('🎸 BandMemberFetcher - hasExistingPerformers:', hasExistingPerformers, 'for bandId:', currentBandId);
   console.log('🎸 BandMemberFetcher - allPerformers:', allPerformers.length);
@@ -35,25 +40,43 @@ export default function BandMemberFetcher({
       console.log('🎸 BandMemberFetcher - Adding performers from Wikidata:', performers.length);
       performers.forEach(performer => {
         if (!allPerformers.find(p => p.id === performer.id)) {
-          const performerEntity = {
+          // Create base WikidataEntity
+          const baseEntity = {
             id: performer.id,
-            type: 'band_member' as const,
-            status: 'created' as const,
-            name: performer.name,
-            new: false,
-            bandQID: bandId,
-            data: {
-              name: performer.name,
-              instruments: performer.instruments || [],
-              nationality: performer.nationality,
-              wikidataUrl: performer.wikidataUrl,
-              wikipediaUrl: performer.wikipediaUrl,
-              imageUrl: performer.imageUrl,
-              birthDate: performer.birthDate,
-              bandId: bandId || currentBandId
-            }
+            type: 'item' as const,
+            labels: {
+              en: {
+                language: 'en',
+                value: performer.name
+              }
+            },
+            descriptions: {},
+            claims: {},
+            sitelinks: performer.wikipediaUrl ? {
+              enwiki: {
+                site: 'enwiki',
+                title: performer.wikipediaUrl.split('/').pop() || performer.name
+              }
+            } : {}
           };
-          entities.addPerson(performerEntity);
+
+          // Use WDPerson class to add properties cleanly
+          const wdPerson = new WDPerson(baseEntity);
+          
+          // Add band membership if bandId is available
+          if (bandId) {
+            wdPerson.addBandMembership(bandId);
+          }
+          
+          // Add instruments
+          if (performer.instruments && performer.instruments.length > 0) {
+            performer.instruments.forEach(instrument => {
+              // For now, store instrument names as strings - ideally we'd map to QIDs
+              wdPerson.addInstrument(instrument);
+            });
+          }
+
+          entities.addPerson(wdPerson.rawEntity);
         }
       });
     }
