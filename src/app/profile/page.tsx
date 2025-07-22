@@ -105,16 +105,16 @@ export default function ProfilePage() {
                 Back to Dashboard
               </button>
             </div>
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-foreground mb-2">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+              <div className="flex-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
                   User Profile
                 </h1>
                 <p className="text-muted-foreground">
                   Manage your photographer profile and settings
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 sm:flex-shrink-0">
                 <ThemeToggle />
                 <LoginButton />
               </div>

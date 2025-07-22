@@ -3,15 +3,12 @@
 import { useState } from 'react';
 import LoginButton from '@/components/auth/LoginButton';
 import AuthWrapper from '@/components/auth/AuthWrapper';
-import UploadTypeSelector from '@/components/selectors/UploadTypeSelector';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import WikimediaWorkflow from '@/components/workflow/workflows/WikimediaWorkflow';
 import { CategoryCreationInfo } from '@/utils/soccer-categories';
-import { UploadType } from '@/types/upload';
 
 export default function Home() {
-  const [uploadType, setUploadType] = useState<UploadType>('music');
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categoriesToCreate] = useState<CategoryCreationInfo[]>([]);
 
@@ -26,16 +23,16 @@ export default function Home() {
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-6xl mx-auto">
             <header className="mb-8">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h1 className="text-4xl font-bold text-foreground mb-2">
-                    WikiPortraits Bulk Uploader
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+                <div className="flex-1">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2">
+                    Wiki Bulk Uploader
                   </h1>
-                  <p className="text-lg text-muted-foreground">
-                    Upload and tag portrait images for Wikimedia Commons
+                  <p className="text-base sm:text-lg text-muted-foreground">
+                    Upload and tag images for Wikimedia Commons
                   </p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 sm:flex-shrink-0">
                   <ThemeToggle />
                   <LoginButton />
                 </div>
@@ -43,14 +40,7 @@ export default function Home() {
             </header>
 
             <div className="space-y-8">
-              <UploadTypeSelector 
-                onTypeSelect={setUploadType}
-                selectedType={uploadType}
-              />
-              
-              <WikimediaWorkflow
-                uploadType={uploadType}
-              />
+              <WikimediaWorkflow />
             </div>
           </div>
         </div>
