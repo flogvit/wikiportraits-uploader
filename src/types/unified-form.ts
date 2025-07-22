@@ -13,42 +13,12 @@ export interface UniversalFormData {
   isWikiPortraitsJob?: boolean;
   
   // Universal entities (shared across ALL workflows and panes)
+  // Store WikidataEntity objects directly - no wrappers
   entities: {
-    // People who can appear in images, categories, templates
-    people: Array<{
-      entity: WikidataEntity;
-      roles: PersonRole[];           // ['performer', 'player', 'subject']
-      isNew?: boolean;               // Created in this session
-      source?: string;               // Which pane added this
-      metadata?: Record<string, any>; // Workflow-specific data
-    }>;
-    
-    // Organizations (bands, teams, companies, venues)
-    organizations: Array<{
-      entity: WikidataEntity;
-      roles: OrganizationRole[];     // ['main-band', 'home-team', 'venue']
-      isNew?: boolean;
-      source?: string;
-      metadata?: Record<string, any>;
-    }>;
-    
-    // Locations (cities, venues, stadiums, countries)
-    locations: Array<{
-      entity: WikidataEntity;
-      roles: LocationRole[];         // ['venue', 'city', 'country']
-      isNew?: boolean;
-      source?: string;
-      metadata?: Record<string, any>;
-    }>;
-    
-    // Events (concerts, matches, festivals - can be nested)
-    events: Array<{
-      entity: WikidataEntity;
-      roles: EventRole[];            // ['main-event', 'sub-event', 'series']
-      isNew?: boolean;
-      source?: string;
-      metadata?: Record<string, any>;
-    }>;
+    people: WikidataEntity[];        // People who can appear in images, categories, templates
+    organizations: WikidataEntity[]; // Organizations (bands, teams, companies, venues)
+    locations: WikidataEntity[];     // Locations (cities, venues, stadiums, countries)
+    events: WikidataEntity[];        // Events (concerts, matches, festivals - can be nested)
   };
   
   // Event details (unified structure)
