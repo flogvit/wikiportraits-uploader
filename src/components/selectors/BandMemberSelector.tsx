@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { WikidataEntity } from '@/types/wikidata';
 import WDPersonCard from '@/components/common/WDPersonCard';
 import { useUniversalFormEntities } from '@/providers/UniversalFormProvider';
-import { WDPerson } from '@/lib/wikidata-entities';
+import { WDPerson } from '@/classes';
 
 interface BandMemberSelectorProps {
   bandName?: string;

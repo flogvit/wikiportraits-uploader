@@ -10,7 +10,7 @@ import NewPerformerSelector from '@/components/selectors/NewPerformerSelector';
 import WDOrganizationCard from '@/components/common/WDOrganizationCard';
 import { WikidataEntity } from '@/types/wikidata';
 import { globalEventBus } from '@/utils/event-bus';
-import { WDBand } from '@/lib/wikidata-entities';
+import { WDBand } from '@/classes';
 
 interface BandPerformersPaneProps {
   onCompleteAction?: () => void;

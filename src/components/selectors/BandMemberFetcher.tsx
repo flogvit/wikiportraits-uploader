@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import { useUniversalFormEntities } from '@/providers/UniversalFormProvider';
-import { WDPerson } from '@/lib/wikidata-entities';
+import { WDPerson } from '@/classes';
 
 interface BandMemberFetcherProps {
   bandName?: string;

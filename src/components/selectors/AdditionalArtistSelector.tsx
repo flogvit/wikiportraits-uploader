@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, User, Music, Globe, Calendar } from 'lucide-react';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
-import { WDPerson } from '@/lib/wikidata-entities';
+import { WDPerson } from '@/classes';
 
 interface AdditionalArtistSelectorProps {
   bandName?: string;
