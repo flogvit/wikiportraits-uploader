@@ -10,41 +10,12 @@ import NewPerformerSelector from '@/components/selectors/NewPerformerSelector';
 import WDOrganizationCard from '@/components/common/WDOrganizationCard';
 import { WikidataEntity } from '@/types/wikidata';
 import { globalEventBus } from '@/utils/event-bus';
+import { WDBand } from '@/lib/wikidata-entities';
 
 interface BandPerformersPaneProps {
   onCompleteAction?: () => void;
 }
 
-// Utility function to convert band data to WikidataEntity format
-function convertBandToWikidataEntity(band: {
-  id?: string;
-  name?: string;
-  wikipediaUrl?: string;
-  wikidataUrl?: string;
-  musicbrainzId?: string;
-  country?: string;
-  entityType?: string;
-  source?: string;
-}): WikidataEntity {
-  return {
-    id: band.id || `band-${Date.now()}`,
-    type: 'item',
-    labels: {
-      en: { 
-        language: 'en', 
-        value: band.name || 'Unknown Band'
-      }
-    },
-    descriptions: {},
-    claims: {},
-    sitelinks: band.wikipediaUrl ? {
-      enwiki: {
-        site: 'enwiki',
-        title: band.wikipediaUrl.split('/').pop() || band.name || 'Unknown'
-      }
-    } : {}
-  };
-}
 
 
 export default function BandPerformersPane({ 
@@ -54,54 +25,42 @@ export default function BandPerformersPane({
   const { organizations, people, addOrganization, removeOrganization } = useUniversalFormEntities();
   const { setTitle } = useUniversalFormEventDetails();
   
-  // Get the main band from organizations with 'main-band' role
-  const selectedBand = organizations.find(org => org.roles.includes('main-band'));
-  
-  // Convert to old format for compatibility
-  const bandPerformers = {
-    selectedBand: selectedBand ? {
-      id: selectedBand.entity.id,
-      name: selectedBand.entity.labels?.en?.value || 'Unknown Band',
-      wikipediaUrl: selectedBand.metadata?.wikipediaUrl,
-      wikidataUrl: selectedBand.metadata?.wikidataUrl,
-      musicbrainzId: selectedBand.metadata?.musicbrainzId,
-      country: selectedBand.metadata?.country,
-      entityType: selectedBand.metadata?.entityType,
-      source: selectedBand.source
-    } : undefined,
-    performers: people
-  };
+  // Get the main band from organizations - look for organizations with instance of (P31) band/music group
+  const selectedBandEntity = organizations.find(org => 
+    org.claims?.['P31']?.some(claim => 
+      ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id) // musical group, music band
+    )
+  );
+
+  // Wrap in WDBand for easier access
+  const selectedBand = selectedBandEntity ? new WDBand(selectedBandEntity) : null;
   
   const performers = people || [];
-  const canComplete = bandPerformers?.selectedBand?.name && performers.length > 0;
+  const canComplete = selectedBand?.getLabel() && performers.length > 0;
 
   // Post semantic data - what we have, not where it should go
   useEffect(() => {
     const postSemanticData = async () => {
-      if (bandPerformers?.selectedBand || performers.length > 0) {
-        // Collect all persons (performers, band members, etc.)
+      if (selectedBand || performers.length > 0) {
+        // Collect all persons and organizations
         const allPersons: WikidataEntity[] = [];
         const allOrganizations: WikidataEntity[] = [];
 
         // Add main band/organization
-        if (bandPerformers?.selectedBand) {
-          const bandEntity = convertBandToWikidataEntity(bandPerformers.selectedBand);
-          allOrganizations.push(bandEntity);
+        if (selectedBand) {
+          allOrganizations.push(selectedBand);
         }
 
-        // Add all performers who are persons
-        performers.forEach((performer: any) => {
-          const entity = performer.entity || performer;
-          if (entity) {
-            // Determine if this is a person or organization based on entity type
-            const entityType = entity.claims?.['P31']?.[0]?.mainsnak?.datavalue?.value?.id;
-            if (entityType === 'Q5' || performer.type === 'person') {
-              // This is a person
-              allPersons.push(entity);
-            } else {
-              // This might be a band/organization
-              allOrganizations.push(entity);
-            }
+        // Add all performers (they're already WikidataEntity objects)
+        performers.forEach((performer: WikidataEntity) => {
+          // Determine if this is a person or organization based on entity type
+          const entityType = performer.claims?.['P31']?.[0]?.mainsnak?.datavalue?.value?.id;
+          if (entityType === 'Q5') {
+            // This is a person
+            allPersons.push(performer);
+          } else {
+            // This might be a band/organization
+            allOrganizations.push(performer);
           }
         });
 
@@ -123,7 +82,7 @@ export default function BandPerformersPane({
     };
 
     postSemanticData().catch(console.error);
-  }, [bandPerformers?.selectedBand, performers]);
+  }, [selectedBand, performers]);
 
 
   return (
@@ -144,75 +103,48 @@ export default function BandPerformersPane({
           Select the primary band or artist for this upload session
         </p>
         <ArtistSelector
-          onArtistSelect={(artist) => {
-            const newBand = {
-              id: artist.id || `band-${Date.now()}`,
-              name: artist.name || '',
-              wikipediaUrl: artist.wikipediaUrl,
-              wikidataUrl: artist.wikidataUrl,
-              musicbrainzId: artist.musicbrainzId,
-              country: artist.country,
-              entityType: artist.entityType,
-              source: artist.source
-            };
-            
+          returnType="WikidataEntity"
+          onArtistSelect={() => {}} // Not used when returnType is WikidataEntity
+          onWikidataEntitySelect={(entity) => {
             // Remove existing main band if any
-            const existingBandIndex = organizations.findIndex(org => org.roles.includes('main-band'));
+            const existingBandIndex = organizations.findIndex(org => 
+              org.claims?.['P31']?.some(claim => 
+                ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id)
+              )
+            );
             if (existingBandIndex >= 0) {
               removeOrganization(existingBandIndex);
             }
             
+            // Wrap in WDBand and ensure it's marked as a band
+            const wdBand = new WDBand(entity);
+            
             // Add new main band to organizations
-            addOrganization({
-              entity: {
-                id: artist.id || `band-${Date.now()}`,
-                type: 'item',
-                labels: {
-                  en: {
-                    language: 'en',
-                    value: artist.name || ''
-                  }
-                },
-                descriptions: {},
-                claims: {},
-                sitelinks: artist.wikipediaUrl ? {
-                  enwiki: {
-                    site: 'enwiki',
-                    title: artist.wikipediaUrl.split('/').pop() || artist.name
-                  }
-                } : {}
-              },
-              roles: ['main-band', 'featured-organization'],
-              isNew: false,
-              source: 'band-performers',
-              metadata: {
-                wikipediaUrl: artist.wikipediaUrl,
-                wikidataUrl: artist.wikidataUrl,
-                musicbrainzId: artist.musicbrainzId,
-                country: artist.country,
-                entityType: artist.entityType
-              }
-            });
+            addOrganization(wdBand.rawEntity);
             
             // Update the event title with the band name
-            setTitle(artist.name || '');
+            setTitle(wdBand.getLabel() || '');
           }}
-          selectedArtist={bandPerformers?.selectedBand ? {
-            id: bandPerformers.selectedBand.id,
-            name: bandPerformers.selectedBand.name
+          selectedArtist={selectedBand ? {
+            id: selectedBand.id,
+            name: selectedBand.getLabel() || ''
           } : { id: 'empty', name: '' }}
           placeholder="Search for band/artist..."
           label=""
           type="band"
         />
-        {bandPerformers?.selectedBand?.name && (
+        {selectedBand && (
           <div className="mt-3">
             <WDOrganizationCard
-              entity={convertBandToWikidataEntity(bandPerformers.selectedBand)}
+              entity={selectedBand.rawEntity}
               variant="main"
               onRemove={() => {
                 // Remove the main band from organizations
-                const bandIndex = organizations.findIndex(org => org.roles.includes('main-band'));
+                const bandIndex = organizations.findIndex(org => 
+                  org.claims?.['P31']?.some(claim => 
+                    ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id)
+                  )
+                );
                 if (bandIndex >= 0) {
                   removeOrganization(bandIndex);
                 }
@@ -226,12 +158,12 @@ export default function BandPerformersPane({
       </div>
 
       {/* Artists & Performers Section */}
-      {bandPerformers?.selectedBand?.name && (
+      {selectedBand && (
         <div>
           {/* Fetch band members when band is first selected */}
           <BandMemberFetcher
-            bandName={bandPerformers.selectedBand?.name}
-            bandId={bandPerformers.selectedBand?.id}
+            bandName={selectedBand.getLabel()}
+            bandId={selectedBand.id}
           />
           
           <div className="space-y-6">
@@ -246,8 +178,8 @@ export default function BandPerformersPane({
               
               {/* Combined performer display */}
               <BandMemberSelector
-                bandName={bandPerformers.selectedBand?.name}
-                bandId={bandPerformers.selectedBand?.id}
+                bandName={selectedBand.getLabel()}
+                bandId={selectedBand.id}
                 showTitle={false}
               />
             </div>
@@ -261,8 +193,8 @@ export default function BandPerformersPane({
                 Search and add artists who are not band members but performed at this event
               </p>
               <AdditionalArtistSelector
-                bandName={bandPerformers.selectedBand?.name}
-                bandId={bandPerformers.selectedBand?.id}
+                bandName={selectedBand.getLabel()}
+                bandId={selectedBand.id}
                 placeholder="Search for additional artists and performers..."
                 showTitle={false}
               />
@@ -277,8 +209,8 @@ export default function BandPerformersPane({
                 Create entries for artists not yet on Wikidata
               </p>
               <NewPerformerSelector
-                bandName={bandPerformers.selectedBand?.name}
-                bandId={bandPerformers.selectedBand?.id}
+                bandName={selectedBand.getLabel()}
+                bandId={selectedBand.id}
                 showTitle={false}
               />
             </div>
