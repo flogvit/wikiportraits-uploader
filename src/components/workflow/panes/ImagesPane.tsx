@@ -1,7 +1,6 @@
 'use client';
 
 import { ImagePlus } from 'lucide-react';
-import { useFormContext } from 'react-hook-form';
 // import { ImageFile } from '@/types';
 // import { MusicEventMetadata } from '@/types/music';
 // import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
@@ -12,11 +11,11 @@ import ImageUploader from '@/components/upload/ImageUploader';
 import ImageGrid from '@/components/image/ImageGrid';
 
 interface ImagesPaneProps {
-  onComplete?: () => void;
+  onCompleteAction?: () => void;
 }
 
 export default function ImagesPane({
-  onComplete
+  onCompleteAction
 }: ImagesPaneProps) {
   const { onExportMetadata, onBulkEdit, onScrollToImage, onImageClick } = useWorkflowUI();
   const { watch, setValue, getValues } = useUniversalForm();
@@ -24,16 +23,17 @@ export default function ImagesPane({
   
   // Get data from the unified form  
   const workflowType = watch('workflowType');
-  const uploadType = workflowType === 'music-event' ? 'music' : 'soccer';
+  const uploadType: 'music' = 'music';
   const eventType = workflowType === 'music-event' ? 'festival' : 'match';
   const eventDetails = watch('eventDetails');
-  const selectedPlayers = watch('entities.people') || [];
   const bandPerformers = { performers: watch('entities.people') || [] };
   
   // Get images from files.queue
   const images = filesForm.queue || [];
   const completedCount = (images || []).filter(image => {
-    const { description, author, selectedBand } = image.metadata;
+    const description = (image.metadata as any)?.description || '';
+    const author = (image.metadata as any)?.author || '';
+    const selectedBand = (image.metadata as any)?.selectedBand;
     const hasBasicInfo = description.trim() && author.trim();
     
     // For music events, also require a selected band
@@ -51,18 +51,11 @@ export default function ImagesPane({
     const missing: string[] = [];
     
     if (uploadType === 'music' && eventType === 'festival') {
-      if (!bandPerformers.selectedBand?.name) {
+      if (!(bandPerformers as any)?.selectedBand?.name) {
         missing.push('Selected band/artist');
       }
-      if (!eventDetails?.name) {
+      if (!eventDetails?.title) {
         missing.push('Festival name');
-      }
-    } else if (uploadType === 'soccer') {
-      if (!eventDetails?.homeTeam?.name || !eventDetails?.awayTeam?.name) {
-        missing.push('Team information');
-      }
-      if (!selectedPlayers?.length) {
-        missing.push('Selected players');
       }
     }
     
@@ -73,7 +66,7 @@ export default function ImagesPane({
   const hasEventDetailsWarning = missingDetails.length > 0;
 
   const handleCompleteStep = () => {
-    onComplete?.();
+    onCompleteAction?.();
   };
 
   return (
@@ -105,17 +98,12 @@ export default function ImagesPane({
       )}
       
       <ImageUploader
-        onImagesAdded={filesForm.addToQueue}
-        existingImages={images}
+        onImagesAddedAction={filesForm.addToQueue}
+        existingImages={images as any}
         uploadType={uploadType}
-        selectedPlayers={selectedPlayers}
         eventDetails={eventDetails}
         bandPerformers={bandPerformers}
-        onSoccerDataUpdate={(matchData, players) => {
-          setValue('eventDetails', { ...eventDetails, ...matchData }, { shouldDirty: true });
-          setValue('entities.people', players, { shouldDirty: true });
-        }}
-        onMusicEventUpdate={(eventData) => {
+        onMusicEventUpdateAction={(eventData: any) => {
           setValue('eventDetails', { ...eventDetails, ...eventData }, { shouldDirty: true });
         }}
       />
@@ -123,7 +111,7 @@ export default function ImagesPane({
       {(images?.length || 0) > 0 && (
         <>
           <ImageGrid
-            images={images || []}
+            images={images as any || []}
             onImageUpdate={(id, updates) => {
               const currentQueue = getValues('files.queue') || [];
               const updatedQueue = currentQueue.map((img: any) => 

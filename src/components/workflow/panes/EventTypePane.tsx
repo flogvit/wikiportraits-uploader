@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings, Users, Mic } from 'lucide-react';
+import { Settings, Users, Mic, ArrowRight } from 'lucide-react';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import { MusicEventType, needsEventTypeSelection, getEventTypesForWorkflow } from '@/types/event-types';
 
@@ -85,11 +85,13 @@ export default function EventTypePane({
 
       {eventDetails?.type && (
         <div className="text-center">
-          <div className="inline-flex items-center px-4 py-2 bg-success/10 border border-success/20 rounded-lg">
-            <span className="text-sm text-success">
-              ✓ Selected: {eventDetails.type.charAt(0).toUpperCase() + eventDetails.type.slice(1)}
-            </span>
-          </div>
+          <button
+            onClick={onComplete}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
+          >
+            Continue to Next Step
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

@@ -7,7 +7,7 @@ import { MusicEventMetadata } from '@/types/music';
 // import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 
-export type WorkflowStep = 'wiki-portraits' | 'event-type' | 'event-details' | 'band-performers' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
+export type WorkflowStep = 'upload-type' | 'wiki-portraits' | 'event-type' | 'event-details' | 'band-performers' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
 export type StepStatus = 'pending' | 'ready' | 'in-progress' | 'completed' | 'error';
 
 export interface WorkflowStepInfo {
@@ -27,6 +27,7 @@ interface WorkflowContextType {
   updateStepStatus: (step: WorkflowStep, status: StepStatus) => void;
   canAccessStep: (step: WorkflowStepInfo) => boolean;
   handleStepClick: (stepId: WorkflowStep) => void;
+  handleUploadTypeComplete: () => void;
   handleWikiPortraitsComplete: () => void;
   handleEventTypeComplete: () => void;
   handleEventDetailsComplete: () => void;
@@ -52,13 +53,14 @@ export function WorkflowProvider({
   const uploadType = workflowType === 'music-event' ? 'music' : 'general';
   
   const getInitialTab = useCallback((): WorkflowStep => {
-    // Always start with WikiPortraits workflow choice
-    return 'wiki-portraits';
+    // Always start with upload type selection
+    return 'upload-type';
   }, [uploadType]);
 
   const [activeTab, setActiveTab] = useState<WorkflowStep>('images'); // Default fallback
   const [stepStatuses, setStepStatuses] = useState<Record<WorkflowStep, StepStatus>>({
-    'wiki-portraits': 'ready',
+    'upload-type': 'ready',
+    'wiki-portraits': 'pending',
     'event-type': 'pending',
     'event-details': 'pending',
     'band-performers': 'pending',
@@ -92,7 +94,8 @@ export function WorkflowProvider({
       // Watch workflow type selection
       if (name === 'workflowType') {
         if (value.workflowType) {
-          updateStepStatus('wiki-portraits', 'completed');
+          updateStepStatus('upload-type', 'completed');
+          updateStepStatus('wiki-portraits', 'ready');
         }
       }
     });
@@ -100,7 +103,8 @@ export function WorkflowProvider({
     // Also check initial values
     const currentWorkflowType = getValues('workflowType');
     if (currentWorkflowType) {
-      updateStepStatus('wiki-portraits', 'completed');
+      updateStepStatus('upload-type', 'completed');
+      updateStepStatus('wiki-portraits', 'ready');
     }
     
     const eventDetails = getValues('eventDetails');
@@ -123,6 +127,12 @@ export function WorkflowProvider({
 
   const handleStepClick = (stepId: WorkflowStep) => {
     setActiveTab(stepId);
+  };
+
+  const handleUploadTypeComplete = () => {
+    updateStepStatus('upload-type', 'completed');
+    updateStepStatus('wiki-portraits', 'ready');
+    setActiveTab('wiki-portraits');
   };
 
   const handleWikiPortraitsComplete = () => {
@@ -189,6 +199,7 @@ export function WorkflowProvider({
     updateStepStatus,
     canAccessStep,
     handleStepClick,
+    handleUploadTypeComplete,
     handleWikiPortraitsComplete,
     handleEventTypeComplete,
     handleEventDetailsComplete,

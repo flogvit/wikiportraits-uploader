@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle, Clock, AlertCircle, Settings, Calendar, ImagePlus, FolderPlus, Database, Globe, Upload, FileText, Users, Camera } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, Settings, Calendar, ImagePlus, FolderPlus, Database, Globe, Upload, FileText, Users, Camera, FileImage } from 'lucide-react';
 import { useWorkflow, StepStatus } from '../providers/WorkflowProvider';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 
@@ -24,6 +24,22 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
   'music': {
     steps: [
       {
+        id: 'upload-type',
+        title: 'Upload Type',
+        icon: FileImage,
+        getDescription: (formData) => {
+          const workflowType = formData.workflowType;
+          if (workflowType === 'music-event') return 'Music Event';
+          if (workflowType === 'soccer-match') return 'Soccer Match';
+          if (workflowType === 'portrait-session') return 'Portrait Session';
+          if (workflowType === 'general-upload') return 'General Upload';
+          return 'Choose upload type';
+        },
+        getDependencies: () => [],
+        hasValues: (formData) => formData.workflowType !== undefined,
+        isFinished: (formData) => formData.workflowType !== undefined
+      },
+      {
         id: 'wiki-portraits',
         title: 'WikiPortraits',
         icon: Camera,
@@ -35,7 +51,7 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
             ? 'Wikimedia Commons'
             : 'Select workflow type';
         },
-        getDependencies: () => [],
+        getDependencies: () => ['upload-type'],
         hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
         isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
       },
@@ -134,6 +150,22 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
   'general': {
     steps: [
       {
+        id: 'upload-type',
+        title: 'Upload Type',
+        icon: FileImage,
+        getDescription: (formData) => {
+          const workflowType = formData.workflowType;
+          if (workflowType === 'music-event') return 'Music Event';
+          if (workflowType === 'soccer-match') return 'Soccer Match';
+          if (workflowType === 'portrait-session') return 'Portrait Session';
+          if (workflowType === 'general-upload') return 'General Upload';
+          return 'Choose upload type';
+        },
+        getDependencies: () => [],
+        hasValues: (formData) => formData.workflowType !== undefined,
+        isFinished: (formData) => formData.workflowType !== undefined
+      },
+      {
         id: 'wiki-portraits',
         title: 'WikiPortraits',
         icon: Camera,
@@ -145,7 +177,7 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
             ? 'Wikimedia Commons'
             : 'Select workflow type';
         },
-        getDependencies: () => [],
+        getDependencies: () => ['upload-type'],
         hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
         isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
       },

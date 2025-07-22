@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Controller } from 'react-hook-form';
+import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import { FolderPlus, Check, AlertCircle, Eye, Plus, X } from 'lucide-react';
-import { ImageFile } from '@/types';
 import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
@@ -19,26 +19,28 @@ interface CategoryCreationInfo {
 }
 
 interface CategoriesPaneProps {
-  onComplete?: () => void;
+  onCompleteAction?: () => void;
 }
 
 export default function CategoriesPane({
-  onComplete
+  onCompleteAction
 }: CategoriesPaneProps) {
   const [categoriesToCreate, setCategoriesToCreate] = useState<CategoryCreationInfo[]>([]);
   const [showCreationModal, setShowCreationModal] = useState(false);
 
-  const { control, watch, setValue } = useFormContext<WorkflowFormData>();
+  const { control, watch, setValue } = useUniversalForm();
 
   // Get all data from the unified form
-  const uploadType = watch('uploadType');
-  const images = watch('images');
-  const musicEventData = watch('musicEventData');
+  const workflowType = watch('workflowType');
+  const uploadType = workflowType === 'music-event' ? 'music' : 'general';
+  const images = watch('files.queue') || [];
+  const eventDetails = watch('eventDetails');
+  const musicEventData = eventDetails;
   
-  const watchedData = watch('categories');
-  const allCategories = watchedData.selectedCategories || [];
+  const watchedData = watch('computed.categories') || {};
+  const allCategories = (watchedData as any)?.all || [];
   const createdCategories = new Set([]);  // Will be managed differently
-  const newCategoryInput = watchedData.newCategoryName || '';
+  const newCategoryInput = '';
 
   // Generate categories based on upload type and data
   useEffect(() => {
@@ -46,9 +48,10 @@ export default function CategoriesPane({
     let imageCategories: string[] = [];
     if (images && images.length > 0) {
       // Convert form image metadata back to ImageFile format for the utility function
-      const imageFiles: ImageFile[] = images.map((imgData, index) => ({
+      const imageFiles = images.map((imgData: any, index: number) => ({
         id: `image-${index}`,
         file: new File([], `image-${index}`), // Placeholder file
+        preview: '', // Add missing preview property
         metadata: {
           description: imgData.description,
           categories: imgData.categories,
@@ -64,13 +67,13 @@ export default function CategoriesPane({
         }
       }));
       
-      imageCategories = getAllCategoriesFromImages(imageFiles);
+      imageCategories = getAllCategoriesFromImages(imageFiles as any);
     }
     
     // Get event-specific categories (works without images)
     let eventCategories: string[] = [];
     if (uploadType === 'music' && musicEventData) {
-      eventCategories = generateMusicCategories(musicEventData);
+      eventCategories = generateMusicCategories(musicEventData as any);
     }
     
     // Combine all categories and remove duplicates
@@ -79,13 +82,13 @@ export default function CategoriesPane({
     // Also add all categories that need creation (so they appear in the unified list)
     let toCreate: CategoryCreationInfo[] = [];
     if (uploadType === 'music' && musicEventData) {
-      toCreate = getMusicCategoriesToCreate(musicEventData);
+      toCreate = getMusicCategoriesToCreate(musicEventData as any);
     }
     
     // Add categories that need creation to the unified list
     toCreate.forEach((cat: CategoryCreationInfo) => combinedCategories.add(cat.categoryName));
     
-    setValue('categories.selectedCategories', Array.from(combinedCategories).sort());
+    setValue('computed.categories.all' as any, Array.from(combinedCategories).sort());
     setCategoriesToCreate(toCreate);
   }, [uploadType, musicEventData, images, setValue]);
 
@@ -93,13 +96,13 @@ export default function CategoriesPane({
   const handleAddCategory = () => {
     const trimmedInput = newCategoryInput.trim();
     if (trimmedInput && !allCategories.includes(trimmedInput)) {
-      setValue('categories.selectedCategories', [...allCategories, trimmedInput].sort());
-      setValue('categories.newCategoryName', '');
+      setValue('computed.categories.all' as any, [...allCategories, trimmedInput].sort());
+      // setValue('categories.newCategoryName', ''); // Not needed for this structure
     }
   };
 
   const handleRemoveCategory = (categoryToRemove: string) => {
-    setValue('categories.selectedCategories', allCategories.filter(cat => cat !== categoryToRemove));
+    setValue('computed.categories.all' as any, allCategories.filter((cat: string) => cat !== categoryToRemove));
   };
 
   const getCategoryStatus = (categoryName: string): 'created' | 'needs_creation' | 'unknown' => {
@@ -114,15 +117,14 @@ export default function CategoriesPane({
   };
 
   const handleCompleteStep = () => {
-    onComplete?.();
+    onCompleteAction?.();
   };
 
   // Check if all prerequisites are met
   const hasValidData = () => {
     if (uploadType === 'music') {
-      return musicEventData?.eventType && 
-             ((musicEventData.eventType === 'festival' && musicEventData.festivalData?.festival?.name) ||
-              (musicEventData.eventType === 'concert' && musicEventData.concertData?.concert?.artist?.name));
+      return musicEventData?.title && 
+             (musicEventData.festival || musicEventData.mainBand);
     }
     return true; // Allow general uploads to proceed
   };
@@ -150,8 +152,8 @@ export default function CategoriesPane({
           <ul className="text-muted-foreground text-sm mt-2 space-y-1">
             {uploadType === 'music' && (
               <>
-                <li>• Event Type: {musicEventData?.eventType ? '✅' : '❌'} Select festival or concert</li>
-                <li>• Event Details: {(musicEventData?.festivalData?.festival?.name || musicEventData?.concertData?.concert?.artist?.name || (workflowType === 'music-event' && eventDetails.musicEvent?.mainBand)) ? '✅' : '❌'} Add event information</li>
+                <li>• Event Type: {musicEventData?.type ? '✅' : '❌'} Select festival or concert</li>
+                <li>• Event Details: {(musicEventData?.title || eventDetails?.mainBand) ? '✅' : '❌'} Add event information</li>
               </>
             )}
           </ul>
@@ -180,13 +182,13 @@ export default function CategoriesPane({
         {/* Add new category input */}
         <div className="flex space-x-2 mb-4">
           <Controller
-            name="categories.newCategoryName"
+            name="ui"
             control={control}
             render={({ field }) => (
               <input
                 {...field}
                 type="text"
-                value={field.value || ''}
+                value={newCategoryInput}
                 onChange={(e) => field.onChange(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
                 placeholder="Add new category"

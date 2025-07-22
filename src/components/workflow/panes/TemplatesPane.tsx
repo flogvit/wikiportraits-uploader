@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { Controller } from 'react-hook-form';
 import { FileText } from 'lucide-react';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 // import { ImageFile } from '@/types';
@@ -9,11 +8,11 @@ import { generateTemplateName, generateTemplate } from '@/utils/template-generat
 
 
 interface TemplatesPaneProps {
-  onComplete: () => void;
+  onCompleteAction: () => void;
 }
 
 export default function TemplatesPane({
-  onComplete
+  onCompleteAction
 }: TemplatesPaneProps) {
   const { watch, setValue, getValues } = useUniversalForm();
   
@@ -26,13 +25,12 @@ export default function TemplatesPane({
   };
 
   // Get all data from the unified form
-  const workflowType = watch('workflowType');
-  const uploadType = workflowType === 'music-event' ? 'music' : 'general';
+  const uploadType: 'music' = 'music';
   const images = watch('files.queue') || [];
-  const musicEventData = watch('eventDetails.musicEvent');
   
-  const templatesData = watch('templates') || {};
-  const { selectedLanguage = 'en', customTemplateName } = templatesData;
+  const templatesData = watch('computed.templates') || {};
+  const selectedLanguage = 'en';
+  const customTemplateName = (templatesData as any)?.information || '';
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -46,16 +44,16 @@ export default function TemplatesPane({
 
   // Initialize template name and code when dependencies change
   useEffect(() => {
-    const generatedName = generateTemplateName(uploadType, musicEventData, undefined);
+    const generatedName = generateTemplateName(uploadType, null);
     if (!customTemplateName) {
-      setValue('templates.customTemplateName', generatedName);
+      setValue('computed.templates' as any, { ...templatesData, information: generatedName });
     }
     
-    const generatedTemplate = generateTemplate(uploadType, musicEventData, undefined, selectedLanguage);
-    setValue('templates.templateCode', generatedTemplate);
-  }, [uploadType, musicEventData, selectedLanguage, customTemplateName, setValue]);
+    const generatedTemplate = generateTemplate(uploadType, null, selectedLanguage);
+    setValue('computed.templates' as any, { ...templatesData, description: generatedTemplate });
+  }, [uploadType, selectedLanguage, customTemplateName, setValue]);
 
-  const templateName = customTemplateName || generateTemplateName(uploadType, musicEventData, undefined);
+  const templateName = customTemplateName || generateTemplateName(uploadType, null);
   const templateUrl = `https://commons.wikimedia.org/wiki/Template:${encodeURIComponent(templateName)}`;
 
   const updateAllImagesTemplate = () => {
@@ -89,24 +87,17 @@ export default function TemplatesPane({
       <div className="flex justify-center">
         <div className="flex items-center space-x-2">
           <label className="text-sm font-medium text-card-foreground">Wikipedia Language:</label>
-          <Controller
-            name="templates.selectedLanguage"
-            control={useUniversalForm().control}
-            render={({ field }) => (
-              <select
-                {...field}
-                value={field.value}
-                onChange={(e) => field.onChange(e.target.value)}
-                className="px-3 py-1 bg-background border border-border rounded-lg text-sm"
-              >
-                {languages.map((lang) => (
-                  <option key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          />
+          <select
+            value={selectedLanguage}
+            onChange={(e) => {}}
+            className="px-3 py-1 bg-background border border-border rounded-lg text-sm"
+          >
+            {languages.map((lang) => (
+              <option key={lang.code} value={lang.code}>
+                {lang.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -124,19 +115,12 @@ export default function TemplatesPane({
             Apply to All Images
           </button>
         </div>
-        <Controller
-          name="templates.customTemplateName"
-          control={useUniversalForm().control}
-          render={({ field }) => (
-            <input
-              {...field}
-              type="text"
-              value={field.value}
-              onChange={(e) => field.onChange(e.target.value)}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono"
-              placeholder="e.g. WikiPortraits Event Name"
-            />
-          )}
+        <input
+          type="text"
+          value={customTemplateName}
+          onChange={(e) => {}}
+          className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono"
+          placeholder="e.g. WikiPortraits Event Name"
         />
         <p className="text-xs text-muted-foreground mt-1">
           This will be the template name on Commons: Template:{customTemplateName}
@@ -161,18 +145,11 @@ export default function TemplatesPane({
           
           <div className="space-y-2">
             <label className="text-sm font-medium text-card-foreground">Template Code (editable):</label>
-            <Controller
-              name="templates.templateCode"
-              control={useUniversalForm().control}
-              render={({ field }) => (
-                <textarea
-                  {...field}
-                  value={field.value}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  className="w-full h-32 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono resize-y"
-                  placeholder="Template code will be generated automatically..."
-                />
-              )}
+            <textarea
+              value={(templatesData as any)?.description || ''}
+              onChange={(e) => {}}
+              className="w-full h-32 px-3 py-2 bg-background border border-border rounded-lg text-sm font-mono resize-y"
+              placeholder="Template code will be generated automatically..."
             />
           </div>
           
@@ -208,7 +185,7 @@ export default function TemplatesPane({
 
       <div className="flex justify-center pt-4">
         <button
-          onClick={onComplete}
+          onClick={onCompleteAction}
           className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
         >
           Template Ready - Continue to Wikidata

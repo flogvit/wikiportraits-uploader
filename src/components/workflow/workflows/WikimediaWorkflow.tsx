@@ -2,19 +2,15 @@
 
 import { useState } from 'react';
 import { ImageFile } from '@/types';
-import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { UniversalFormProvider, useUniversalForm } from '@/providers/UniversalFormProvider';
 import { WorkflowUIProvider } from '../providers/WorkflowUIProvider';
 import ExportModal from '@/components/modals/ExportModal';
 import BulkEditModal from '@/components/modals/BulkEditModal';
 import ImageModal from '@/components/modals/ImageModal';
 import GeneralWorkflow from './GeneralWorkflow';
-import SoccerWorkflow from './SoccerWorkflow';
-import MusicWorkflow from './MusicWorkflow';
-import PortraitsWorkflow from './PortraitsWorkflow';
 
 interface WikimediaWorkflowProps {
-  uploadType: UploadType;
+  // Props can be added here if needed in the future
 }
 
 // Internal component that handles modal state and UI operations
@@ -62,10 +58,9 @@ function WorkflowWithModals() {
     setShowImageModal(true);
   };
 
-  const handleBulkUpdate = (updates: Partial<ImageFile['metadata']>) => {
+  const handleBulkUpdate = (updates: any) => {
     images.forEach(img => {
       updateImage(img.id, {
-        ...img,
         metadata: { ...img.metadata, ...updates }
       });
     });
@@ -86,13 +81,13 @@ function WorkflowWithModals() {
       
       {/* Modals */}
       <ExportModal
-        images={images}
+        images={images as any}
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
       />
 
       <BulkEditModal
-        images={images}
+        images={images as any}
         isOpen={showBulkEditModal}
         onClose={() => setShowBulkEditModal(false)}
         onBulkUpdate={handleBulkUpdate}
@@ -122,15 +117,7 @@ function WorkflowRouter() {
       case 'general':
         return <GeneralWorkflow />;
         
-      case 'soccer':
-        return <SoccerWorkflow />;
-        
       case 'music':
-        return <MusicWorkflow />;
-        
-      case 'portraits':
-        return <PortraitsWorkflow />;
-        
       default:
         return <GeneralWorkflow />;
     }
@@ -139,22 +126,16 @@ function WorkflowRouter() {
   return renderWorkflow();
 }
 
-export default function WikimediaWorkflow({ 
-  uploadType
-}: WikimediaWorkflowProps) {
-  // Map uploadType to workflowType for UniversalFormData
-  const workflowType = uploadType === 'music' ? 'music-event' : 'soccer-match';
+export default function WikimediaWorkflow(props: WikimediaWorkflowProps) {
+  // No default workflowType - this will be selected in the upload-type step
   
   return (
     <UniversalFormProvider 
-      sessionId={`workflow-${uploadType}`}
+      sessionId={`workflow-universal`}
       defaultValues={{ 
-        workflowType,
         eventDetails: {
-          common: {
-            title: '',
-            language: 'en'
-          }
+          title: '',
+          language: 'en'
         }
       }}
       autoSave={true}

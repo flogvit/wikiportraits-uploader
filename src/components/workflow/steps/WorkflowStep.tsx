@@ -2,6 +2,7 @@
 
 import { useWorkflow } from '../providers/WorkflowProvider';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
+import UploadTypePane from '../panes/UploadTypePane';
 import WikiPortraitsPane from '../panes/WikiPortraitsPane';
 import EventTypePane from '../panes/EventTypePane';
 import EventDetailsPane from '../panes/EventDetailsPane';
@@ -18,6 +19,7 @@ export default function WorkflowStep() {
   
   const { 
     activeTab, 
+    handleUploadTypeComplete,
     handleWikiPortraitsComplete,
     handleEventTypeComplete, 
     handleEventDetailsComplete, 
@@ -57,6 +59,13 @@ export default function WorkflowStep() {
 
   const renderActiveStep = () => {
     switch (activeTab) {
+      case 'upload-type':
+        return (
+          <UploadTypePane
+            onComplete={handleUploadTypeComplete}
+          />
+        );
+
       case 'wiki-portraits':
         return (
           <WikiPortraitsPane
@@ -81,7 +90,7 @@ export default function WorkflowStep() {
       case 'band-performers':
         return (
           <BandPerformersPane
-            onComplete={handleBandPerformersComplete}
+            onCompleteAction={handleBandPerformersComplete}
           />
         );
 
