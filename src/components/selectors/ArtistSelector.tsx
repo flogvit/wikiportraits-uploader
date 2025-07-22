@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { MusicArtist } from '@/types/music';
+import { WikidataEntity } from '@/types/wikidata';
+import { searchWikidataEntities, getWikidataEntity } from '@/utils/wikidata';
 import ArtistSearchInput from './ArtistSearchInput';
 import ArtistResultsList from './ArtistResultsList';
 
@@ -28,12 +30,16 @@ interface ArtistSelectorProps {
   placeholder?: string;
   label?: string;
   type?: 'artist' | 'band';
+  returnType?: 'MusicArtist' | 'WikidataEntity';
+  onWikidataEntitySelect?: (entity: WikidataEntity) => void;
 }
 
 export default function ArtistSelector({
   onArtistSelect,
   selectedArtist,
-  placeholder = "Search for artist..."
+  placeholder = "Search for artist...",
+  returnType = 'MusicArtist',
+  onWikidataEntitySelect
 }: ArtistSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UnifiedArtistResult[]>([]);
@@ -59,16 +65,86 @@ export default function ArtistSelector({
   const searchArtists = useCallback(async (query: string) => {
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/music/artist-search?q=${encodeURIComponent(query)}&limit=8&wikidata_only=true`);
-      const data = await response.json();
+      // Search for entities using the working wikidata utility
+      const searchResults = await searchWikidataEntities(query, 8, 'en', 'item');
       
-      if (data.results) {
-        setSearchResults(data.results);
+      if (searchResults.length === 0) {
+        setSearchResults([]);
         setShowResults(true);
+        return;
       }
+
+      // Get full entity details for filtering and conversion
+      const entityPromises = searchResults.map(result => 
+        getWikidataEntity(result.id, 'en', 'labels|descriptions|claims|sitelinks')
+      );
+      
+      const entities = await Promise.all(entityPromises);
+
+      // Filter and convert to UnifiedArtistResult format
+      const convertedResults: UnifiedArtistResult[] = entities
+        .filter(entity => {
+          // Check if entity is music-related (human or musical group)
+          const instanceOf = entity.claims?.P31;
+          if (!instanceOf) return false;
+          
+          return instanceOf.some((claim: any) => {
+            const qid = claim.mainsnak?.datavalue?.value?.id;
+            return qid === 'Q5' || // human
+                   qid === 'Q215380' || // musical group
+                   qid === 'Q2088357' || // musical ensemble
+                   qid === 'Q5741069'; // rock band
+          });
+        })
+        .map(entity => {
+          // Determine entity type
+          const instanceOf = entity.claims?.P31;
+          const isHuman = instanceOf?.some((claim: any) => 
+            claim.mainsnak?.datavalue?.value?.id === 'Q5'
+          );
+          
+          // Get Wikipedia URL
+          const enwikiSitelink = entity.sitelinks?.enwiki;
+          const wikipediaUrl = enwikiSitelink 
+            ? `https://en.wikipedia.org/wiki/${encodeURIComponent(enwikiSitelink.title)}`
+            : undefined;
+
+          return {
+            id: entity.id,
+            name: entity.labels?.en?.value || entity.id,
+            description: entity.descriptions?.en?.value,
+            wikipediaUrl,
+            wikidataUrl: `https://www.wikidata.org/wiki/${entity.id}`,
+            isMusicRelated: true,
+            entityType: isHuman ? 'person' as const : 'group' as const,
+            source: 'wikidata' as const
+          };
+        })
+        .slice(0, 8); // Limit to 8 results
+
+      setSearchResults(convertedResults);
+      setShowResults(true);
     } catch (error) {
       console.error('Error searching for artists:', error);
-      setSearchResults([]);
+      // Fallback to basic search results without filtering
+      try {
+        const basicResults = await searchWikidataEntities(query, 8, 'en', 'item');
+        const fallbackResults: UnifiedArtistResult[] = basicResults.map(result => ({
+          id: result.id,
+          name: result.display?.label?.value || result.label || result.id,
+          description: result.display?.description?.value || result.description,
+          wikipediaUrl: undefined,
+          wikidataUrl: `https://www.wikidata.org/wiki/${result.id}`,
+          isMusicRelated: false,
+          entityType: 'unknown' as const,
+          source: 'wikidata' as const
+        }));
+        setSearchResults(fallbackResults);
+        setShowResults(true);
+      } catch (fallbackError) {
+        console.error('Fallback search also failed:', fallbackError);
+        setSearchResults([]);
+      }
     } finally {
       setIsSearching(false);
     }
@@ -94,19 +170,34 @@ export default function ArtistSelector({
     return () => clearTimeout(delayedSearch);
   }, [searchQuery, searchArtists, selectedArtist]);
 
-  const handleResultSelect = (result: UnifiedArtistResult) => {
-    const artist: MusicArtist = {
-      id: result.id,
-      name: result.name,
-      wikipediaUrl: result.wikipediaUrl,
-      wikidataUrl: result.wikidataUrl,
-      musicbrainzId: result.musicbrainzId,
-      country: result.country,
-      entityType: result.entityType,
-      source: result.source
-    };
+  const handleResultSelect = async (result: UnifiedArtistResult) => {
+    if (returnType === 'WikidataEntity' && onWikidataEntitySelect) {
+      try {
+        // Fetch the full WikidataEntity
+        const wikidataEntity = await getWikidataEntity(result.id);
+        if (wikidataEntity) {
+          onWikidataEntitySelect(wikidataEntity);
+        }
+      } catch (error) {
+        console.error('Failed to fetch WikidataEntity:', error);
+        // Fallback to MusicArtist format
+      }
+    } else {
+      // Return MusicArtist format
+      const artist: MusicArtist = {
+        id: result.id,
+        name: result.name,
+        wikipediaUrl: result.wikipediaUrl,
+        wikidataUrl: result.wikidataUrl,
+        musicbrainzId: result.musicbrainzId,
+        country: result.country,
+        entityType: result.entityType,
+        source: result.source
+      };
+      
+      onArtistSelect(artist);
+    }
     
-    onArtistSelect(artist);
     setSearchQuery(result.name);
     setShowResults(false);
   };
