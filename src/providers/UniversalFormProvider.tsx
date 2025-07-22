@@ -3,6 +3,7 @@
 import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useForm, UseFormReturn, FormProvider } from 'react-hook-form';
 import { UniversalFormData } from '../types/unified-form';
+import { WikidataEntity } from '../types/wikidata';
 
 interface UniversalFormContextType extends UseFormReturn<UniversalFormData> {
   // Additional helper methods
@@ -20,7 +21,7 @@ const UniversalFormContext = createContext<UniversalFormContextType | null>(null
 interface UniversalFormProviderProps {
   children: ReactNode;
   defaultValues?: Partial<UniversalFormData>;
-  onSubmit?: (data: UniversalFormData) => void;
+  onSubmitAction?: (data: UniversalFormData) => void;
   sessionId?: string; // Optional session ID for localStorage
   autoSave?: boolean; // Auto-save to localStorage on changes
 }
@@ -28,7 +29,7 @@ interface UniversalFormProviderProps {
 export function UniversalFormProvider({ 
   children, 
   defaultValues,
-  onSubmit,
+  onSubmitAction: onSubmit,
   sessionId,
   autoSave = true
 }: UniversalFormProviderProps) {
@@ -245,24 +246,25 @@ export function useUniversalForm(): UniversalFormContextType {
 export function useUniversalFormEntities() {
   const form = useUniversalForm();
   return {
-    people: form.watch('entities.people'),
-    organizations: form.watch('entities.organizations'),
-    locations: form.watch('entities.locations'),
-    events: form.watch('entities.events'),
-    addPerson: (person: any) => {
-      const current = form.getValues('entities.people');
+    // Return WikidataEntity arrays directly
+    people: form.watch('entities.people') as WikidataEntity[],
+    organizations: form.watch('entities.organizations') as WikidataEntity[],
+    locations: form.watch('entities.locations') as WikidataEntity[],
+    events: form.watch('entities.events') as WikidataEntity[],
+    addPerson: (person: WikidataEntity) => {
+      const current = form.getValues('entities.people') as WikidataEntity[];
       form.setValue('entities.people', [...current, person], { shouldDirty: true });
     },
     removePerson: (index: number) => {
-      const current = form.getValues('entities.people');
+      const current = form.getValues('entities.people') as WikidataEntity[];
       form.setValue('entities.people', current.filter((_, i) => i !== index), { shouldDirty: true });
     },
-    addOrganization: (org: any) => {
-      const current = form.getValues('entities.organizations');
+    addOrganization: (org: WikidataEntity) => {
+      const current = form.getValues('entities.organizations') as WikidataEntity[];
       form.setValue('entities.organizations', [...current, org], { shouldDirty: true });
     },
     removeOrganization: (index: number) => {
-      const current = form.getValues('entities.organizations');
+      const current = form.getValues('entities.organizations') as WikidataEntity[];
       form.setValue('entities.organizations', current.filter((_, i) => i !== index), { shouldDirty: true });
     }
   };
@@ -270,16 +272,16 @@ export function useUniversalFormEntities() {
 
 export function useUniversalFormEventDetails() {
   const form = useUniversalForm();
+  const eventDetails = form.watch('eventDetails');
   return {
-    common: form.watch('eventDetails.common'),
-    musicEvent: form.watch('eventDetails.musicEvent'),
-    soccerMatch: form.watch('eventDetails.soccerMatch'),
-    portraitSession: form.watch('eventDetails.portraitSession'),
-    generalUpload: form.watch('eventDetails.generalUpload'),
-    custom: form.watch('eventDetails.custom'),
-    setTitle: (title: string) => form.setValue('eventDetails.common.title', title, { shouldDirty: true }),
-    setDate: (date: Date) => form.setValue('eventDetails.common.date', date, { shouldDirty: true }),
-    setDescription: (desc: string) => form.setValue('eventDetails.common.description', desc, { shouldDirty: true })
+    common: eventDetails,
+    musicEvent: eventDetails,
+    soccerMatch: eventDetails,
+    portraitSession: eventDetails,
+    generalUpload: eventDetails,
+    custom: eventDetails,
+    setTitle: (title: string) => form.setValue('eventDetails.title' as any, title, { shouldDirty: true }),
+    setDate: (date: Date) => form.setValue('eventDetails.date' as any, date, { shouldDirty: true })
   };
 }
 
