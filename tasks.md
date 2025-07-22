@@ -4,6 +4,15 @@
 
 The architectural foundation has been completed. All core components, form providers, and universal panes are now in place and working with direct Wikidata/Wikimedia integration.
 
+### ✅ Recent Improvements
+- **Date Utilities Refactoring**: Created comprehensive `/src/utils/date-utils.ts` with reusable functions for:
+  - Year-to-date conversions (`yearToDate`, `yearInputToDate`)
+  - Date-to-year extractions (`dateToYear`) 
+  - Wikidata date format handling (`wdDateToDate`, `dateToWdDate`)
+  - Input validation (`isValidYearInput`, `isValidCompleteYear`)
+  - Display formatting (`formatDateForDisplay`)
+- **EventDetailsForm**: Refactored to use date utilities, eliminating complex inline date logic
+
 ## Music Event Workflow Panes - Testing Checklist
 
 ### Panes to Review and Test (In Workflow Order)
@@ -72,7 +81,7 @@ Please go through each pane one by one:
 4. Once you approve a pane, I'll mark it as ✅ **Approved**
 
 ### Workflow Integration
-All panes should be integrated into the `UniversalMusicWorkflow` and work together through the form provider system.
+All panes work together through the universal form provider system and config-based workflow stepper.
 
 ## Remaining Tasks
 
