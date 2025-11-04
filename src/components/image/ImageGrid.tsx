@@ -39,7 +39,7 @@ export default function ImageGrid({
   };
 
   const completedCount = images.filter(image => {
-    const { description, author, selectedBand } = image.metadata;
+    const { description = '', author = '', selectedBand = '' } = image.metadata || {};
     const hasBasicInfo = description.trim() && author.trim();
     
     // For music events, also require a selected band
@@ -80,7 +80,7 @@ export default function ImageGrid({
       <div className="grid grid-cols-1 gap-6">
         {images.map((image, index) => (
           <ImageCard
-            key={image.id}
+            key={`image-${image.id}-${index}`}
             image={image}
             index={index + 1}
             onUpdate={onImageUpdate}

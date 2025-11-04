@@ -26,7 +26,22 @@ export default function ImagesPane({
   const uploadType: 'music' = 'music';
   const eventType = workflowType === 'music-event' ? 'festival' : 'match';
   const eventDetails = watch('eventDetails');
-  const bandPerformers = { performers: watch('entities.people') || [] };
+  const organizations = watch('entities.organizations') || [];
+  
+  // Find the main band from organizations
+  const selectedBandEntity = organizations.find((org: any) => 
+    org.claims?.['P31']?.some((claim: any) => 
+      ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id) // musical group, music band
+    )
+  );
+  
+  const bandPerformers = { 
+    performers: watch('entities.people') || [],
+    selectedBand: selectedBandEntity ? {
+      name: selectedBandEntity.labels?.en?.value || selectedBandEntity.labels?.['en']?.value || '',
+      id: selectedBandEntity.id
+    } : null
+  };
   
   // Get images from files.queue
   const images = filesForm.queue || [];
@@ -165,17 +180,6 @@ export default function ImagesPane({
             </div>
           )}
         </>
-      )}
-
-      {/* Empty state */}
-      {(images?.length || 0) === 0 && (
-        <div className="text-center py-12 bg-muted/20 rounded-lg border-2 border-dashed border-muted-foreground/25">
-          <div className="text-6xl mb-4">📷</div>
-          <h3 className="text-xl font-semibold text-card-foreground mb-2">No Images Added Yet</h3>
-          <p className="text-muted-foreground">
-            Use the image uploader above to add photos for your {uploadType} event.
-          </p>
-        </div>
       )}
     </div>
   );

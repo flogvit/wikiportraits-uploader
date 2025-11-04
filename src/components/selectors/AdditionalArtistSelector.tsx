@@ -178,8 +178,6 @@ export default function AdditionalArtistSelector({
   // Show search results only when searching (2+ characters) and there are unselected results
   const hasSearchResults = searchTerm.length >= 2 && filteredSearchResults.length > 0;
 
-  const selectedAdditionalArtists = additionalArtists;
-
   return (
     <div className="space-y-4">
       {/* Additional Artists Label and Search input */}
