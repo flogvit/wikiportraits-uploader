@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { UserPlus, ChevronDown, Plus, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { UserPlus, ChevronDown, Plus, X, Search, User } from 'lucide-react';
 import { PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
-import { COMMON_INSTRUMENTS, COMMON_ROLES, InstrumentRole } from '@/hooks/useWikidataPersons';
+import { COMMON_INSTRUMENTS, COMMON_ROLES, InstrumentRole, useWikidataPersons } from '@/hooks/useWikidataPersons';
 import CountrySelector from './CountrySelector';
 import PerformerCard from '@/components/common/PerformerCard';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
+import { WDPerson } from '@/classes';
 
 interface NewPerformerSelectorProps {
   bandName?: string;
@@ -34,7 +35,139 @@ export default function NewPerformerSelector({
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
   const [customInstrument, setCustomInstrument] = useState('');
 
+  // Wikidata search state
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Use the Wikidata search hook
+  const {
+    searchResults,
+    loading: searchLoading,
+    searchArtists,
+  } = useWikidataPersons(bandName, bandId, []);
+
   const pendingPerformersForDisplay = pendingPerformers;
+
+  // Handle clicking outside search dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    }
+
+    if (showSearchResults) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSearchResults]);
+
+  // Search Wikidata when user types
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        searchArtists(searchTerm);
+        setShowSearchResults(true);
+      } else {
+        setShowSearchResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayedSearch);
+  }, [searchTerm, searchArtists]);
+
+  // Filter out already selected performers from search results
+  const filteredSearchResults = searchResults.filter(result =>
+    !people.find(p => p.id === result.id)
+  );
+
+  const handleSelectExistingArtist = async (artistId: string) => {
+    const artist = searchResults.find(a => a.id === artistId);
+    if (!artist) return;
+
+    // Create WikidataEntity from search result
+    const baseEntity = {
+      id: artist.id,
+      type: 'item' as const,
+      labels: {
+        en: {
+          language: 'en',
+          value: artist.name
+        }
+      },
+      descriptions: {},
+      claims: {},
+      sitelinks: artist.wikipediaUrl ? {
+        enwiki: {
+          site: 'enwiki',
+          title: artist.wikipediaUrl.split('/').pop() || artist.name
+        }
+      } : {}
+    };
+
+    // Use WDPerson class to add properties
+    const wdPerson = new WDPerson(baseEntity);
+
+    // Add instruments
+    if (artist.instruments && artist.instruments.length > 0) {
+      artist.instruments.forEach(instrument => {
+        wdPerson.addInstrument(instrument);
+      });
+    }
+
+    // Add to band if band member checkbox was selected in manual form
+    if (bandId && newArtistIsBandMember) {
+      wdPerson.addBandMembership(bandId);
+    }
+
+    entities.addPerson(wdPerson.rawEntity);
+
+    // Fetch image URL asynchronously
+    fetchImageForArtist(artist.id, artist.name);
+
+    // Reset search and form
+    setSearchTerm('');
+    setShowSearchResults(false);
+    setShowAddArtistForm(false);
+    resetForm();
+  };
+
+  const fetchImageForArtist = async (artistId: string, artistName: string) => {
+    try {
+      const response = await fetch(`/api/music/artist-image?artistId=${encodeURIComponent(artistId)}`);
+
+      if (!response.ok) {
+        console.error(`Failed to fetch image for artist ${artistName}:`, response.status);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.imageUrl) {
+        const personIndex = people.findIndex(p => p.id === artistId);
+        if (personIndex >= 0) {
+          const person = people[personIndex];
+          const wdPerson = new WDPerson(person);
+          wdPerson.setImage(data.imageUrl);
+          entities.removePerson(personIndex);
+          entities.addPerson(wdPerson.rawEntity);
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching image for artist ${artistName}:`, error);
+    }
+  };
+
+  const resetForm = () => {
+    setNewArtistName('');
+    setNewArtistInstruments([]);
+    setNewArtistNationality('');
+    setNewArtistGender('');
+    setNewArtistLegalName('');
+    setNewArtistBirthDate('');
+    setNewArtistIsBandMember(false);
+  };
 
   const addInstrumentRole = (item: InstrumentRole) => {
     if (!newArtistInstruments.includes(item.name)) {
@@ -76,16 +209,11 @@ export default function NewPerformerSelector({
     };
 
     // Add to form - add to entities.people
-    entities.addPerson(newArtist);
+    entities.addPerson(newArtist as any);
 
     // Reset form
-    setNewArtistName('');
-    setNewArtistInstruments([]);
-    setNewArtistNationality('');
-    setNewArtistGender('');
-    setNewArtistLegalName('');
-    setNewArtistBirthDate('');
-    setNewArtistIsBandMember(false);
+    resetForm();
+    setSearchTerm('');
     setShowAddArtistForm(false);
   };
 
@@ -118,8 +246,103 @@ export default function NewPerformerSelector({
       {showAddArtistForm && (
         <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
           <h3 className="font-medium text-gray-900 mb-3">Add New Artist</h3>
-          
+
           <div className="space-y-3">
+            {/* Wikidata Search First */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Search Wikidata First
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Before creating a new entry, search to see if this artist already exists on Wikidata
+              </p>
+              <div className="relative" ref={searchDropdownRef}>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Type artist name to search Wikidata..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                {/* Search Results Dropdown */}
+                {showSearchResults && searchTerm.length >= 2 && (
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    {searchLoading && (
+                      <div className="p-4 text-gray-500 text-center text-sm">
+                        Searching Wikidata...
+                      </div>
+                    )}
+
+                    {!searchLoading && filteredSearchResults.length > 0 && (
+                      <>
+                        <div className="px-3 py-2 bg-blue-50 border-b border-blue-200">
+                          <span className="text-xs font-medium text-blue-700">
+                            Found on Wikidata - Click to Link
+                          </span>
+                        </div>
+                        {filteredSearchResults.map(result => (
+                          <div
+                            key={result.id}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleSelectExistingArtist(result.id);
+                            }}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-4 h-4 text-blue-500" />
+                                  <h4 className="font-medium text-gray-900">{result.name}</h4>
+                                </div>
+                                {result.instruments && result.instruments.length > 0 && (
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    {result.instruments.join(', ')}
+                                  </p>
+                                )}
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Wikidata ID: {result.id}
+                                </p>
+                              </div>
+                              {result.imageUrl && (
+                                <img
+                                  src={result.imageUrl}
+                                  alt={result.name}
+                                  className="w-10 h-10 rounded-full object-cover ml-3"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {!searchLoading && filteredSearchResults.length === 0 && (
+                      <div className="p-4 text-center">
+                        <p className="text-sm text-gray-500 mb-2">
+                          No existing artists found on Wikidata
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Fill in the form below to create a new entry
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Separator */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 border-t border-gray-300"></div>
+              <span className="text-xs text-gray-500 font-medium">OR CREATE NEW</span>
+              <div className="flex-1 border-t border-gray-300"></div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Artist Name *
