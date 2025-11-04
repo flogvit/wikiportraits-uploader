@@ -22,7 +22,7 @@ export default function BandPerformersPane({
   onCompleteAction 
 }: BandPerformersPaneProps) {
   const form = useUniversalForm();
-  const { organizations, people, addOrganization, removeOrganization } = useUniversalFormEntities();
+  const { organizations, people, addOrganization, removeOrganization, removePerson } = useUniversalFormEntities();
   const { setTitle } = useUniversalFormEventDetails();
   
   // Get the main band from organizations - look for organizations with instance of (P31) band/music group
@@ -116,14 +116,30 @@ export default function BandPerformersPane({
               removeOrganization(existingBandIndex);
             }
             
+            // Clear all performers when selecting a new band
+            // This ensures a clean slate for the new band's performers
+            console.log('🔄 Band changed - clearing performers. Old count:', people.length);
+            
+            // Clear localStorage first to prevent restoration
+            form.clearStorage();
+            
+            // Then clear all people
+            form.setValue('entities.people', [], { shouldDirty: true });
+            
+            console.log('🗑️ Cleared performers and localStorage for new band:', entity.labels?.en?.value);
+            
             // Wrap in WDBand and ensure it's marked as a band
             const wdBand = new WDBand(entity);
-            
+
             // Add new main band to organizations
             addOrganization(wdBand.rawEntity);
-            
-            // Update the event title with the band name
-            setTitle(wdBand.getLabel() || '');
+
+            // Only set event title if it's empty (first time setup)
+            // Don't overwrite existing event details when switching bands
+            const currentTitle = form.getValues('eventDetails.title');
+            if (!currentTitle || currentTitle.trim() === '') {
+              setTitle(wdBand.getLabel() || '');
+            }
           }}
           selectedArtist={selectedBand ? {
             id: selectedBand.id,
@@ -140,17 +156,17 @@ export default function BandPerformersPane({
               variant="main"
               onRemove={() => {
                 // Remove the main band from organizations
-                const bandIndex = organizations.findIndex(org => 
-                  org.claims?.['P31']?.some(claim => 
+                const bandIndex = organizations.findIndex(org =>
+                  org.claims?.['P31']?.some(claim =>
                     ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id)
                   )
                 );
                 if (bandIndex >= 0) {
                   removeOrganization(bandIndex);
                 }
-                
-                // Clear event title
-                setTitle('');
+
+                // Don't clear event title - event details should persist across bands
+                // This allows working on the same event with multiple bands over time
               }}
             />
           </div>
@@ -161,7 +177,9 @@ export default function BandPerformersPane({
       {selectedBand && (
         <div>
           {/* Fetch band members when band is first selected */}
+          {/* Use key to force complete remount when band changes */}
           <BandMemberFetcher
+            key={`band-${selectedBand.id}`}
             bandName={selectedBand.getLabel()}
             bandId={selectedBand.id}
           />
