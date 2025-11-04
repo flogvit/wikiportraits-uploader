@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 import { ArrowRight } from 'lucide-react';
 import { useUniversalForm, useUniversalFormEventDetails } from '@/providers/UniversalFormProvider';
 import CountrySelector from '@/components/selectors/CountrySelector';
+import EventSelector from '@/components/selectors/EventSelector';
 import { dateToYear, yearInputToDate, isValidYearInput, isValidCompleteYear } from '@/utils/date-utils';
 
 
@@ -12,17 +13,35 @@ interface EventDetailsFormProps {
   onComplete?: () => void;
 }
 
-export default function EventDetailsForm({ 
-  onComplete 
+export default function EventDetailsForm({
+  onComplete
 }: EventDetailsFormProps) {
   const form = useUniversalForm();
   const { common } = useUniversalFormEventDetails();
-  
+
   // Local state for year input to allow smooth typing
   const [yearInput, setYearInput] = useState(
     common?.date ? dateToYear(common.date)?.toString() || '' : ''
   );
-  
+
+  // State for selected event from search
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+
+  // Store Commons category and Wikidata ID in form
+  useEffect(() => {
+    if (selectedEvent) {
+      if (selectedEvent.commonsCategory) {
+        form.setValue('eventDetails.commonsCategory' as any, selectedEvent.commonsCategory);
+      }
+      if (selectedEvent.wikidataId) {
+        form.setValue('eventDetails.wikidataId' as any, selectedEvent.wikidataId);
+      }
+      if (selectedEvent.categoryExists !== undefined) {
+        form.setValue('eventDetails.categoryExists' as any, selectedEvent.categoryExists);
+      }
+    }
+  }, [selectedEvent, form]);
+
   // Map to old format for compatibility
   const eventDetails = {
     name: common?.title || '',
@@ -30,14 +49,66 @@ export default function EventDetailsForm({
     location: form.watch('eventDetails.custom')?.fields?.location || '',
     country: form.watch('eventDetails.custom')?.fields?.country || ''
   };
-  
+
   const canComplete = eventDetails.name && eventDetails.year;
 
   // Note: Form data is now managed by UniversalFormProvider
   // No need to update parent component - data flows through unified form context
 
+  const handleEventSelect = (event: any) => {
+    if (!event) {
+      setSelectedEvent(null);
+      return;
+    }
+
+    setSelectedEvent(event);
+
+    // Auto-fill form fields from selected event
+    if (event.name) {
+      form.setValue('eventDetails.title', event.name);
+    }
+    if (event.year) {
+      setYearInput(event.year);
+      const yearDate = yearInputToDate(event.year);
+      if (yearDate) {
+        form.setValue('eventDetails.date' as any, yearDate);
+      }
+    }
+    if (event.location) {
+      form.setValue('eventDetails.location', event.location);
+    }
+    if (event.country) {
+      form.setValue('eventDetails.country', event.country);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Event Search/Lookup */}
+      <div>
+        <label className="block text-sm font-medium text-card-foreground mb-1">
+          Search for Event
+        </label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Search for existing events on Wikidata and Commons, or enter details manually below
+        </p>
+        <EventSelector
+          onEventSelect={handleEventSelect}
+          selectedEvent={selectedEvent}
+          placeholder="Search for festival or event (e.g., Coachella 2025)..."
+          eventType="music-festival"
+        />
+      </div>
+
+      {/* Separator */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 border-t border-gray-300"></div>
+        <span className="text-xs text-gray-500 font-medium">
+          {selectedEvent ? 'VERIFY OR EDIT DETAILS' : 'OR ENTER MANUALLY'}
+        </span>
+        <div className="flex-1 border-t border-gray-300"></div>
+      </div>
+
       <div>
         <label className="block text-sm font-medium text-card-foreground mb-1">Event Name *</label>
         <Controller
