@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { MasterFormProvider } from '@/providers';
 import { useCategoriesForm, useMusicDetailsForm, useTemplatesForm } from '@/providers';
 import { WikidataEntity } from '@/types/wikidata';
-import { WDPersonCard } from '@/components/common/WDPersonCard';
-import { WDEntitySelector } from '@/components/selectors/WDEntitySelector';
-import { WDPersonSelector } from '@/components/selectors/WDPersonSelector';
+import WDPersonCard from '@/components/common/WDPersonCard';
+import WDEntitySelector from '@/components/selectors/WDEntitySelector';
+import WDPersonSelector from '@/components/selectors/WDPersonSelector';
 import { Play, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 
 interface TestResult {

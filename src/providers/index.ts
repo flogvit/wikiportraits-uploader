@@ -45,7 +45,8 @@ export {
 } from './UniversalFormProvider';
 
 // Re-export types
-export type { ImageMetadata } from './ImagesFormProvider';
-export type { Template } from './TemplatesFormProvider';
-export type { Category } from './CategoriesFormProvider';
-export type { UploadItem, UploadStats } from './UploadFormProvider';
+// Note: These types are internal to their providers and not exported
+// export type { ImageMetadata } from './ImagesFormProvider';
+// export type { Template } from './TemplatesFormProvider';
+// export type { Category } from './CategoriesFormProvider';
+// export type { UploadItem, UploadStats } from './UploadFormProvider';

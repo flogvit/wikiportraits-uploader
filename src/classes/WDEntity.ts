@@ -64,7 +64,7 @@ export class WDEntity {
       .filter(value => value !== undefined);
   }
 
-  protected setClaim(property: string, value: any, datatype: string = 'string'): void {
+  protected setClaim(property: string, value: any, datatype: 'string' | 'wikibase-entityid' | 'time' | 'quantity' | 'monolingualtext' | 'globecoordinate' = 'string'): void {
     if (!this.entity.claims) {
       this.entity.claims = {};
     }
@@ -86,7 +86,7 @@ export class WDEntity {
     this.entity.claims[property] = [claim];
   }
 
-  protected addClaim(property: string, value: any, datatype: string = 'string'): void {
+  protected addClaim(property: string, value: any, datatype: 'string' | 'wikibase-entityid' | 'time' | 'quantity' | 'monolingualtext' | 'globecoordinate' = 'string'): void {
     if (!this.entity.claims) {
       this.entity.claims = {};
     }

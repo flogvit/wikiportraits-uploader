@@ -6,7 +6,9 @@ import AuthWrapper from '@/components/auth/AuthWrapper';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import WikimediaWorkflow from '@/components/workflow/workflows/WikimediaWorkflow';
-import { CategoryCreationInfo } from '@/utils/soccer-categories';
+// import { CategoryCreationInfo } from '@/utils/soccer-categories';
+
+type CategoryCreationInfo = any; // TODO: Define proper type when soccer module is implemented
 
 export default function Home() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);

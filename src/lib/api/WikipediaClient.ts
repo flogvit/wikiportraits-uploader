@@ -269,7 +269,7 @@ export class WikipediaClient {
       if (!page?.revisions?.[0]?.['*']) return null;
 
       const wikitext = page.revisions[0]['*'];
-      const infoboxMatch = wikitext.match(/\{\{[Ii]nfobox[^}]*\}\}/s);
+      const infoboxMatch = wikitext.match(/\{\{[Ii]nfobox[\s\S]*?\}\}/);  // Use [\s\S] instead of . with /s flag
       
       if (!infoboxMatch) return null;
 
