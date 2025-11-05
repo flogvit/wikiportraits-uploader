@@ -37,8 +37,20 @@ export const getCurrentPhotographerQid = () => {
 
 /**
  * Generate the author field for Commons uploads
+ * Uses [[d:QID|Name]] syntax to link to Wikidata without requiring a Creator page
  */
-export const generateAuthorField = (qid?: string) => {
+export const generateAuthorField = (qid?: string, name?: string) => {
   const wikidataQid = qid || loadAuthorWikidataQid();
-  return wikidataQid ? `{{Creator:${wikidataQid}}}` : 'Unknown photographer';
+
+  if (wikidataQid) {
+    // Use simple Wikidata link format: [[d:QID|Name]]
+    // This works even if Creator page doesn't exist
+    if (name) {
+      return `[[d:${wikidataQid}|${name}]]`;
+    }
+    // If no name provided, just use the QID
+    return `[[d:${wikidataQid}]]`;
+  }
+
+  return 'Unknown photographer';
 };
