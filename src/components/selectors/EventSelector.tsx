@@ -5,6 +5,15 @@ import { Search, Calendar, MapPin, ExternalLink, CheckCircle, AlertCircle } from
 import { CommonsClient } from '@/lib/api/CommonsClient';
 import { searchWikidataEntities, getWikidataEntity } from '@/utils/wikidata';
 
+interface EventParticipant {
+  id: string;
+  name: string;
+  wikidataId?: string;
+  wikidataUrl?: string;
+  commonsCategory?: string;
+  role?: string; // 'participant' | 'performer' | 'contestant'
+}
+
 interface EventResult {
   id: string;
   name: string;
@@ -18,6 +27,7 @@ interface EventResult {
   categoryExists?: boolean;
   fileCount?: number;
   source: 'wikidata' | 'commons' | 'both';
+  participants?: EventParticipant[]; // Artists/bands participating in the event
 }
 
 interface EventSelectorProps {
@@ -92,51 +102,200 @@ export default function EventSelector({
               'Q46755',   // music event
               'Q2145682', // concert tour
               'Q2994645', // music venue
+              'Q27020041', // edition of a recurring event
+              'Q47258130', // song contest
+              'Q1141054',  // television music competition
             ].includes(qid);
           });
 
-          if (!isMusicEvent) continue;
+          // Also accept if the description contains music/festival/concert/contest keywords
+          const description = entity.descriptions?.en?.value?.toLowerCase() || '';
+          const label = entity.labels?.en?.value?.toLowerCase() || '';
+          const hasEventKeywords =
+            description.includes('music') ||
+            description.includes('festival') ||
+            description.includes('concert') ||
+            description.includes('contest') ||
+            description.includes('song') ||
+            label.includes('eurovision') ||
+            label.includes('festival') ||
+            label.includes('concert');
+
+          if (!isMusicEvent && !hasEventKeywords) continue;
 
           // Extract event details
           const name = entity.labels?.en?.value || result.label || '';
 
-          // Get year from "point in time" (P585) or "inception" (P571)
+          // Get dates from P585 (point in time) or P580/P582 (start/end time)
           const pointInTime = entity.claims?.P585?.[0]?.mainsnak?.datavalue?.value?.time;
+          const startTime = entity.claims?.P580?.[0]?.mainsnak?.datavalue?.value?.time;
+          const endTime = entity.claims?.P582?.[0]?.mainsnak?.datavalue?.value?.time;
           const inception = entity.claims?.P571?.[0]?.mainsnak?.datavalue?.value?.time;
-          const yearMatch = (pointInTime || inception)?.match(/\+(\d{4})/);
-          const year = yearMatch ? yearMatch[1] : undefined;
 
-          // Get location
-          const locationClaim = entity.claims?.P276?.[0] || entity.claims?.P17?.[0]; // location or country
+          // Extract full date (YYYY-MM-DD) from time string
+          const extractDate = (timeStr: string | undefined) => {
+            if (!timeStr) return undefined;
+            const match = timeStr.match(/\+(\d{4})-(\d{2})-(\d{2})/);
+            return match ? `${match[1]}-${match[2]}-${match[3]}` : undefined;
+          };
+
+          // Use P580/P582 if available (multi-day), otherwise P585 (single-day)
+          const eventDate = extractDate(startTime || pointInTime);
+          const eventEndDate = extractDate(endTime);
+
+          // Extract year
+          const yearMatch = (startTime || pointInTime || inception)?.match(/\+(\d{4})/);
+          let year = yearMatch ? yearMatch[1] : undefined;
+
+          // Fallback: try to extract year from the name if not found in claims
+          if (!year) {
+            const nameYearMatch = name.match(/\b(19\d{2}|20\d{2})\b/);
+            if (nameYearMatch) {
+              year = nameYearMatch[1];
+              console.log(`📅 Extracted year ${year} from event name: ${name}`);
+            }
+          }
+
+          console.log('📅 Event dates from Wikidata:', {
+            name,
+            eventDate,
+            eventEndDate,
+            year,
+            hasP580: !!startTime,
+            hasP582: !!endTime,
+            hasP585: !!pointInTime
+          });
+
+          // Get location (P276 - location, P131 - located in administrative territorial entity)
           let location = '';
+          let locationQid = '';
+          let country = '';
+          let countryQid = '';
+
+          // Try P276 (location) first
+          const locationClaim = entity.claims?.P276?.[0];
           if (locationClaim) {
             const locationId = locationClaim.mainsnak?.datavalue?.value?.id;
             if (locationId) {
+              locationQid = locationId;
               try {
-                const locationEntity = await getWikidataEntity(locationId, 'en', 'labels');
+                const locationEntity = await getWikidataEntity(locationId, 'en', 'labels|claims');
                 location = locationEntity.labels?.en?.value || '';
+
+                // If location is found, try to get country from the location entity
+                if (!country && locationEntity.claims?.P17) {
+                  const locationCountryClaim = locationEntity.claims.P17[0];
+                  const countryId = locationCountryClaim?.mainsnak?.datavalue?.value?.id;
+                  if (countryId) {
+                    countryQid = countryId;
+                    const countryEntity = await getWikidataEntity(countryId, 'en', 'labels');
+                    country = countryEntity.labels?.en?.value || '';
+                  }
+                }
               } catch {
                 location = '';
               }
             }
           }
 
+          // If no location found, try P131 (located in)
+          if (!location) {
+            const locatedInClaim = entity.claims?.P131?.[0];
+            if (locatedInClaim) {
+              const locatedInId = locatedInClaim.mainsnak?.datavalue?.value?.id;
+              if (locatedInId) {
+                try {
+                  const locatedInEntity = await getWikidataEntity(locatedInId, 'en', 'labels|claims');
+                  location = locatedInEntity.labels?.en?.value || '';
+
+                  // Try to get country from this entity
+                  if (!country && locatedInEntity.claims?.P17) {
+                    const locationCountryClaim = locatedInEntity.claims.P17[0];
+                    const countryId = locationCountryClaim?.mainsnak?.datavalue?.value?.id;
+                    if (countryId) {
+                      const countryEntity = await getWikidataEntity(countryId, 'en', 'labels');
+                      country = countryEntity.labels?.en?.value || '';
+                    }
+                  }
+                } catch {
+                  location = '';
+                }
+              }
+            }
+          }
+
+          // Get country directly (P17 - country) if not found yet
+          if (!country) {
+            const countryClaim = entity.claims?.P17?.[0];
+            if (countryClaim) {
+              const countryId = countryClaim.mainsnak?.datavalue?.value?.id;
+              if (countryId) {
+                countryQid = countryId;
+                try {
+                  const countryEntity = await getWikidataEntity(countryId, 'en', 'labels');
+                  country = countryEntity.labels?.en?.value || '';
+                } catch {
+                  country = '';
+                }
+              }
+            }
+          }
+
           // Generate expected Commons category name
-          const commonsCategory = year ? `${name} ${year}` : name;
+          // Check if the name already includes the year to avoid duplication
+          const nameAlreadyHasYear = year && name.includes(year);
+          const commonsCategory = (year && !nameAlreadyHasYear) ? `${name} ${year}` : name;
+
+          // Extract participants (P710 - participant, P1344 - participant in)
+          const participants: EventParticipant[] = [];
+          const participantClaims = entity.claims?.P710 || []; // participant
+
+          for (const participantClaim of participantClaims.slice(0, 20)) { // Limit to 20 participants
+            const participantId = participantClaim.mainsnak?.datavalue?.value?.id;
+            if (participantId) {
+              try {
+                const participantEntity = await getWikidataEntity(participantId, 'en', 'labels');
+                const participantName = participantEntity.labels?.en?.value || '';
+                if (participantName) {
+                  // Generate Commons category name for participant: "<Artist> in the <Event>"
+                  const participantCommonsCategory = `${participantName} in the ${commonsCategory}`;
+
+                  participants.push({
+                    id: participantId,
+                    name: participantName,
+                    wikidataId: participantId,
+                    wikidataUrl: `https://www.wikidata.org/wiki/${participantId}`,
+                    commonsCategory: participantCommonsCategory,
+                    role: 'participant'
+                  });
+                }
+              } catch (error) {
+                console.error('Error fetching participant:', error);
+              }
+            }
+          }
 
           const eventResult: EventResult = {
             id: entity.id,
             name,
             year,
+            date: eventDate,
+            endDate: eventEndDate,
             location,
+            locationQid,
+            country,
+            countryQid,
             wikidataId: entity.id,
             wikidataUrl: `https://www.wikidata.org/wiki/${entity.id}`,
             commonsCategory,
             commonsCategoryUrl: `https://commons.wikimedia.org/wiki/Category:${encodeURIComponent(commonsCategory)}`,
-            source: 'wikidata'
+            source: 'wikidata',
+            participants
           };
 
+          // Track both space and underscore versions to prevent duplicates
           processedIds.add(commonsCategory);
+          processedIds.add(commonsCategory.replace(/ /g, '_'));
           results.push(eventResult);
         } catch (error) {
           console.error('Error processing Wikidata entity:', error);
@@ -150,22 +309,35 @@ export default function EventSelector({
         for (const category of commonsCategories) {
           const categoryName = category.title.replace(/^Category:/, '');
 
-          // Skip if we already have this from Wikidata
-          if (processedIds.has(categoryName)) {
+          // Skip if we already have this from Wikidata (check both underscore and space versions)
+          const categoryNameSpaces = categoryName.replace(/_/g, ' ');
+          if (processedIds.has(categoryName) || processedIds.has(categoryNameSpaces)) {
             // Update the existing result with Commons info
-            const existingResult = results.find(r => r.commonsCategory === categoryName);
+            const existingResult = results.find(r =>
+              r.commonsCategory === categoryName ||
+              r.commonsCategory === categoryNameSpaces ||
+              r.commonsCategory?.replace(/_/g, ' ') === categoryNameSpaces
+            );
             if (existingResult) {
               existingResult.source = 'both';
               existingResult.categoryExists = true;
               existingResult.fileCount = category.categoryinfo?.files || 0;
+              // Use the actual Commons category name (with underscores)
+              existingResult.commonsCategory = categoryName;
+              existingResult.commonsCategoryUrl = `https://commons.wikimedia.org/wiki/Category:${encodeURIComponent(categoryName)}`;
             }
             continue;
           }
 
-          // Parse year from category name (e.g., "Festival Name 2025")
+          // Parse year from category name (e.g., "Eurovision_Song_Contest_2025" or "Festival Name 2025")
           const yearMatch = categoryName.match(/\b(19|20)\d{2}\b/);
           const year = yearMatch ? yearMatch[0] : undefined;
-          const name = year ? categoryName.replace(year, '').trim() : categoryName;
+
+          // Clean up the name: remove year and replace underscores with spaces
+          let name = categoryName.replace(/_/g, ' ');
+          if (year) {
+            name = name.replace(year, '').trim();
+          }
 
           results.push({
             id: `commons-${categoryName}`,
@@ -231,8 +403,16 @@ export default function EventSelector({
                 setIsOpen(true);
               }
             }}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
+          {loading && (
+            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+              <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          )}
         </div>
 
         {/* Search Results Dropdown */}
@@ -329,6 +509,29 @@ export default function EventSelector({
                             Category: {result.commonsCategory}
                           </div>
                         )}
+
+                        {result.participants && result.participants.length > 0 && (
+                          <div className="mt-2">
+                            <span className="text-xs font-medium text-gray-700">
+                              Participants ({result.participants.length}):
+                            </span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {result.participants.slice(0, 5).map(participant => (
+                                <span
+                                  key={participant.id}
+                                  className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded"
+                                >
+                                  {participant.name}
+                                </span>
+                              ))}
+                              {result.participants.length > 5 && (
+                                <span className="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                                  +{result.participants.length - 5} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -390,6 +593,25 @@ export default function EventSelector({
                 <div className="flex items-center gap-1 mt-2 text-xs text-amber-600">
                   <AlertCircle className="w-3 h-3" />
                   <span>New event - Category will be created</span>
+                </div>
+              )}
+
+              {selectedEvent.participants && selectedEvent.participants.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-xs font-medium text-gray-700">
+                    Participants ({selectedEvent.participants.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedEvent.participants.map(participant => (
+                      <span
+                        key={participant.id}
+                        className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded"
+                        title={participant.commonsCategory}
+                      >
+                        {participant.name}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
