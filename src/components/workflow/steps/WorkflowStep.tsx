@@ -11,7 +11,7 @@ import CategoriesPane from '../panes/CategoriesPane';
 import ImagesPane from '../panes/ImagesPane';
 import TemplatesPane from '../panes/TemplatesPane';
 import WikidataPane from '../panes/WikidataPane';
-import UploadPane from '../panes/UploadPane';
+import PublishPane from '../panes/PublishPane';
 
 export default function WorkflowStep() {
   const { watch } = useUniversalForm();
@@ -108,13 +108,6 @@ export default function WorkflowStep() {
           />
         );
 
-      case 'templates':
-        return (
-          <TemplatesPane
-            onComplete={handleTemplatesComplete}
-          />
-        );
-
       case 'wikidata':
         return (
           <WikidataPane
@@ -127,8 +120,8 @@ export default function WorkflowStep() {
 
       case 'upload':
         return (
-          <UploadPane
-            onComplete={() => console.log('Upload completed!')}
+          <PublishPane
+            onComplete={() => console.log('Publishing completed!')}
           />
         );
 
@@ -138,7 +131,7 @@ export default function WorkflowStep() {
   };
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border p-6">
+    <div className="bg-card rounded-lg p-6">
       <div className="space-y-6">
         {renderActiveStep()}
       </div>
