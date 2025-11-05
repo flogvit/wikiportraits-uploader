@@ -53,31 +53,43 @@ ${categoriesWikitext}`;
   return wikitext;
 }
 
-export function generateCommonsWikitext(image: ImageFile, forceRegenerate = false): string {
+export function generateCommonsWikitext(image: ImageFile, forceRegenerate = false, eventDetails?: any, isWikiPortraitsJob?: boolean): string {
   // If user has manually edited wikitext and we're not forcing regeneration, use their version
-  if (image.metadata.wikitext && image.metadata.wikitextModified && !forceRegenerate) {
+  if (image.metadata?.wikitext && image.metadata?.wikitextModified && !forceRegenerate) {
     return image.metadata.wikitext;
   }
+
+  // Guard: if no metadata, return empty template
+  if (!image.metadata) {
+    return '== {{int:filedesc}} ==\n\n== {{int:license-header}} ==\n';
+  }
+
   const { metadata } = image;
-  
+
   // Determine upload type from metadata
   let uploadType: UploadType = 'general';
   if (metadata.musicEvent) {
     uploadType = 'music';
   }
 
+  // WikiPortraits template (if applicable) - comes before everything else
+  let wikiportraitsTemplateLine = '';
+  if (isWikiPortraitsJob && metadata.wikiportraitsTemplate) {
+    wikiportraitsTemplateLine = `${metadata.wikiportraitsTemplate}\n`;
+  }
+
   // Generate template line - use custom template if set, otherwise auto-generate
   let templateLine = '';
   if (metadata.template !== undefined) {
     // User has set a custom template (could be empty string to remove template)
-    templateLine = metadata.template.trim() ? `\n{{${metadata.template.trim()}}}\n` : '';
+    templateLine = metadata.template.trim() ? `{{${metadata.template.trim()}}}\n` : '';
   } else if (uploadType !== 'general') {
     // Auto-generate template for events
     const templateName = generateTemplateName(
       uploadType,
       metadata.musicEvent
     );
-    templateLine = `\n{{${templateName}}}\n`;
+    templateLine = `{{${templateName}}}\n`;
   }
 
   // Generate WikiPortraits category based on event
@@ -90,14 +102,13 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
     ? `{{${metadata.license}}}`
     : `{{${metadata.license}}}`;
 
-  // Build categories string - avoid duplicates by checking if WikiPortraits category already exists
-  const hasWikiPortraitsCategory = metadata.categories.some(cat => cat.startsWith('WikiPortraits at'));
-  const allCategories = [
-    ...(hasWikiPortraitsCategory ? [] : [wikiPortraitsCategory]),
-    ...metadata.categories
-  ].filter(Boolean);
+  // Build categories string - use metadata.categories if available
+  const categoriesArray = metadata.categories && metadata.categories.length > 0
+    ? metadata.categories
+    : [wikiPortraitsCategory]; // Fallback to default only if no categories
 
-  const categoriesWikitext = allCategories
+  const categoriesWikitext = categoriesArray
+    .filter(Boolean)
     .map(cat => `[[Category:${cat}]]`)
     .join('\n');
 
@@ -108,9 +119,14 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
     ? `{{Location|${metadata.gps.latitude}|${metadata.gps.longitude}}}`
     : '';
 
+  // Check if description is already wrapped in language template
+  const descriptionForTemplate = metadata.description?.startsWith('{{')
+    ? metadata.description // Already wrapped, use as-is
+    : `{{en|${metadata.description}}}`; // Not wrapped, wrap it
+
   const wikitext = `=={{int:filedesc}}==
 {{Information
-|description={{en|${metadata.description}}}
+|description=${descriptionForTemplate}
 |author=${metadata.author}
 |date=${metadata.date}${metadata.time ? ` ${metadata.time}` : ''}
 |source=${metadata.source}
@@ -121,7 +137,8 @@ ${templateLine}
 =={{int:license-header}}==
 ${licenseTemplate}
 
-${categoriesWikitext}`;
+${categoriesWikitext}
+${wikiportraitsTemplateLine ? `\n${wikiportraitsTemplateLine}` : ''}`;
 
   return wikitext;
 }
@@ -143,21 +160,32 @@ export function regenerateImageWikitext(image: ImageFile): ImageFile {
 }
 
 export function generateFilename(image: ImageFile, imageIndex?: number, musicEventData?: any): string {
+  // Handle existing images from Commons (no file property)
+  const isExisting = (image as any).isExisting === true;
+  if (isExisting) {
+    return (image as any).filename || 'Unknown';
+  }
+
   const { metadata } = image;
-  const originalName = image.file.name;
+  const originalName = image.file?.name || 'unknown';
   const extension = originalName.split('.').pop();
-  
+
   // Generate context-aware filename for music events (new workflow)
   if (musicEventData?.eventType === 'festival' && musicEventData.festivalData) {
     return generateMusicEventFilenameFromWorkflow(musicEventData, metadata, extension, imageIndex);
   }
-  
+
+  // Guard: if no metadata, return original name
+  if (!metadata) {
+    return originalName;
+  }
+
   // Generate context-aware filename for music events (legacy)
   if (metadata.musicEvent) {
     return generateMusicEventFilename(metadata.musicEvent, metadata, extension, imageIndex);
   }
-  
-  
+
+
   // Create a descriptive filename based on description (fallback)
   if (metadata.description) {
     // Clean the description for filename use
@@ -165,11 +193,11 @@ export function generateFilename(image: ImageFile, imageIndex?: number, musicEve
       .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars
       .replace(/\s+/g, '_') // Replace spaces with underscores
       .substring(0, 100); // Limit length
-    
+
     const counter = imageIndex ? ` ${String(imageIndex).padStart(2, '0')}` : '';
     return `${cleanDescription}${counter}.${extension}`;
   }
-  
+
   return originalName;
 }
 
