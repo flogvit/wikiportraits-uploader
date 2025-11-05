@@ -24,12 +24,24 @@ export interface MusicCategoryOptions {
 
 export type { CategoryCreationInfo } from '@/types/categories';
 
-export function generateMusicCategories({
-  eventData,
-  includeBandCategories = true,
-  includeEventCategories = true,
-  includeWikiPortraitsIntegration = true
-}: MusicCategoryOptions): string[] {
+export function generateMusicCategories(eventDataOrOptions: any): string[] {
+  // Handle both old signature (with options object) and new signature (plain eventData)
+  let eventData: any;
+  let includeBandCategories = true;
+  let includeEventCategories = true;
+  let includeWikiPortraitsIntegration = true;
+
+  if (eventDataOrOptions?.eventData) {
+    // Old signature with MusicCategoryOptions
+    eventData = eventDataOrOptions.eventData;
+    includeBandCategories = eventDataOrOptions.includeBandCategories ?? true;
+    includeEventCategories = eventDataOrOptions.includeEventCategories ?? true;
+    includeWikiPortraitsIntegration = eventDataOrOptions.includeWikiPortraitsIntegration ?? true;
+  } else {
+    // New signature with plain eventData
+    eventData = eventDataOrOptions;
+  }
+
   const categories: Set<string> = new Set();
 
   // Base WikiPortraits category
@@ -39,6 +51,12 @@ export function generateMusicCategories({
     return Array.from(categories);
   }
 
+  // Handle unified event format (from EventDetailsForm)
+  if (eventData.title && !eventData.eventType) {
+    return generateUnifiedEventCategories(eventData);
+  }
+
+  // Handle legacy music event format
   if (eventData.eventType === 'festival' && eventData.festivalData) {
     return generateFestivalCategories(eventData.festivalData, {
       includeBandCategories,
@@ -54,6 +72,42 @@ export function generateMusicCategories({
   }
 
   return Array.from(categories);
+}
+
+/**
+ * Generate categories for unified event format (from EventDetailsForm)
+ */
+function generateUnifiedEventCategories(eventData: any): string[] {
+  const categories: Set<string> = new Set();
+  const { title, date, participants, commonsCategory } = eventData;
+
+  // Base WikiPortraits category
+  categories.add('WikiPortraits');
+
+  if (!title) {
+    return Array.from(categories);
+  }
+
+  // Extract year from date
+  const year = date ? new Date(date).getFullYear().toString() : '';
+  const eventName = commonsCategory || (year ? `${title} ${year}` : title);
+
+  // Add WikiPortraits at Event category
+  categories.add(`WikiPortraits at ${eventName}`);
+
+  // Add main event category
+  categories.add(eventName);
+
+  // Add participant-specific categories
+  if (participants && Array.isArray(participants)) {
+    participants.forEach((participant: any) => {
+      if (participant.name && participant.commonsCategory) {
+        categories.add(participant.commonsCategory);
+      }
+    });
+  }
+
+  return Array.from(categories).sort();
 }
 
 function generateFestivalCategories(
@@ -168,9 +222,15 @@ function generateConcertCategories(
   return Array.from(categories).sort();
 }
 
-export function getCategoriesToCreate(eventData: MusicEventMetadata): CategoryCreationInfo[] {
+export function getCategoriesToCreate(eventData: any): CategoryCreationInfo[] {
   const categoriesToCreate: CategoryCreationInfo[] = [];
 
+  // Handle unified event format (from EventDetailsForm)
+  if (eventData.title && !eventData.eventType) {
+    return getUnifiedEventCategoriesToCreate(eventData);
+  }
+
+  // Handle legacy music event format
   if (eventData.eventType === 'festival' && eventData.festivalData) {
     return getFestivalCategoriesToCreate(eventData.festivalData);
   } else if (eventData.eventType === 'concert' && eventData.concertData) {
@@ -270,6 +330,150 @@ function getConcertCategoriesToCreate(concertData: ConcertMetadata): CategoryCre
   return categoriesToCreate;
 }
 
+/**
+ * Detect and auto-create band-at-event categories from all image categories
+ * Scans for pattern: "BandName at EventName YYYY" and creates them with proper parents
+ */
+export function detectBandCategories(allCategories: string[], eventName: string): CategoryCreationInfo[] {
+  const bandCategories: CategoryCreationInfo[] = [];
+  const bandAtEventPattern = new RegExp(`^(.+) at ${eventName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+
+  allCategories.forEach(category => {
+    const match = category.match(bandAtEventPattern);
+    if (match) {
+      const bandName = match[1];
+      bandCategories.push({
+        categoryName: category,
+        shouldCreate: true,
+        parentCategory: eventName,
+        description: `[[${bandName}]] performing at ${eventName}.`,
+        eventName
+      });
+    }
+  });
+
+  return bandCategories;
+}
+
+/**
+ * Generate categories for unified event format (from EventDetailsForm)
+ * This handles events with participants like Eurovision
+ */
+function getUnifiedEventCategoriesToCreate(eventData: any): CategoryCreationInfo[] {
+  const categoriesToCreate: CategoryCreationInfo[] = [];
+  const { title, date, participants, commonsCategory, categoryExists } = eventData;
+
+  if (!title) {
+    return categoriesToCreate;
+  }
+
+  // Extract year from date
+  const year = date ? new Date(date).getFullYear().toString() : '';
+
+  // Use the Commons category if provided, otherwise construct it
+  const eventName = commonsCategory || (year ? `${title} ${year}` : title);
+
+  // Extract base event name (without year) for parent categories
+  const baseEventName = title.replace(/\s+\d{4}$/, ''); // Remove year if in title
+
+  // Note: We assume parent categories exist for well-known events
+  // This is a heuristic - in reality we'd need to check each one
+  const isWellKnownEvent = eventName.toLowerCase().includes('eurovision') ||
+                           eventName.toLowerCase().includes('coachella') ||
+                           eventName.toLowerCase().includes('glastonbury');
+
+  // 1. Create base event category (e.g., "Eurovision Song Contest")
+  // Assume it exists for well-known events
+  categoriesToCreate.push({
+    categoryName: baseEventName,
+    shouldCreate: !isWellKnownEvent, // Don't create if it's a well-known event
+    parentCategory: undefined, // Top-level category
+    description: `[[${baseEventName}]].`,
+    eventName: baseEventName
+  });
+
+  // 2. Create "by year" parent category (e.g., "Eurovision Song Contest by year")
+  const byYearCategory = `${baseEventName} by year`;
+  if (year) {
+    categoriesToCreate.push({
+      categoryName: byYearCategory,
+      shouldCreate: !isWellKnownEvent, // Don't create if it's a well-known event
+      parentCategory: baseEventName,
+      description: `[[${baseEventName}]] by year.`,
+      eventName: baseEventName
+    });
+  }
+
+  // 3. Create specific year event category (e.g., "Eurovision Song Contest 2025")
+  // Use the categoryExists flag from the event selector if available
+  // If undefined, assume it needs creation (manual entry)
+  categoriesToCreate.push({
+    categoryName: eventName,
+    shouldCreate: categoryExists !== true, // Create unless we explicitly know it exists
+    parentCategory: year ? byYearCategory : baseEventName,
+    description: `${title}${year ? ` ${year}` : ''}.`,
+    eventName: title
+  });
+
+  // 4. Create WikiPortraits at Event category (e.g., "WikiPortraits at Eurovision Song Contest 2025")
+  const wikiPortraitsEventCategory = `WikiPortraits at ${eventName}`;
+  categoriesToCreate.push({
+    categoryName: wikiPortraitsEventCategory,
+    shouldCreate: true,
+    parentCategory: 'WikiPortraits',
+    description: `WikiPortraits photos taken at ${title}${year ? ` ${year}` : ''}.`,
+    eventName: title
+  });
+
+  // 5. Create band-specific categories (e.g., "FordRekord at Jærnåttå 2025")
+  // These are created when a band performs at the event
+  if (participants && Array.isArray(participants)) {
+    participants.forEach((participant: any) => {
+      // Check if this is a band/organization (has a band-specific category pattern)
+      if (participant.name && participant.type === 'band') {
+        const bandAtEventCategory = `${participant.name} at ${eventName}`;
+
+        categoriesToCreate.push({
+          categoryName: bandAtEventCategory,
+          shouldCreate: true,
+          parentCategory: eventName, // Parent is the main event category
+          description: `[[${participant.name}]] performing at ${title}${year ? ` ${year}` : ''}.`,
+          eventName: title
+        });
+      }
+    });
+  }
+
+  // 6. Create participant-specific categories (e.g., "Finland in the Eurovision Song Contest 2025")
+  if (participants && Array.isArray(participants)) {
+    participants.forEach((participant: any) => {
+      if (participant.name && participant.commonsCategory) {
+        // Use the pre-generated category name from EventSelector
+        const participantCategory = participant.commonsCategory;
+
+        categoriesToCreate.push({
+          categoryName: participantCategory,
+          shouldCreate: true,
+          parentCategory: eventName,
+          description: `[[${participant.name}]] at ${title}${year ? ` ${year}` : ''}.`,
+          eventName: title
+        });
+
+        // Also link to WikiPortraits category
+        categoriesToCreate.push({
+          categoryName: participantCategory,
+          shouldCreate: false, // Already created above
+          parentCategory: wikiPortraitsEventCategory,
+          description: `[[${participant.name}]] at ${title}${year ? ` ${year}` : ''}.`,
+          eventName: title
+        });
+      }
+    });
+  }
+
+  return categoriesToCreate;
+}
+
 export function generateEventPageCategory(eventData: MusicEventMetadata): string {
   if (eventData.eventType === 'festival' && eventData.festivalData) {
     const { festival } = eventData.festivalData;
@@ -351,17 +555,48 @@ export function generateEventDescription(eventData: MusicEventMetadata): string 
 }
 
 export function generateImageCategories(
-  musicEventData: MusicEventMetadata, 
+  eventDataOrMusicEventData: any,
   selectedBand?: string
 ): string[] {
   const categories: Set<string> = new Set();
 
-  // Base WikiPortraits category
+  // Handle unified format (from EventDetailsForm)
+  if (eventDataOrMusicEventData.title && !eventDataOrMusicEventData.eventType) {
+    const { title, date, commonsCategory } = eventDataOrMusicEventData;
+    const year = date ? new Date(date).getFullYear().toString() : '';
+    const eventName = commonsCategory || (year ? `${title} ${year}` : title);
+
+    // Add all three categories for WikiPortraits images:
+    // 1. Main event category (e.g., "Jærnåttå 2025")
+    categories.add(eventName);
+
+    // 2. WikiPortraits at Event (e.g., "WikiPortraits at Jærnåttå 2025")
+    categories.add(`WikiPortraits at ${eventName}`);
+
+    // 3. Band-specific categories if band is selected
+    if (selectedBand) {
+      // Band at event (e.g., "FordRekord at Jærnåttå 2025")
+      categories.add(`${selectedBand} at ${eventName}`);
+
+      // Band in year (e.g., "FordRekord in 2025")
+      if (year) {
+        categories.add(`${selectedBand} in ${year}`);
+      }
+
+      // Note: NOT adding main band category (e.g., "FordRekord") to avoid flooding it
+      // That category is for general band info, not every performance photo
+    }
+
+    return Array.from(categories).sort();
+  }
+
+  // Handle legacy MusicEventMetadata format - keeps WikiPortraits for backward compatibility
   categories.add('WikiPortraits');
+  const musicEventData = eventDataOrMusicEventData;
 
   if (musicEventData.eventType === 'festival' && musicEventData.festivalData) {
     const { festival, addToWikiPortraitsConcerts } = musicEventData.festivalData;
-    
+
     // WikiPortraits at Concerts integration
     if (addToWikiPortraitsConcerts) {
       categories.add('WikiPortraits at Concerts');
@@ -370,7 +605,7 @@ export function generateImageCategories(
     if (festival.name && festival.year) {
       // Main festival category: "WikiPortraits at Jærnåttå 2025"
       categories.add(`WikiPortraits at ${festival.name} ${festival.year}`);
-      
+
       // If a band is selected for this image, add band-specific category
       if (selectedBand) {
         // Band at festival category: "FordRekord at Jærnåttå 2025"
@@ -379,7 +614,7 @@ export function generateImageCategories(
     }
   } else if (musicEventData.eventType === 'concert' && musicEventData.concertData) {
     const { concert, addToWikiPortraitsConcerts } = musicEventData.concertData;
-    
+
     // WikiPortraits at Concerts integration
     if (addToWikiPortraitsConcerts) {
       categories.add('WikiPortraits at Concerts');

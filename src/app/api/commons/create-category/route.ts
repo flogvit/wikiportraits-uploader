@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const { categoryName, parentCategory, description, teamName } = await request.json();
+    const { categoryName, parentCategory, description, teamName, additionalParents } = await request.json();
 
     if (!categoryName) {
       return NextResponse.json({ error: 'Category name is required' }, { status: 400 });
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     // Create category page content
     let categoryContent = '';
-    
+
     if (description) {
       categoryContent += `${description}\n\n`;
     } else if (teamName) {
@@ -74,9 +74,16 @@ export async function POST(request: NextRequest) {
       categoryContent += `[[Category:${parentCategory}]]\n`;
     }
 
-    // Add general categories
-    categoryContent += '[[Category:Association football players by club]]\n';
+    // Add additional parent categories if specified
+    if (additionalParents && Array.isArray(additionalParents)) {
+      additionalParents.forEach(parent => {
+        categoryContent += `[[Category:${parent}]]\n`;
+      });
+    }
+
+    // Add general categories only for soccer teams (legacy support)
     if (teamName) {
+      categoryContent += `[[Category:Association football players by club]]\n`;
       categoryContent += `[[Category:${teamName}]]\n`;
     }
 
