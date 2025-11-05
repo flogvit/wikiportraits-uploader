@@ -24,15 +24,17 @@ export function extractCategoriesFromWikitext(wikitext: string): string[] {
  */
 export function getAllCategoriesFromImages(images: ImageFile[]): string[] {
   const allCategories = new Set<string>();
-  
+
   images.forEach(image => {
     // Add categories from metadata.categories array
-    image.metadata.categories.forEach(cat => {
-      if (cat.trim()) {
-        allCategories.add(cat.trim());
-      }
-    });
-    
+    if (image.metadata.categories) {
+      image.metadata.categories.forEach(cat => {
+        if (cat.trim()) {
+          allCategories.add(cat.trim());
+        }
+      });
+    }
+
     // Add categories from wikitext
     const wikitextCategories = extractCategoriesFromWikitext(image.metadata.wikitext || '');
     wikitextCategories.forEach(cat => {
@@ -41,7 +43,7 @@ export function getAllCategoriesFromImages(images: ImageFile[]): string[] {
       }
     });
   });
-  
+
   return Array.from(allCategories).sort();
 }
 
@@ -50,15 +52,15 @@ export function getAllCategoriesFromImages(images: ImageFile[]): string[] {
  */
 export function syncCategoriesFromWikitext(image: ImageFile): ImageFile {
   const wikitextCategories = extractCategoriesFromWikitext(image.metadata.wikitext || '');
-  const existingCategories = new Set(image.metadata.categories);
-  
+  const existingCategories = new Set(image.metadata.categories || []);
+
   // Add any new categories found in wikitext
   wikitextCategories.forEach(cat => {
     if (cat.trim() && !existingCategories.has(cat.trim())) {
       existingCategories.add(cat.trim());
     }
   });
-  
+
   return {
     ...image,
     metadata: {
