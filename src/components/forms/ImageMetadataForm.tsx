@@ -48,28 +48,30 @@ const LICENSE_OPTIONS = [
   { value: 'CC0', label: 'CC0 (Public Domain)' }
 ];
 
-export default function ImageMetadataForm({ 
-  image, 
-  index, 
-  onUpdate, 
+export default function ImageMetadataForm({
+  image,
+  index,
+  onUpdate,
   eventDetails,
   bandPerformers,
-  musicEventData 
+  musicEventData
 }: ImageMetadataFormProps) {
+  console.log('🎨 ImageMetadataForm render - image.id:', image.id, 'eventDetails:', eventDetails);
+
   const defaultValues = useMemo(() => ({
-    description: image.metadata.description || '',
-    author: image.metadata.author || '',
-    date: image.metadata.date || '',
-    time: image.metadata.time || '',
-    source: image.metadata.source || '',
-    license: image.metadata.license || 'CC-BY-SA-4.0',
-    selectedBand: image.metadata.selectedBand || '',
-    template: image.metadata.template || '',
-    wikitext: image.metadata.wikitext || '',
-    categories: image.metadata.categories || [],
-    dateFromExif: image.metadata.dateFromExif || false,
-    templateModified: image.metadata.templateModified || false,
-    wikitextModified: image.metadata.wikitextModified || false,
+    description: image.metadata?.description || '',
+    author: image.metadata?.author || '',
+    date: image.metadata?.date || '',
+    time: image.metadata?.time || '',
+    source: image.metadata?.source || '',
+    license: image.metadata?.license || 'CC-BY-SA-4.0',
+    selectedBand: image.metadata?.selectedBand || '',
+    template: image.metadata?.template || '',
+    wikitext: image.metadata?.wikitext || '',
+    categories: image.metadata?.categories || [],
+    dateFromExif: image.metadata?.dateFromExif || false,
+    templateModified: image.metadata?.templateModified || false,
+    wikitextModified: image.metadata?.wikitextModified || false,
   }), [image.metadata]);
 
   const { control, watch, setValue, getValues } = useForm<MetadataFormData>({
@@ -78,14 +80,55 @@ export default function ImageMetadataForm({
     mode: 'onChange'
   });
 
+  // Watch selected band
+  const selectedBandValue = watch('selectedBand');
+
+  // Auto-populate categories ONLY on first load if empty
+  useEffect(() => {
+    const currentCategories = image.metadata?.categories || [];
+
+    console.log('🔄 Auto-populate check:', {
+      currentCategoriesLength: currentCategories.length,
+      hasEventTitle: !!eventDetails?.title,
+      eventTitle: eventDetails?.title,
+      selectedBand: selectedBandValue
+    });
+
+    // Only auto-populate if categories are empty (first time)
+    if (currentCategories.length === 0 && eventDetails?.title) {
+      // Generate event categories with selected band
+      import('@/utils/music-categories').then(({ generateImageCategories }) => {
+        const eventCategories = generateImageCategories(eventDetails, selectedBandValue);
+
+        console.log('📁 Generated categories:', eventCategories);
+        if (eventCategories.length > 0) {
+          console.log('📁 Auto-populating categories:', eventCategories);
+          setValue('categories', eventCategories);
+          onUpdate(image.id, { categories: eventCategories });
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   const watchedData = watch();
+
+  console.log('📝 ImageMetadataForm watchedData.categories:', watchedData.categories);
 
   // Update form when image prop changes
   useEffect(() => {
     Object.entries(defaultValues).forEach(([key, value]) => {
+      // Don't reset categories if they're already populated
+      if (key === 'categories') {
+        const currentCategories = getValues('categories');
+        if (currentCategories && currentCategories.length > 0) {
+          console.log('⏭️ Skipping categories reset, already has:', currentCategories);
+          return; // Skip resetting categories
+        }
+      }
       setValue(key as keyof MetadataFormData, value);
     });
-  }, [defaultValues, setValue]);
+  }, [defaultValues, setValue, getValues]);
 
   // Handle metadata changes with automatic wikitext regeneration
   const handleMetadataChange = (field: keyof MetadataFormData, value: string | string[] | boolean) => {
@@ -167,8 +210,66 @@ export default function ImageMetadataForm({
     handleMetadataChange('categories', categories);
   };
 
-  const handleBandMembersChange = (imageId: string, memberIds: string[]) => {
+  const handleBandMembersChange = async (imageId: string, memberIds: string[]) => {
     onUpdate(imageId, { selectedBandMembers: memberIds });
+
+    // Regenerate filename and description based on new performers
+    try {
+      const { generateCommonsFilename } = await import('@/utils/commons-filename');
+      const { generateMusicEventDescription } = await import('@/utils/commons-description');
+
+      // Get selected performers
+      const selectedPerformers = bandPerformers?.members?.filter((m: any) =>
+        memberIds.includes(m.entity?.id)
+      ) || [];
+
+      // Build form data with updated performers
+      const bandOrganization = bandPerformers?.selectedBand ? [{
+        entity: {
+          id: bandPerformers.selectedBand.id,
+          labels: {
+            en: {
+              language: 'en' as const,
+              value: bandPerformers.selectedBand.name
+            }
+          }
+        },
+        roles: ['band'],
+        isNew: false,
+        metadata: {}
+      }] : [];
+
+      const formData = {
+        workflowType: 'music-event',
+        eventDetails: {
+          ...eventDetails,
+          date: image.metadata?.date || eventDetails?.date
+        },
+        entities: {
+          people: selectedPerformers,
+          organizations: bandOrganization,
+          locations: [],
+          events: []
+        }
+      };
+
+      // Regenerate filename
+      const newFilename = generateCommonsFilename(image.file.name, formData as any, index);
+
+      // Regenerate description
+      const newDescription = generateMusicEventDescription(formData as any);
+
+      // Update both
+      onUpdate(imageId, {
+        selectedBandMembers: memberIds,
+        suggestedFilename: newFilename,
+        description: newDescription
+      });
+
+      console.log('🔄 Regenerated filename and description based on performer changes');
+    } catch (error) {
+      console.error('Failed to regenerate filename/description:', error);
+    }
   };
 
   return (
@@ -355,7 +456,10 @@ export default function ImageMetadataForm({
 
       <CategoryForm
         categories={watchedData.categories || []}
-        onCategoriesChange={handleCategoriesChange}
+        onCategoriesChange={(cats) => {
+          console.log('📁 CategoryForm onChange called with:', cats);
+          handleCategoriesChange(cats);
+        }}
       />
 
 
