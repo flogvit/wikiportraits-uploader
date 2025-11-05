@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
 import { useForm, UseFormReturn, FormProvider } from 'react-hook-form';
 import { UniversalFormData } from '../types/unified-form';
 import { WikidataEntity } from '../types/wikidata';
+import { imageCache } from '@/utils/image-cache';
 
 interface UniversalFormContextType extends UseFormReturn<UniversalFormData> {
   // Additional helper methods
@@ -185,27 +186,84 @@ export function UniversalFormProvider({
     }
   };
   
-  // Auto-save on form changes
+  // Auto-save on form changes (including images)
   useEffect(() => {
     if (!autoSave) return;
-    
+
     let timeoutId: NodeJS.Timeout;
-    
-    const subscription = form.watch(() => {
+
+    const subscription = form.watch((data) => {
       // Clear previous timeout
       if (timeoutId) clearTimeout(timeoutId);
-      
+
       // Debounce the save operation
-      timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(async () => {
         saveToStorageFunc();
+
+        // Also save images to IndexedDB (or clear if empty)
+        const files = data.files?.queue || [];
+        try {
+          if (files.length > 0) {
+            await imageCache.saveImages(
+              files.map((file: any, index: number) => ({
+                id: file.id || `image-${index}`,
+                file: file.file,
+                preview: file.preview,
+                metadata: file.metadata || {},
+                timestamp: Date.now() + index // Preserve order
+              }))
+            );
+            console.log('💾 Saved images to IndexedDB');
+          } else {
+            // No images left - clear the cache
+            await imageCache.clearImages();
+            console.log('🗑️ Cleared images from IndexedDB (no images in queue)');
+          }
+        } catch (error) {
+          console.warn('Failed to save images to IndexedDB:', error);
+        }
       }, 1000); // Save 1 second after last change
     });
-    
+
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [autoSave, form.watch]);
+
+  // Restore images on mount
+  useEffect(() => {
+    const restoreImages = async () => {
+      try {
+        const hasImages = await imageCache.hasImages();
+        if (hasImages) {
+          const cachedImages = await imageCache.loadImages();
+          if (cachedImages.length > 0) {
+            // Convert cached images back to the format expected by the form
+            // Regenerate preview URLs since blob URLs don't persist across page reloads
+            const restoredFiles = cachedImages.map((cached) => {
+              // Create a new blob URL from the cached file
+              const newPreviewUrl = URL.createObjectURL(cached.file);
+
+              return {
+                id: cached.id,
+                file: cached.file,
+                preview: newPreviewUrl,
+                metadata: cached.metadata
+              };
+            });
+
+            form.setValue('files.queue', restoredFiles);
+            console.log(`📂 Restored ${cachedImages.length} images from IndexedDB`);
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to restore images from IndexedDB:', error);
+      }
+    };
+
+    restoreImages();
+  }, []); // Only run once on mount
 
   // Enhanced context value with helper methods
   const contextValue: UniversalFormContextType = {
@@ -290,9 +348,13 @@ export function useUniversalFormFiles() {
   return {
     queue: form.watch('files.queue'),
     uploaded: form.watch('files.uploaded'),
-    addToQueue: (file: any) => {
+    addToQueue: (files: any) => {
       const current = form.getValues('files.queue');
-      form.setValue('files.queue', [...current, file], { shouldDirty: true });
+      const filesToAdd = Array.isArray(files) ? files : [files];
+
+      console.log('➕ addToQueue called with:', filesToAdd.map((f: any) => ({ id: f.id, name: f.file?.name, hasFile: !!f.file })));
+
+      form.setValue('files.queue', [...current, ...filesToAdd], { shouldDirty: true });
     },
     removeFromQueue: (id: string) => {
       const current = form.getValues('files.queue');

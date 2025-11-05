@@ -1,6 +1,8 @@
 // Direct frontend client for Wikimedia Commons API calls
 // Replaces backend proxy routes for read operations
 
+import { lookupCache, CacheType } from '@/utils/lookup-cache';
+
 interface CommonsSearchParams {
   query: string;
   language?: string;
@@ -226,9 +228,15 @@ export class CommonsClient {
 
   // Check if category exists
   static async categoryExists(categoryName: string): Promise<boolean> {
-    const fullCategoryName = categoryName.startsWith('Category:') 
-      ? categoryName 
+    const fullCategoryName = categoryName.startsWith('Category:')
+      ? categoryName
       : `Category:${categoryName}`;
+
+    // Check cache first
+    const cached = lookupCache.get<boolean>(CacheType.COMMONS_CATEGORY_EXISTS, fullCategoryName);
+    if (cached !== null) {
+      return cached;
+    }
 
     const searchParams = new URLSearchParams({
       ...CommonsClient.DEFAULT_PARAMS,
@@ -250,17 +258,21 @@ export class CommonsClient {
       }
 
       const data = await response.json();
-      
+
       if (data.error) {
         throw new Error(`Commons API error: ${data.error.info}`);
       }
 
+      let exists = false;
       if (data.query?.pages) {
         const page = Object.values(data.query.pages)[0] as any;
-        return !page.missing;
+        // Check if missing property exists (undefined means page exists, any value means it doesn't)
+        exists = page.missing === undefined;
       }
 
-      return false;
+      // Cache the result
+      lookupCache.set(CacheType.COMMONS_CATEGORY_EXISTS, fullCategoryName, exists);
+      return exists;
     } catch (error) {
       console.error('Commons category exists check error:', error);
       return false;
@@ -348,6 +360,93 @@ export class CommonsClient {
     } catch (error) {
       console.error('Commons upload token fetch error:', error);
       return null;
+    }
+  }
+
+  // Get parent categories (supercategories) of a category
+  static async getParentCategories(categoryName: string): Promise<string[]> {
+    const fullCategoryName = categoryName.startsWith('Category:')
+      ? categoryName
+      : `Category:${categoryName}`;
+
+    const searchParams = new URLSearchParams({
+      ...CommonsClient.DEFAULT_PARAMS,
+      action: 'query',
+      titles: fullCategoryName,
+      prop: 'categories',
+      cllimit: '500'
+    });
+
+    try {
+      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Commons parent categories fetch failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(`Commons API error: ${data.error.info}`);
+      }
+
+      if (data.query?.pages) {
+        const page = Object.values(data.query.pages)[0] as any;
+        if (page.categories) {
+          return page.categories.map((cat: any) => cat.title.replace(/^Category:/, ''));
+        }
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Commons parent categories fetch error:', error);
+      return [];
+    }
+  }
+
+  // Get subcategories of a category
+  static async getSubcategories(categoryName: string, limit: number = 500): Promise<string[]> {
+    const fullCategoryName = categoryName.startsWith('Category:')
+      ? categoryName
+      : `Category:${categoryName}`;
+
+    const searchParams = new URLSearchParams({
+      ...CommonsClient.DEFAULT_PARAMS,
+      action: 'query',
+      list: 'categorymembers',
+      cmtitle: fullCategoryName,
+      cmtype: 'subcat',
+      cmlimit: limit.toString()
+    });
+
+    try {
+      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Commons subcategories fetch failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(`Commons API error: ${data.error.info}`);
+      }
+
+      const members = data.query?.categorymembers || [];
+      return members.map((member: any) => member.title.replace(/^Category:/, ''));
+    } catch (error) {
+      console.error('Commons subcategories fetch error:', error);
+      return [];
     }
   }
 
