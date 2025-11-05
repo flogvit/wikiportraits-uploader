@@ -6,6 +6,8 @@ import AuthWrapper from '@/components/auth/AuthWrapper';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import WikimediaWorkflow from '@/components/workflow/workflows/WikimediaWorkflow';
+import CacheManager from '@/components/common/CacheManager';
+import StartFreshButton from '@/components/common/StartFreshButton';
 // import { CategoryCreationInfo } from '@/utils/soccer-categories';
 
 type CategoryCreationInfo = any; // TODO: Define proper type when soccer module is implemented
@@ -34,7 +36,9 @@ export default function Home() {
                     Upload and tag images for Wikimedia Commons
                   </p>
                 </div>
-                <div className="flex items-center gap-4 sm:flex-shrink-0">
+                <div className="flex items-center gap-2 sm:gap-4 sm:flex-shrink-0">
+                  <StartFreshButton />
+                  <CacheManager />
                   <ThemeToggle />
                   <LoginButton />
                 </div>
