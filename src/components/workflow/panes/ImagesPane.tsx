@@ -43,9 +43,23 @@ export default function ImagesPane({
     } : null
   };
   
-  // Get images from files.queue
-  const images = filesForm.queue || [];
+  // Get images from files.queue (new uploads) and files.existing (from Commons)
+  const existingImages = watch('files.existing') || [];
+  const newImages = filesForm.queue || [];
+
+  console.log('📦 newImages:', newImages.map((img: any) => ({ id: img.id, name: img.file?.name })));
+  console.log('📦 existingImages:', existingImages.map((img: any) => ({ id: img.id, filename: img.filename })));
+
+  // Combine existing and new images for display
+  const allImages = [
+    ...existingImages.map((img: any) => ({ ...img, isExisting: true })),
+    ...newImages.map((img: any) => ({ ...img, isExisting: false }))
+  ];
+
+  const images = newImages; // Keep images as newImages for backward compatibility
   const completedCount = (images || []).filter(image => {
+    if (!image.metadata) return false;
+
     const description = (image.metadata as any)?.description || '';
     const author = (image.metadata as any)?.author || '';
     const selectedBand = (image.metadata as any)?.selectedBand;
@@ -86,14 +100,6 @@ export default function ImagesPane({
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <ImagePlus className="w-12 h-12 text-primary mx-auto mb-4" />
-        <h2 className="text-2xl font-semibold text-card-foreground mb-2">Images</h2>
-        <p className="text-muted-foreground mb-6">
-          Add and manage your images for the event
-        </p>
-      </div>
-
       {/* Warning for missing event details */}
       {hasEventDetailsWarning && (
         <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
@@ -111,7 +117,8 @@ export default function ImagesPane({
           </p>
         </div>
       )}
-      
+
+      {/* Image uploader at the top */}
       <ImageUploader
         onImagesAddedAction={filesForm.addToQueue}
         existingImages={images as any}
@@ -122,19 +129,83 @@ export default function ImagesPane({
           setValue('eventDetails', { ...eventDetails, ...eventData }, { shouldDirty: true });
         }}
       />
+
+      {/* Existing Images from Commons */}
+      {existingImages.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Existing Images on Commons ({existingImages.length})
+              </h3>
+              <p className="text-sm text-blue-700 mt-1">
+                These images already exist. You can edit their metadata but cannot delete them.
+              </p>
+            </div>
+          </div>
+          <div className="text-sm text-gray-600">
+            Images will be displayed in the grid below with a blue indicator
+          </div>
+        </div>
+      )}
       
-      {(images?.length || 0) > 0 && (
+      {allImages.length > 0 && (
         <>
           <ImageGrid
-            images={images as any || []}
+            images={allImages as any || []}
             onImageUpdate={(id, updates) => {
-              const currentQueue = getValues('files.queue') || [];
-              const updatedQueue = currentQueue.map((img: any) => 
-                img.id === id ? { ...img, ...updates } : img
-              );
-              setValue('files.queue', updatedQueue, { shouldDirty: true });
+              // Check if this is an existing image or new image
+              const isExisting = id.startsWith('existing-');
+
+              console.log('📝 Updating image:', { id, updates, isExisting });
+
+              if (isExisting) {
+                // Update existing image metadata
+                const currentExisting = getValues('files.existing') || [];
+                const updatedExisting = currentExisting.map((img: any) =>
+                  img.id === id ? { ...img, metadata: { ...img.metadata, ...updates } } : img
+                );
+                setValue('files.existing', updatedExisting, { shouldDirty: true });
+              } else {
+                // Update new image in queue
+                const currentQueue = getValues('files.queue') || [];
+                const updatedQueue = currentQueue.map((img: any) =>
+                  img.id === id ? { ...img, metadata: { ...img.metadata, ...updates } } : img
+                );
+                setValue('files.queue', updatedQueue, { shouldDirty: true });
+              }
             }}
-            onImageRemove={filesForm.removeFromQueue}
+            onImageRemove={(id) => {
+              // Only allow removing new images, not existing ones
+              console.log('🗑️ Remove image called with ID:', id);
+
+              // Handle images without IDs by finding them in the array
+              if (!id || id === 'undefined') {
+                console.log('No valid ID, removing by finding image without ID');
+                const currentQueue = getValues('files.queue') || [];
+                const filtered = currentQueue.filter((img: any, idx: number) => {
+                  // Remove the first image without an ID
+                  if (!img.id || img.id === 'undefined') {
+                    return idx !== 0; // Remove first match
+                  }
+                  return true;
+                });
+                setValue('files.queue', filtered, { shouldDirty: true });
+                return;
+              }
+
+              const isExisting = id.startsWith('existing-');
+              console.log('Is existing:', isExisting);
+              if (!isExisting) {
+                console.log('Removing from queue:', id);
+                filesForm.removeFromQueue(id);
+              } else {
+                console.log('Cannot remove existing image');
+              }
+            }}
             onExportMetadata={onExportMetadata}
             onBulkEdit={onBulkEdit}
             onScrollToImage={onScrollToImage}
@@ -142,43 +213,6 @@ export default function ImagesPane({
             eventDetails={eventDetails}
             bandPerformers={bandPerformers}
           />
-
-          {/* Completion status */}
-          {allImagesComplete && (
-            <div className="bg-success/10 border border-success/20 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-success font-medium">✅ Images Ready</p>
-                  <p className="text-muted-foreground text-sm mt-1">
-                    All {images?.length || 0} images have complete metadata and are ready for the next step.
-                  </p>
-                </div>
-                <button
-                  onClick={handleCompleteStep}
-                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  Continue to Categories
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Progress indicator */}
-          {!allImagesComplete && (
-            <div className="bg-info/10 border border-info/20 rounded-lg p-4">
-              <p className="text-info font-medium">📝 Images Progress</p>
-              <p className="text-muted-foreground text-sm mt-1">
-                {completedCount} of {images?.length || 0} images have complete metadata. 
-                Complete all image metadata to proceed to the next step.
-              </p>
-              {(images?.length || 0) - completedCount > 0 && (
-                <p className="text-muted-foreground text-xs mt-2">
-                  Missing metadata for {(images?.length || 0) - completedCount} image(s). 
-                  Each image needs at least a description and author{eventType === 'festival' ? ', and selected band' : ''}.
-                </p>
-              )}
-            </div>
-          )}
         </>
       )}
     </div>
