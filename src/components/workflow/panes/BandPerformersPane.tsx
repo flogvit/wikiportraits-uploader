@@ -85,6 +85,50 @@ export default function BandPerformersPane({
   }, [selectedBand, performers]);
 
 
+  // Get event participants from event details
+  const eventDetails = form.watch('eventDetails');
+  const eventParticipants = eventDetails?.participants || [];
+
+  const handleParticipantSelect = async (participant: any) => {
+    // Store selected participant info
+    form.setValue('workflow.selectedParticipant' as any, participant, { shouldDirty: false });
+
+    // Load images from Commons category
+    if (participant.commonsCategory) {
+      try {
+        const { CommonsClient } = await import('@/lib/api/CommonsClient');
+        const { files } = await CommonsClient.getCategoryFiles(participant.commonsCategory, 500);
+
+        // Convert Commons files to the format expected by the form
+        const existingImages = files.map((file: any, index: number) => ({
+          id: `existing-${file.pageid}`,
+          filename: file.title.replace(/^File:/, ''),
+          commonsPageId: file.pageid,
+          url: file.url,
+          thumbUrl: file.thumburl,
+          preview: file.thumburl || file.url, // For ImagePreview component
+          isExisting: true, // Mark as existing (not new upload)
+          file: undefined, // No File object for existing images
+          metadata: {
+            description: file.extmetadata?.ImageDescription?.value || '',
+            categories: file.extmetadata?.Categories?.value?.split('|') || [],
+            date: file.extmetadata?.DateTime?.value || file.timestamp,
+            author: file.extmetadata?.Artist?.value || file.user,
+            source: 'Wikimedia Commons',
+            license: file.extmetadata?.LicenseShortName?.value || '',
+          }
+        }));
+
+        // Store existing images in the form
+        form.setValue('files.existing' as any, existingImages, { shouldDirty: false });
+
+        console.log(`Loaded ${existingImages.length} existing images for ${participant.name}`);
+      } catch (error) {
+        console.error('Error loading participant images:', error);
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-6">
@@ -94,10 +138,46 @@ export default function BandPerformersPane({
         </p>
       </div>
 
+      {/* Event Participants Selection (if available) */}
+      {eventParticipants.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Event Participants ({eventParticipants.length})
+          </h3>
+          <p className="text-sm text-blue-700 mb-3">
+            Select a participant to work with their existing images, or add a new band below
+          </p>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {eventParticipants.map((participant: any) => (
+              <button
+                key={participant.id}
+                onClick={() => handleParticipantSelect(participant)}
+                className="w-full text-left p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{participant.name}</div>
+                    {participant.commonsCategory && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {participant.commonsCategory}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-sm text-blue-600">Select →</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main Band/Artist Selection */}
       <div>
         <label className="block text-sm font-medium text-card-foreground mb-1">
-          Band/Artist *
+          {eventParticipants.length > 0 ? 'Or Add New Band/Artist' : 'Band/Artist *'}
         </label>
         <p className="text-sm text-muted-foreground mb-3">
           Select the primary band or artist for this upload session

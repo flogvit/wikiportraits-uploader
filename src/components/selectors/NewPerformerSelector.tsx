@@ -34,6 +34,7 @@ export default function NewPerformerSelector({
   const [newArtistIsBandMember, setNewArtistIsBandMember] = useState(false);
   const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
   const [customInstrument, setCustomInstrument] = useState('');
+  const [instrumentSearchTerm, setInstrumentSearchTerm] = useState('');
 
   // Wikidata search state
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -75,7 +76,8 @@ export default function NewPerformerSelector({
     }, 300);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchTerm, searchArtists]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]); // Removed searchArtists - it's from a hook and should be stable
 
   // Filter out already selected performers from search results
   const filteredSearchResults = searchResults.filter(result =>
@@ -174,6 +176,7 @@ export default function NewPerformerSelector({
       setNewArtistInstruments([...newArtistInstruments, item.name]);
     }
     setShowInstrumentDropdown(false);
+    setInstrumentSearchTerm(''); // Clear search when closing
   };
 
   const addCustomInstrument = () => {
@@ -190,26 +193,37 @@ export default function NewPerformerSelector({
   const handleAddArtist = async () => {
     if (!newArtistName.trim()) return;
 
-    const newArtist: PendingWikidataEntity = {
+    // Create WikidataEntity format for the new artist
+    const newArtistEntity = {
       id: `pending-artist-${Date.now()}`,
-      type: 'band_member',
-      status: 'pending',
-      name: newArtistName,
-      new: true,
-      data: {
-        name: newArtistName,
-        legalName: newArtistLegalName || undefined,
+      type: 'item' as const,
+      labels: {
+        en: {
+          language: 'en' as const,
+          value: newArtistName
+        }
+      },
+      descriptions: {
+        en: {
+          language: 'en' as const,
+          value: `musician` // Default description
+        }
+      },
+      claims: {},
+      new: true, // Mark as new for Wikidata creation
+      metadata: {
         instruments: newArtistInstruments,
         nationality: newArtistNationality || undefined,
-        gender: newArtistGender as any || undefined,
+        gender: newArtistGender || undefined,
         birthDate: newArtistBirthDate || undefined,
+        legalName: newArtistLegalName || undefined,
         isBandMember: newArtistIsBandMember,
         bandId: bandId || `pending-band-${bandName}`,
-      } as PendingBandMemberData
+      }
     };
 
     // Add to form - add to entities.people
-    entities.addPerson(newArtist as any);
+    entities.addPerson(newArtistEntity);
 
     // Reset form
     resetForm();
@@ -263,6 +277,12 @@ export default function NewPerformerSelector({
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
                     placeholder="Type artist name to search Wikidata..."
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -351,6 +371,12 @@ export default function NewPerformerSelector({
                 type="text"
                 value={newArtistName}
                 onChange={(e) => setNewArtistName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="e.g., John Doe"
               />
@@ -406,12 +432,37 @@ export default function NewPerformerSelector({
                 </button>
 
                 {showInstrumentDropdown && (
-                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 mt-1 max-h-60 overflow-y-auto">
-                    {/* Instruments section */}
-                    <div className="px-3 py-2 bg-gray-50 border-b text-xs font-medium text-gray-700">
-                      Instruments
+                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 mt-1 max-h-96 overflow-hidden">
+                    {/* Search input */}
+                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white">
+                      <input
+                        type="text"
+                        value={instrumentSearchTerm}
+                        onChange={(e) => setInstrumentSearchTerm(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                        placeholder="Type to search instruments..."
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                        autoFocus
+                      />
                     </div>
-                    {COMMON_INSTRUMENTS.map((instrument) => (
+
+                    <div className="max-h-60 overflow-y-auto">
+                      {/* Instruments section */}
+                      {COMMON_INSTRUMENTS.filter(i =>
+                        i.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+                      ).length > 0 && (
+                        <>
+                          <div className="px-3 py-2 bg-gray-50 border-b text-xs font-medium text-gray-700">
+                            Instruments
+                          </div>
+                          {COMMON_INSTRUMENTS.filter(i =>
+                            i.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+                          ).map((instrument) => (
                       <button
                         key={instrument.id}
                         type="button"
@@ -425,12 +476,20 @@ export default function NewPerformerSelector({
                         <span className="text-gray-500 text-xs ml-2">({instrument.id})</span>
                       </button>
                     ))}
-                    
+                        </>
+                      )}
+
                     {/* Roles section */}
-                    <div className="px-3 py-2 bg-gray-50 border-b text-xs font-medium text-gray-700">
-                      Roles
-                    </div>
-                    {COMMON_ROLES.map((role) => (
+                    {COMMON_ROLES.filter(r =>
+                      r.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+                    ).length > 0 && (
+                      <>
+                        <div className="px-3 py-2 bg-gray-50 border-b text-xs font-medium text-gray-700">
+                          Roles
+                        </div>
+                        {COMMON_ROLES.filter(r =>
+                          r.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())
+                        ).map((role) => (
                       <button
                         key={role.id}
                         type="button"
@@ -444,7 +503,18 @@ export default function NewPerformerSelector({
                         <span className="text-gray-500 text-xs ml-2">({role.id})</span>
                       </button>
                     ))}
-                    
+                        </>
+                      )}
+
+                    {/* No results message */}
+                    {instrumentSearchTerm &&
+                      COMMON_INSTRUMENTS.filter(i => i.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())).length === 0 &&
+                      COMMON_ROLES.filter(r => r.name.toLowerCase().includes(instrumentSearchTerm.toLowerCase())).length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                          No matches found. Use custom input below to add "{instrumentSearchTerm}"
+                        </div>
+                      )}
+
                     {/* Custom instrument input */}
                     <div className="px-3 py-2 border-t border-gray-200">
                       <div className="flex gap-2">
@@ -470,6 +540,7 @@ export default function NewPerformerSelector({
                           <Plus className="w-3 h-3" />
                         </button>
                       </div>
+                    </div>
                     </div>
                   </div>
                 )}

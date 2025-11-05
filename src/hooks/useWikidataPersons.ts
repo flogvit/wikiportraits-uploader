@@ -11,6 +11,7 @@ export const COMMON_INSTRUMENTS = [
   { id: 'Q6607', name: 'guitar' },
   { id: 'Q46185', name: 'bass guitar' },
   { id: 'Q5994', name: 'piano' },
+  { id: 'Q52954', name: 'keyboard' },
   { id: 'Q11404', name: 'drums' },
   { id: 'Q17172850', name: 'vocals' },
   { id: 'Q8355', name: 'violin' },

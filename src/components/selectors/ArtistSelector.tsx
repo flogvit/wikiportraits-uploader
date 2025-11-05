@@ -41,11 +41,23 @@ export default function ArtistSelector({
   returnType = 'MusicArtist',
   onWikidataEntitySelect
 }: ArtistSelectorProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQueryState] = useState('');
   const [searchResults, setSearchResults] = useState<UnifiedArtistResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchingRef = useRef(false); // Use ref to prevent concurrent searches
+
+  // Wrapped setter with logging
+  const setSearchQuery = (value: string) => {
+    console.log('🔍 setSearchQuery called with:', value, 'Stack:', new Error().stack?.split('\n')[2]);
+    setSearchQueryState(value);
+  };
+
+  // Debug: log when searchQuery changes
+  useEffect(() => {
+    console.log('🔍 searchQuery state changed to:', searchQuery);
+  }, [searchQuery]);
 
 
   // Handle clicking outside to close dropdown
@@ -63,6 +75,13 @@ export default function ArtistSelector({
   }, [showResults]);
 
   const searchArtists = useCallback(async (query: string) => {
+    // Prevent concurrent searches using ref
+    if (searchingRef.current) {
+      console.log('Already searching, skipping...');
+      return;
+    }
+
+    searchingRef.current = true;
     setIsSearching(true);
     try {
       // Search for entities using the working wikidata utility
@@ -147,19 +166,24 @@ export default function ArtistSelector({
       }
     } finally {
       setIsSearching(false);
+      searchingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
+    console.log('🔍 Search effect triggered. Query:', searchQuery, 'SelectedArtist:', selectedArtist?.name);
+
     const delayedSearch = setTimeout(() => {
       // Don't search if we have a selected artist and the query matches the artist name
       if (selectedArtist?.name && searchQuery === selectedArtist.name) {
+        console.log('Skipping search - matches selected artist');
         setSearchResults([]);
         setShowResults(false);
         return;
       }
-      
+
       if (searchQuery.length >= 2) {
+        console.log('Starting search for:', searchQuery);
         searchArtists(searchQuery);
       } else {
         setSearchResults([]);
@@ -168,7 +192,8 @@ export default function ArtistSelector({
     }, 300);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchQuery, searchArtists, selectedArtist]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, selectedArtist?.name]); // Removed searchArtists from deps since it's stable
 
   const handleResultSelect = async (result: UnifiedArtistResult) => {
     if (returnType === 'WikidataEntity' && onWikidataEntitySelect) {

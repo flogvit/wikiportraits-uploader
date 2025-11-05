@@ -15,7 +15,7 @@ export default function CommonsPreview({ image, index, musicEventData }: Commons
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const wikitext = image.metadata.wikitext || generateCommonsWikitext(image);
+  const wikitext = image.metadata?.wikitext || generateCommonsWikitext(image);
   const suggestedFilename = generateFilename(image, index, musicEventData);
 
   const copyToClipboard = async () => {

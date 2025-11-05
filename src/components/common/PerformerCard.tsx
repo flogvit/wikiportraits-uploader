@@ -110,12 +110,17 @@ export default function PerformerCard({
         ) : (
           <User className={`w-4 h-4 mb-1 ${selected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`} />
         )}
-        <div className="font-medium text-center leading-tight truncate w-full" title={performer.name}>
-          {performer.name}
+        <div className="font-medium text-center leading-tight truncate w-full" title={performer.name || 'Unknown'}>
+          {performer.name || 'Unknown'}
         </div>
         {performer.instruments && performer.instruments.length > 0 && (
-          <div className={`text-xs mt-1 text-center truncate w-full ${selected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}`} title={performer.instruments.join(', ')}>
-            {performer.instruments.join(', ')}
+          <div className={`text-[10px] mt-0.5 text-center truncate w-full font-medium ${selected ? 'text-purple-700 dark:text-purple-300' : 'text-gray-600'}`} title={performer.instruments.join(', ')}>
+            🎵 {performer.instruments.join(', ')}
+          </div>
+        )}
+        {(!performer.instruments || performer.instruments.length === 0) && performer.role && (
+          <div className={`text-[10px] mt-0.5 text-center truncate w-full ${selected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500'}`}>
+            {performer.role}
           </div>
         )}
       </button>

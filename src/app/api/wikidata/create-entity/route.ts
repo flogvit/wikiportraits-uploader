@@ -1,28 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
 import { PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
 import { createWikidataEntity, getUserPermissions } from '@/utils/wikidata';
 
 export async function POST(request: NextRequest) {
   try {
-    const { entity, accessToken } = await request.json();
-    
-    if (!entity || !accessToken) {
-      return NextResponse.json({ error: 'Entity and access token are required' }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    if (!session?.accessToken) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    // Validate the entity
-    const validatedEntity = validateEntity(entity);
+    const body = await request.json();
+    console.log('Received body:', JSON.stringify(body, null, 2));
+    const { entity, entityData, accessToken } = body;
+
+    // Support both old format (entity + accessToken) and new format (entityData only)
+    const finalEntity = entity || entityData;
+    const finalAccessToken = accessToken || session.accessToken;
+
+    console.log('finalEntity:', finalEntity);
+    console.log('Has entity:', !!entity, 'Has entityData:', !!entityData);
+
+    if (!finalEntity) {
+      return NextResponse.json({ error: 'Entity data is required' }, { status: 400 });
+    }
+
+    // If using new format (entityData), call createWikidataEntity directly
+    if (entityData && !entity) {
+      console.log('Creating entity with entityData:', JSON.stringify(entityData, null, 2));
+      const result = await createWikidataEntity(entityData, finalAccessToken as string);
+
+      if (result.error) {
+        console.error('Wikidata creation error:', result.error);
+        throw new Error(`Wikidata API error: ${result.error.info || result.error.code}`);
+      }
+
+      if (!result.entity) {
+        throw new Error('Failed to create Wikidata entity');
+      }
+
+      return NextResponse.json({
+        success: true,
+        entityId: result.entity.id,
+        entity: result.entity,
+        message: 'Wikidata entity created successfully'
+      });
+    }
+
+    // Old format validation
+    const validatedEntity = validateEntity(finalEntity);
     if (!validatedEntity.valid) {
       return NextResponse.json({ error: validatedEntity.error }, { status: 400 });
     }
 
-    // Create the entity in Wikidata
-    const result = await createWikidataEntity(entity, accessToken);
-    
+    console.log('Creating entity with old format:', JSON.stringify(finalEntity, null, 2));
+
+    // Create the entity in Wikidata using the old path (createBandMemberEntity)
+    const result = await createWikidataEntityRequest(finalEntity, finalAccessToken as string);
+
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error creating Wikidata entity:', error);
-    return NextResponse.json({ error: 'Failed to create entity' }, { status: 500 });
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Failed to create entity'
+    }, { status: 500 });
   }
 }
 
@@ -59,7 +101,7 @@ async function createWikidataEntityRequest(entity: PendingWikidataEntity, access
     console.log('User permissions:', permissions);
     
     // Create the entity using utility
-    const result = await createWikidataEntityRequest(entityData, accessToken);
+    const result = await createWikidataEntity(entityData, accessToken);
     console.log('Wikidata API response:', result);
     
     if (result.success && result.entity) {
@@ -151,9 +193,11 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
             value: { 'entity-type': 'item', id: 'Q5' },
             type: 'wikibase-entityid'
           }
-        }
+        },
+        type: 'statement',
+        rank: 'normal'
       }],
-      
+
       // P21: sex or gender - MANDATORY per WikiPortraits
       P21: [{
         mainsnak: {
@@ -163,9 +207,11 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
             value: { 'entity-type': 'item', id: getGenderId(memberData.gender) },
             type: 'wikibase-entityid'
           }
-        }
+        },
+        type: 'statement',
+        rank: 'normal'
       }],
-      
+
       // P106: occupation - Q639669 (musician) - MANDATORY
       P106: [{
         mainsnak: {
@@ -175,7 +221,9 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
             value: { 'entity-type': 'item', id: 'Q639669' },
             type: 'wikibase-entityid'
           }
-        }
+        },
+        type: 'statement',
+        rank: 'normal'
       }],
       
       // P1303: instrument (if specified)
@@ -188,10 +236,12 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
               value: { 'entity-type': 'item', id: getInstrumentId(instrument) },
               type: 'wikibase-entityid'
             }
-          }
+          },
+          type: 'statement',
+          rank: 'normal'
         }))
       } : {}),
-      
+
       // P463: member of (band membership)
       ...(memberData.bandId && !memberData.bandId.startsWith('pending-') ? {
         P463: [{
@@ -202,7 +252,9 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
               value: { 'entity-type': 'item', id: memberData.bandId },
               type: 'wikibase-entityid'
             }
-          }
+          },
+          type: 'statement',
+          rank: 'normal'
         }]
       } : {}),
       
@@ -218,7 +270,9 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
               value: { 'entity-type': 'item', id: getCountryId(memberData.nationality) },
               type: 'wikibase-entityid'
             }
-          }
+          },
+          type: 'statement',
+          rank: 'normal'
         }]
       } : {}),
       
@@ -239,7 +293,9 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
               },
               type: 'time'
             }
-          }
+          },
+          type: 'statement',
+          rank: 'normal'
         }]
       } : {}),
       

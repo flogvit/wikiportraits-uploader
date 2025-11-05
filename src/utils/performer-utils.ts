@@ -4,7 +4,41 @@ import { BandMember } from '@/types/music';
 /**
  * Converts a PendingWikidataEntity to a BandMember object for use with PerformerCard
  */
-export function flattenPerformer(performer: PendingWikidataEntity): BandMember {
+export function flattenPerformer(performer: any): BandMember {
+  // Handle WikidataEntity format (from entities.people)
+  if (performer.labels) {
+    // Extract instruments from P1303 claims
+    const instrumentClaims = performer.claims?.P1303 || [];
+    const instruments = instrumentClaims.map((claim: any) => {
+      const instrumentId = claim.mainsnak?.datavalue?.value?.id;
+      // Return the ID for now (it's the instrument name like "guitar", "singing", etc.)
+      return instrumentId || '';
+    }).filter(Boolean);
+
+    console.log('🎸 Flattening WikidataEntity:', {
+      id: performer.id,
+      name: performer.labels?.en?.value,
+      P1303Claims: instrumentClaims.length,
+      extractedInstruments: instruments
+    });
+
+    return {
+      id: performer.id,
+      name: performer.labels?.en?.value || performer.labels?.['en']?.value || 'Unknown',
+      instruments: instruments.length > 0 ? instruments : (performer.metadata?.instruments || []),
+      nationality: performer.metadata?.nationality,
+      role: performer.metadata?.role,
+      wikidataUrl: performer.metadata?.wikidataUrl || (performer.id?.startsWith('Q') ? `https://www.wikidata.org/wiki/${performer.id}` : undefined),
+      wikipediaUrl: performer.metadata?.wikipediaUrl,
+      imageUrl: performer.metadata?.imageUrl,
+      birthDate: performer.metadata?.birthDate,
+      type: performer.metadata?.isBandMember ? 'band_member' : 'additional_artist',
+      new: performer.new,
+      bandQID: performer.metadata?.bandId,
+    };
+  }
+
+  // Handle old PendingWikidataEntity format
   const memberData = performer.data as PendingBandMemberData;
   return {
     id: performer.id,

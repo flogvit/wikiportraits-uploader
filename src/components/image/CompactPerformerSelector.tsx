@@ -23,12 +23,12 @@ export default function CompactPerformerSelector({
   onMembersChange,
 }: CompactPerformerSelectorProps) {
   const [selectedMembers, setSelectedMembers] = useState<string[]>(
-    image.metadata.selectedBandMembers || []
+    image.metadata?.selectedBandMembers || []
   );
 
   useEffect(() => {
-    setSelectedMembers(image.metadata.selectedBandMembers || []);
-  }, [image.metadata.selectedBandMembers]);
+    setSelectedMembers(image.metadata?.selectedBandMembers || []);
+  }, [image.metadata?.selectedBandMembers]);
 
   // Get available band members from form data
   const availableMembers: Array<{ member: BandMember, variant: 'band' | 'additional' | 'new' }> = useMemo(() => {
@@ -64,9 +64,18 @@ export default function CompactPerformerSelector({
     const newSelected = selectedMembers.includes(memberId)
       ? selectedMembers.filter(id => id !== memberId)
       : [...selectedMembers, memberId];
-    
+
+    console.log('🎭 toggleMember called:', {
+      memberId,
+      oldSelected: selectedMembers,
+      newSelected,
+      imageId: image.id
+    });
+
     setSelectedMembers(newSelected);
     onMembersChange(image.id, newSelected);
+
+    console.log('🎭 onMembersChange called with:', image.id, newSelected);
   };
 
   // Always show the component for debugging, even if no members available

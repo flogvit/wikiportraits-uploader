@@ -13,11 +13,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { templateName, templateCode } = await request.json();
+    const { templateName, content, summary, templateCode } = await request.json();
 
-    if (!templateName || !templateCode) {
+    // Support both 'content' (new) and 'templateCode' (old) parameter names
+    const templateContent = content || templateCode;
+
+    if (!templateName || !templateContent) {
       return NextResponse.json(
-        { error: 'Template name and code are required' },
+        { error: 'Template name and content are required' },
         { status: 400 }
       );
     }
@@ -48,8 +51,8 @@ export async function POST(request: NextRequest) {
       body: new URLSearchParams({
         action: 'edit',
         title: `Template:${templateName}`,
-        text: templateCode,
-        summary: `Created WikiPortraits template for ${templateName}`,
+        text: templateContent,
+        summary: summary || `Created WikiPortraits template for ${templateName}`,
         createonly: '1', // Only create, don't overwrite existing
         format: 'json',
         token: csrfToken,

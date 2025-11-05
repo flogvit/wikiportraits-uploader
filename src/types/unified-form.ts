@@ -44,6 +44,18 @@ export interface UniversalFormData {
     festival?: WikidataEntity;     // Parent festival if applicable
     setlistUrl?: string;           // External setlist link
     recordingType?: 'live' | 'studio' | 'rehearsal';
+    participants?: Array<{         // Event participants (bands, artists, contestants)
+      id: string;
+      name: string;
+      wikidataId?: string;
+      wikidataUrl?: string;
+      commonsCategory?: string;
+      role?: string;
+    }>;
+    commonsCategory?: string;      // Main Commons category for the event
+    wikidataId?: string;           // Wikidata ID for the event (legacy, use eventWikidataId)
+    eventWikidataId?: string;      // Wikidata ID for the event entity
+    categoryExists?: boolean;      // Whether the category already exists on Commons
     
     // Soccer matches
     homeTeam?: WikidataEntity;     // Home team
@@ -124,6 +136,22 @@ export interface UniversalFormData {
   
   // Files and media
   files: {
+    existing?: Array<{               // Existing images from Commons (for metadata editing)
+      id: string;
+      filename: string;
+      commonsPageId: number;
+      url: string;
+      thumbUrl?: string;
+      isExisting: boolean;           // Always true for existing images
+      metadata: {
+        description?: string;
+        categories?: string[];
+        date?: string;
+        author?: string;
+        source?: string;
+        license?: string;
+      };
+    }>;
     queue: Array<{
       file: File;
       id: string;                    // Unique identifier
@@ -168,7 +196,17 @@ export interface UniversalFormData {
     publishedAt?: Date;
     publishedBy?: string;
   };
-  
+
+  // Workflow state (tracks current selection/context)
+  workflow?: {
+    selectedParticipant?: {
+      id: string;
+      name: string;
+      wikidataId?: string;
+      commonsCategory?: string;
+    };
+  };
+
   // UI state (pane-specific, not shared)
   ui?: {
     currentStep?: number;
