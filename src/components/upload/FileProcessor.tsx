@@ -7,6 +7,7 @@ import { UploadType } from '@/types/upload';
 import { MusicEventMetadata } from '@/types/music';
 import { generateEventDescription } from '@/utils/music-categories';
 import { generateAuthorField, getCurrentPhotographerQid } from '@/utils/photographer';
+import { checkImageMetadata } from '@/utils/exif-checker';
 
 interface FileProcessorProps {
   uploadType: UploadType;
@@ -21,6 +22,9 @@ export class FileProcessor {
 
   async createImageFiles(files: File[]): Promise<ImageFile[]> {
     return Promise.all(files.map(async file => {
+      // Check for metadata stripping
+      const metadataCheck = await checkImageMetadata(file);
+
       // Extract EXIF data to get actual capture date and time
       const exifData = await extractExifData(file);
       const hasExifDate = Boolean(exifData?.dateTime);
@@ -41,7 +45,20 @@ export class FileProcessor {
 
       // Get author info from authenticated user's Q-ID
       const wikidataQid = getCurrentPhotographerQid();
-      const formattedAuthor = generateAuthorField(wikidataQid);
+
+      // Fetch photographer name from Wikidata
+      let photographerName = undefined;
+      if (wikidataQid) {
+        try {
+          const { getWikidataEntity } = await import('@/utils/wikidata');
+          const photographerEntity = await getWikidataEntity(wikidataQid, 'en', 'labels');
+          photographerName = photographerEntity.labels?.en?.value;
+        } catch (error) {
+          console.error('Error fetching photographer name:', error);
+        }
+      }
+
+      const formattedAuthor = generateAuthorField(wikidataQid, photographerName);
 
       // Initial metadata based on upload type
       let initialMetadata = {
@@ -53,11 +70,13 @@ export class FileProcessor {
         dateFromExif: hasExifDate,
         source: 'own work',
         license: 'CC-BY-SA-4.0',
-        categories: [] as string[],
+        categories: [] as string[], // Will be populated below
         wikiPortraitsEvent: 'music',
         wikitext: '',
         wikitextModified: false,
         template: '',
+        metadataWarnings: metadataCheck.warnings,
+        metadataStripped: metadataCheck.isStripped,
         templateModified: false,
         gps: gpsData,
       };
