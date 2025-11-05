@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Controller } from 'react-hook-form';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
-import { FolderPlus, Check, AlertCircle, Eye, Plus, X } from 'lucide-react';
-import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
+import { FolderPlus, Check, AlertCircle, Eye, Plus, X, ExternalLink, RefreshCw } from 'lucide-react';
+import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate, detectBandCategories } from '@/utils/music-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';
+import { getAllBandCategoryStructures, flattenBandCategories } from '@/utils/band-categories';
 import CategoryCreationModal from '@/components/modals/CategoryCreationModal';
+import { CommonsClient } from '@/lib/api/CommonsClient';
+import { lookupCache, CacheType } from '@/utils/lookup-cache';
 
 
 interface CategoryCreationInfo {
@@ -27,6 +30,10 @@ export default function CategoriesPane({
 }: CategoriesPaneProps) {
   const [categoriesToCreate, setCategoriesToCreate] = useState<CategoryCreationInfo[]>([]);
   const [showCreationModal, setShowCreationModal] = useState(false);
+  const [existingCategories, setExistingCategories] = useState<Set<string>>(new Set());
+  const [loadingCategoryTree, setLoadingCategoryTree] = useState(false);
+  const [showAllExisting, setShowAllExisting] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Used to trigger manual refresh
 
   const { control, watch, setValue } = useUniversalForm();
 
@@ -35,6 +42,31 @@ export default function CategoriesPane({
   const uploadType = workflowType === 'music-event' ? 'music' : 'general';
   const images = watch('files.queue') || [];
   const eventDetails = watch('eventDetails');
+  const organizations = watch('entities.organizations') || [];
+
+  // Get the main band - organizations is an array of WikidataEntity objects
+  const selectedBand = organizations.length > 0 ? organizations[0] : null;
+
+  // Try multiple paths to get the band name
+  const selectedBandName = selectedBand?.entity?.labels?.en?.value ||
+                          selectedBand?.labels?.en?.value ||
+                          selectedBand?.labels?.en ||
+                          selectedBand?.entity?.labels?.en ||
+                          null;
+
+  console.log('🎸 CategoriesPane - Band info:', {
+    organizationsCount: organizations.length,
+    selectedBand,
+    selectedBandName,
+    firstOrgStructure: organizations[0] ? {
+      hasEntity: !!organizations[0].entity,
+      hasLabels: !!organizations[0].labels,
+      entityLabels: organizations[0].entity?.labels,
+      directLabels: organizations[0].labels,
+      fullOrg: organizations[0]
+    } : null
+  });
+
   const musicEventData = eventDetails;
   
   const watchedData = watch('computed.categories') || {};
@@ -42,11 +74,62 @@ export default function CategoriesPane({
   const createdCategories = new Set([]);  // Will be managed differently
   const newCategoryInput = '';
 
+  // Load existing category tree from Commons
+  useEffect(() => {
+    const loadCategoryTree = async () => {
+      if (!eventDetails?.title || allCategories.length === 0) {
+        // Reset checked flag if no categories
+        setValue('computed.categories.checked' as any, false);
+        return;
+      }
+
+      setLoadingCategoryTree(true);
+      // Mark as not checked while loading
+      setValue('computed.categories.checked' as any, false);
+      const existing = new Set<string>();
+
+      try {
+        // 1. WikiPortraits always exists
+        existing.add('WikiPortraits');
+
+        // 2. Check all categories in our list to see which exist
+        // This is more accurate than trying to guess which to check
+        const categoriesToCheck = [...allCategories];
+
+        // Batch check categories for better performance
+        const checkPromises = categoriesToCheck.map(async (categoryName) => {
+          try {
+            const exists = await CommonsClient.categoryExists(categoryName);
+            if (exists) {
+              existing.add(categoryName);
+            }
+          } catch (error) {
+            console.error(`Error checking category "${categoryName}":`, error);
+          }
+        });
+
+        await Promise.all(checkPromises);
+
+        setExistingCategories(existing);
+        // Mark as checked once verification is complete
+        setValue('computed.categories.checked' as any, true);
+      } catch (error) {
+        console.error('Error loading category tree:', error);
+        setValue('computed.categories.checked' as any, false);
+      } finally {
+        setLoadingCategoryTree(false);
+      }
+    };
+
+    loadCategoryTree();
+  }, [eventDetails?.commonsCategory, eventDetails?.title, allCategories, refreshKey, setValue]); // Changed to allCategories (full array) to detect any changes
+
   // Generate categories based on upload type and data
   useEffect(() => {
-    // Get categories from images if they exist
-    let imageCategories: string[] = [];
-    if (images && images.length > 0) {
+    const generateCategories = async () => {
+      // Get categories from images if they exist
+      let imageCategories: string[] = [];
+      if (images && images.length > 0) {
       // Convert form image metadata back to ImageFile format for the utility function
       const imageFiles = images.map((imgData: any, index: number) => ({
         id: `image-${index}`,
@@ -71,9 +154,23 @@ export default function CategoriesPane({
     }
     
     // Get event-specific categories (works without images)
+    // Include band-specific categories if a band is selected
     let eventCategories: string[] = [];
     if (uploadType === 'music' && musicEventData) {
+      const year = musicEventData.date ? new Date(musicEventData.date).getFullYear().toString() : '';
+      const eventName = musicEventData.commonsCategory || (year ? `${musicEventData.title} ${year}` : musicEventData.title);
+
+      // Generate base event categories
       eventCategories = generateMusicCategories(musicEventData as any);
+
+      // Add band-at-event category if band is selected
+      if (selectedBandName && eventName) {
+        const bandCategory = `${selectedBandName} at ${eventName}`;
+        eventCategories.push(bandCategory);
+        console.log('📁 Adding band category:', bandCategory);
+      } else {
+        console.log('📁 NOT adding band category - missing:', { selectedBandName, eventName });
+      }
     }
     
     // Combine all categories and remove duplicates
@@ -84,19 +181,47 @@ export default function CategoriesPane({
     if (uploadType === 'music' && musicEventData) {
       toCreate = getMusicCategoriesToCreate(musicEventData as any);
     }
-    
+
+    // Generate proper band category structures with hierarchy
+    const year = musicEventData?.date ? new Date(musicEventData.date).getFullYear().toString() : '';
+    const eventName = musicEventData?.commonsCategory ||
+                     (year ? `${musicEventData.title} ${year}` : musicEventData?.title);
+
+    if (eventName && year && selectedBandName) {
+      // Generate complete band category structure
+      const bandStructures = await getAllBandCategoryStructures(
+        [{ name: selectedBandName, qid: selectedBand?.id || '' }],
+        year,
+        eventName
+      );
+
+      const bandCategories = flattenBandCategories(bandStructures);
+      console.log('📁 Generated band category structure:', bandStructures);
+
+      // Add all band categories to the list
+      toCreate = [...toCreate, ...bandCategories];
+
+      // Add band categories to the combined list so they appear in UI
+      bandCategories.forEach(cat => combinedCategories.add(cat.categoryName));
+    }
+
     // Add categories that need creation to the unified list
     toCreate.forEach((cat: CategoryCreationInfo) => combinedCategories.add(cat.categoryName));
-    
-    setValue('computed.categories.all' as any, Array.from(combinedCategories).sort());
-    setCategoriesToCreate(toCreate);
-  }, [uploadType, musicEventData, images, setValue]);
+
+      setValue('computed.categories.all' as any, Array.from(combinedCategories).sort());
+      setCategoriesToCreate(toCreate);
+    };
+
+    generateCategories();
+  }, [uploadType, musicEventData, images, organizations, selectedBandName, selectedBand, setValue]);
 
 
   const handleAddCategory = () => {
     const trimmedInput = newCategoryInput.trim();
     if (trimmedInput && !allCategories.includes(trimmedInput)) {
       setValue('computed.categories.all' as any, [...allCategories, trimmedInput].sort());
+      // Invalidate cache for the new category so it gets checked fresh
+      lookupCache.invalidate(CacheType.COMMONS_CATEGORY_EXISTS, `Category:${trimmedInput}`);
       // setValue('categories.newCategoryName', ''); // Not needed for this structure
     }
   };
@@ -106,12 +231,19 @@ export default function CategoriesPane({
   };
 
   const getCategoryStatus = (categoryName: string): 'created' | 'needs_creation' | 'unknown' => {
+    // Check if it exists on Commons
+    if (existingCategories.has(categoryName)) {
+      return 'unknown'; // Shows as "Ready" (existing category)
+    }
+
     if (createdCategories.has(categoryName)) {
       return 'created';
     }
+
     const categoryToCreate = categoriesToCreate.find((cat: CategoryCreationInfo) => cat.categoryName === categoryName);
     if (categoryToCreate) {
-      return 'needs_creation';
+      // Only mark as needs_creation if shouldCreate is true AND it doesn't exist
+      return categoryToCreate.shouldCreate ? 'needs_creation' : 'unknown';
     }
     return 'unknown';
   };
@@ -123,13 +255,18 @@ export default function CategoriesPane({
   // Check if all prerequisites are met
   const hasValidData = () => {
     if (uploadType === 'music') {
-      return musicEventData?.title && 
-             (musicEventData.festival || musicEventData.mainBand);
+      // Check for unified format (title + date/year) OR legacy format (festival/mainBand)
+      const hasUnifiedFormat = musicEventData?.title && musicEventData?.date;
+      const hasLegacyFormat = musicEventData?.festival || musicEventData?.mainBand;
+      return hasUnifiedFormat || hasLegacyFormat;
     }
     return true; // Allow general uploads to proceed
   };
 
-  const pendingCategories = categoriesToCreate.filter(cat => !createdCategories.has(cat.categoryName));
+  // Filter categories that need creation: shouldCreate=true AND not in existingCategories
+  const pendingCategories = categoriesToCreate.filter(cat =>
+    cat.shouldCreate && !existingCategories.has(cat.categoryName)
+  );
   const allCategoriesCreated = categoriesToCreate.length > 0 && pendingCategories.length === 0;
 
 
@@ -172,12 +309,107 @@ export default function CategoriesPane({
         </p>
       </div>
 
+      {/* Existing Category Tree from Commons */}
+      {loadingCategoryTree && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">Loading existing category tree from Commons...</p>
+        </div>
+      )}
+
+      {!loadingCategoryTree && existingCategories.size > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-start gap-2 mb-2">
+            <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-green-800">
+                Found {existingCategories.size} existing {existingCategories.size === 1 ? 'category' : 'categories'} on Commons
+              </p>
+              <p className="text-xs text-green-700 mt-1">
+                These categories already exist and will be used for your upload
+              </p>
+            </div>
+          </div>
+
+          {/* WikiPortraits categories - show separately */}
+          {(() => {
+            const wikiPortraitsCategories = Array.from(existingCategories).filter(cat =>
+              cat.toLowerCase().includes('wikiportraits')
+            );
+            const otherCategories = Array.from(existingCategories).filter(cat =>
+              !cat.toLowerCase().includes('wikiportraits')
+            );
+
+            return (
+              <>
+                {wikiPortraitsCategories.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-green-800 mb-1">WikiPortraits Categories:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {wikiPortraitsCategories.map((cat) => (
+                        <a
+                          key={cat}
+                          href={`https://commons.wikimedia.org/wiki/Category:${encodeURIComponent(cat)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-green-300 rounded text-xs text-green-800 hover:bg-green-100"
+                        >
+                          {cat}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {otherCategories.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-green-800 mb-1">Event Categories ({otherCategories.length}):</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(showAllExisting ? otherCategories : otherCategories.slice(0, 8)).map((cat) => (
+                        <a
+                          key={cat}
+                          href={`https://commons.wikimedia.org/wiki/Category:${encodeURIComponent(cat)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-green-300 rounded text-xs text-green-800 hover:bg-green-100"
+                        >
+                          {cat}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ))}
+                      {otherCategories.length > 8 && (
+                        <button
+                          onClick={() => setShowAllExisting(!showAllExisting)}
+                          className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded hover:bg-green-200 transition-colors"
+                        >
+                          {showAllExisting ? '− Show less' : `+ ${otherCategories.length - 8} more`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Categories */}
       <div className="bg-card rounded-lg border border-border p-6">
-        <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center">
-          <FolderPlus className="w-5 h-5 mr-2" />
-          Categories ({allCategories.length})
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-card-foreground flex items-center">
+            <FolderPlus className="w-5 h-5 mr-2" />
+            Categories ({allCategories.length})
+          </h3>
+          <button
+            onClick={() => setRefreshKey(prev => prev + 1)}
+            disabled={loadingCategoryTree}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loadingCategoryTree ? 'animate-spin' : ''}`} />
+            Refresh Status
+          </button>
+        </div>
         
         {/* Add new category input */}
         <div className="flex space-x-2 mb-4">
@@ -231,11 +463,29 @@ export default function CategoriesPane({
                       )}
                       {category}
                     </div>
-                    {/* Show description if available */}
+                    {/* Show parent category and description if available */}
                     {(() => {
                       const categoryToCreate = categoriesToCreate.find(cat => cat.categoryName === category);
-                      return categoryToCreate?.description && (
-                        <p className="text-sm text-muted-foreground mt-1">{categoryToCreate.description}</p>
+                      const categoryIsNew = status === 'needs_creation';
+                      const categoryAlreadyExists = existingCategories.has(category);
+
+                      return (
+                        <>
+                          {categoryToCreate?.parentCategory && (
+                            <p className="text-xs text-blue-600 mt-1">
+                              {categoryIsNew ? (
+                                <>→ Will be added to: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                              ) : categoryAlreadyExists ? (
+                                <>→ Already in: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                              ) : (
+                                <>→ Parent: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                              )}
+                            </p>
+                          )}
+                          {categoryToCreate?.description && (
+                            <p className="text-sm text-muted-foreground mt-1">{categoryToCreate.description}</p>
+                          )}
+                        </>
                       );
                     })()}
                   </div>
@@ -264,50 +514,17 @@ export default function CategoriesPane({
           <p className="text-muted-foreground text-sm">No categories found yet.</p>
         )}
 
-        {/* Create categories button */}
+        {/* Info about publish pane */}
         {pendingCategories.length > 0 && (
           <div className="mt-4 pt-4 border-t border-border">
-            <button
-              onClick={() => setShowCreationModal(true)}
-              className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Create Missing Categories ({pendingCategories.length})
-            </button>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                💡 <strong>{pendingCategories.length} {pendingCategories.length === 1 ? 'category needs' : 'categories need'} creation.</strong> Go to the <strong>Publish</strong> pane to create them.
+              </p>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Completion status */}
-      {allCategoriesCreated && (
-        <div className="bg-success/10 border border-success/20 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-success font-medium">✅ Categories Ready</p>
-              <p className="text-muted-foreground text-sm mt-1">
-                All required categories have been created and are ready for use.
-              </p>
-            </div>
-            <button
-              onClick={handleCompleteStep}
-              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Continue to Wikidata
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Category Creation Modal */}
-      <CategoryCreationModal
-        isOpen={showCreationModal}
-        onClose={() => setShowCreationModal(false)}
-        categories={pendingCategories}
-        onCreateCategories={async (categories) => {
-          // Handle category creation
-          console.log('Creating categories:', categories);
-          setShowCreationModal(false);
-        }}
-      />
     </div>
   );
 }

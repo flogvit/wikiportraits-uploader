@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Database, User, Users, Edit3, Trash2, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Database, User, Users, Edit3, Trash2, CheckCircle, AlertCircle, ExternalLink, Calendar } from 'lucide-react';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { PendingWikidataEntity, PendingBandMemberData, PendingBandData } from '@/types/music';
+import { getWikidataEntitiesToCreate, WikidataEntityCreationInfo } from '@/utils/wikidata-entities';
+import { lookupCache, CacheType } from '@/utils/lookup-cache';
 
 interface WikidataPaneProps {
   onComplete?: () => void;
@@ -14,7 +16,249 @@ export default function WikidataPane({
 }: WikidataPaneProps) {
   const form = useUniversalForm();
   const { people, organizations, removePerson, removeOrganization } = useUniversalFormEntities();
-  
+  const [wikidataEntitiesToCreate, setWikidataEntitiesToCreate] = useState<WikidataEntityCreationInfo[]>([]);
+  const [loadingEntities, setLoadingEntities] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const eventDetails = form.watch('eventDetails');
+
+  // Check what Wikidata entities need to be created
+  useEffect(() => {
+    console.log('🔄 WikidataPane useEffect triggered - refreshKey:', refreshKey);
+
+    const checkEntities = async () => {
+      if (!eventDetails?.title && people.length === 0 && organizations.length === 0) {
+        console.log('⏭️ Skipping entity check - no data');
+        // Reset if no data
+        form.setValue('computed.wikidata.checked', false);
+        form.setValue('computed.wikidata.entityCount', 0);
+        return;
+      }
+
+      console.log('🔍 Starting entity check...');
+      setLoadingEntities(true);
+      // Mark as not checked while loading
+      form.setValue('computed.wikidata.checked', false);
+
+      try {
+        const entities = [];
+
+        console.log('🎸 WikidataPane - Checking organizations:', {
+          count: organizations.length,
+          organizations: organizations.map((o: any) => ({
+            hasEntity: !!o.entity,
+            entityId: o.id,
+            directId: o.id,
+            labels: o.labels,
+            fullOrg: o
+          }))
+        });
+
+        // Check if existing bands need P373 (Commons category) added
+        for (const org of organizations) {
+          console.log('🎸 Checking org:', org.id, 'has claims:', !!org.claims);
+
+          // Organizations are WikidataEntity objects directly, not wrapped in .entity
+          if (org.id && !org.id.startsWith('pending-')) {
+            const bandName = org.labels?.en?.value;
+
+            // Check if band has P373 (Commons category) - org already has claims
+            const hasCommonsCategory = org.claims?.P373?.length > 0;
+
+            console.log('🎸 Band check:', {
+              id: org.id,
+              bandName,
+              hasCommonsCategory,
+              claimsKeys: Object.keys(org.claims || {})
+            });
+
+            if (bandName) {
+              // Always add band to show in UI (even if P373 exists)
+              const missingClaims = [];
+
+              if (!hasCommonsCategory) {
+                // Check if disambiguation is needed for the main category
+                const { checkNeedsDisambiguation } = await import('@/utils/band-categories');
+                const disambigCheck = await checkNeedsDisambiguation(bandName, org.id);
+                const mainCategoryName = disambigCheck.suggestedName;
+
+                missingClaims.push({
+                  property: 'P373',
+                  value: mainCategoryName,
+                  description: `Commons category: ${mainCategoryName}${disambigCheck.needsDisambiguation ? ' (disambiguated)' : ''}`
+                });
+
+                console.log('✅ Band needs P373:', mainCategoryName, disambigCheck);
+              } else {
+                console.log('✅ Band already has P373');
+              }
+
+              // Add to entities list
+              entities.push({
+                entityName: bandName,
+                entityType: 'band',
+                shouldCreate: false,
+                exists: true,
+                wikidataId: org.id,
+                wikidataUrl: `https://www.wikidata.org/wiki/${org.id}`,
+                description: 'musical group',
+                instanceOf: [],
+                claims: {},
+                missingClaims
+              });
+            }
+          }
+        }
+
+        // Get event-related entities if we have event details
+        if (eventDetails?.title) {
+          const eventEntities = await getWikidataEntitiesToCreate(eventDetails);
+          entities.push(...eventEntities);
+
+          // Check if event editions need P710 (participant) for bands
+          const eventEdition = eventEntities.find(e => e.entityType === 'festival-edition' && e.exists);
+          if (eventEdition?.wikidataId && organizations.length > 0) {
+            // Check which bands are not yet listed as participants
+            const { getWikidataEntity } = await import('@/utils/wikidata');
+            const editionEntity = await getWikidataEntity(eventEdition.wikidataId, 'en', 'claims');
+            const existingParticipants = editionEntity.claims?.P710?.map((claim: any) =>
+              claim.mainsnak?.datavalue?.value?.id
+            ) || [];
+
+            // Check each band
+            for (const org of organizations) {
+              if (org.id && !org.id.startsWith('pending-')) {
+                const bandAlreadyLinked = existingParticipants.includes(org.id);
+
+                if (!bandAlreadyLinked) {
+                  // Find the event entity in our list and add missing claim
+                  const eventEntityInList = entities.find(e => e.wikidataId === eventEdition.wikidataId);
+                  if (eventEntityInList) {
+                    if (!eventEntityInList.missingClaims) {
+                      eventEntityInList.missingClaims = [];
+                    }
+                    eventEntityInList.missingClaims.push({
+                      property: 'P710',
+                      value: org.id,
+                      description: `Participant: ${org.labels?.en?.value}`
+                    });
+
+                    console.log(`📋 Event needs P710 for band: ${org.labels?.en?.value}`);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Add manually created performers from entities.people
+        const newPeople = people.filter((p: any) => p.new === true);
+        for (const person of newPeople) {
+          const personName = person.labels?.en?.value || 'Unnamed Artist';
+
+          // Check if this person already exists on Wikidata
+          const { checkEntityExists } = await import('@/utils/wikidata');
+          const personCheck = await checkEntityExists(
+            personName,
+            ['Q5'], // human
+            'en'
+          );
+
+          const personEntity: any = {
+            entityName: personName,
+            entityType: 'performer',
+            shouldCreate: !personCheck.exists,
+            exists: personCheck.exists,
+            wikidataId: personCheck.entity?.id,
+            wikidataUrl: personCheck.entity ? `https://www.wikidata.org/wiki/${personCheck.entity.id}` : undefined,
+            description: person.metadata?.isBandMember ? 'band member' : 'musician',
+            instanceOf: ['Q5'], // human
+            claims: {},
+            missingClaims: [],
+            metadata: person.metadata // Include metadata for display
+          };
+          entities.push(personEntity);
+
+          // If this person is a member of an existing band, check if band needs P527
+          if (person.metadata?.bandId && !person.metadata.bandId.startsWith('pending-')) {
+            const bandId = person.metadata.bandId;
+            const personName = person.labels?.en?.value || 'Unnamed Artist';
+
+            // Check if band already has P527 pointing to this person
+            const { getWikidataEntity } = await import('@/utils/wikidata');
+            const bandEntity = await getWikidataEntity(bandId, 'en', 'claims|labels');
+            const hasParts = bandEntity.claims?.P527 || [];
+
+            let personAlreadyLinked = false;
+            if (personCheck.exists && personCheck.entity?.id) {
+              personAlreadyLinked = hasParts.some((claim: any) =>
+                claim.mainsnak?.datavalue?.value?.id === personCheck.entity.id
+              );
+            }
+
+            if (!personAlreadyLinked) {
+              // Find or create band entity in the list
+              let bandEntityInfo = entities.find((e: any) => e.wikidataId === bandId);
+
+              if (!bandEntityInfo) {
+                // Add band entity to the list
+                bandEntityInfo = {
+                  entityName: bandEntity.labels?.en?.value || bandId,
+                  entityType: 'band',
+                  shouldCreate: false,
+                  exists: true,
+                  wikidataId: bandId,
+                  wikidataUrl: `https://www.wikidata.org/wiki/${bandId}`,
+                  description: 'musical group',
+                  instanceOf: [],
+                  claims: {},
+                  missingClaims: []
+                };
+                entities.push(bandEntityInfo);
+              }
+
+              // Add missing P527 claim to band
+              if (!bandEntityInfo.missingClaims) {
+                bandEntityInfo.missingClaims = [];
+              }
+
+              if (personCheck.exists && personCheck.entity?.id) {
+                bandEntityInfo.missingClaims.push({
+                  property: 'P527',
+                  value: personCheck.entity.id,
+                  description: `Has part: ${personName}`
+                });
+              } else {
+                // Person doesn't exist yet - show as post-creation action
+                personEntity.postCreationActions = [{
+                  action: 'add-claim',
+                  entityId: bandId,
+                  property: 'P527',
+                  description: `After creating this person, add P527 (has part) to band to create bidirectional link`
+                }];
+              }
+            }
+          }
+        }
+
+        console.log('📊 Wikidata entities to create/update:', entities);
+        console.log('📊 Entity types:', entities.map(e => ({ name: e.entityName, type: e.entityType, exists: e.exists, hasMissingClaims: e.missingClaims?.length })));
+        setWikidataEntitiesToCreate(entities);
+
+        // Store entity count and mark as checked
+        form.setValue('computed.wikidata.entityCount', entities.length);
+        form.setValue('computed.wikidata.checked', true);
+      } catch (error) {
+        console.error('Error checking Wikidata entities:', error);
+        form.setValue('computed.wikidata.checked', false);
+      } finally {
+        setLoadingEntities(false);
+      }
+    };
+
+    checkEntities();
+  }, [eventDetails?.title, eventDetails?.date, eventDetails?.participants, people, organizations, refreshKey]);
+
   // Convert UniversalForm entities to old format for compatibility
   const pendingWikidataEntities = [
     ...people.filter(p => p.isNew).map((person, index) => ({
@@ -128,6 +372,13 @@ export default function WikidataPane({
   const bandEntities = pendingWikidataEntities.filter((entity: PendingWikidataEntity) => entity.type === 'band');
   const memberEntities = pendingWikidataEntities.filter((entity: PendingWikidataEntity) => entity.type === 'band_member');
 
+  const eventEntities = wikidataEntitiesToCreate.filter(e =>
+    e.entityType === 'festival-base' || e.entityType === 'festival-edition' || e.entityType === 'event'
+  );
+  const performerEntities = wikidataEntitiesToCreate.filter(e =>
+    e.entityType === 'band' || e.entityType === 'performer'
+  );
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -136,17 +387,312 @@ export default function WikidataPane({
         <p className="text-muted-foreground">
           Review and configure entities to be created in Wikidata
         </p>
+        <button
+          onClick={() => setRefreshKey(prev => prev + 1)}
+          disabled={loadingEntities}
+          className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
+        >
+          <svg className={`w-4 h-4 ${loadingEntities ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh Status
+        </button>
       </div>
 
-      {pendingWikidataEntities.length === 0 ? (
+      {/* Loading State */}
+      {loadingEntities && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">Checking Wikidata for existing entities...</p>
+        </div>
+      )}
+
+      {/* Event Entities */}
+      {!loadingEntities && eventEntities.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Event Entities ({eventEntities.length})
+          </h3>
+          <div className="space-y-3">
+            {eventEntities.map((entity, index) => (
+              <div
+                key={index}
+                className={`flex items-start justify-between p-4 rounded-lg border ${
+                  entity.exists
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    {entity.exists ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                    )}
+                    <h4 className="font-medium text-gray-900">{entity.entityName}</h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {entity.description}
+                    {entity.parentEntity && (
+                      <span className="text-blue-600 ml-2">
+                        → Part of: {entity.parentEntity}
+                      </span>
+                    )}
+                  </p>
+
+                  {/* Show missing claims for existing entities */}
+                  {entity.exists && entity.missingClaims && entity.missingClaims.length > 0 && (
+                    <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded p-3 text-xs">
+                      <p className="font-semibold text-yellow-800 mb-2">⚠️ Missing claims to add:</p>
+                      <div className="space-y-1 text-gray-600 font-mono">
+                        {entity.missingClaims.map((claim, i) => (
+                          <p key={i}>
+                            <strong>{claim.property}:</strong> {claim.description}
+                          </p>
+                        ))}
+                      </div>
+                      <p className="text-yellow-700 mt-2 text-xs">
+                        These will be added when you publish in the Publish pane
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Show what will be created for new entities */}
+                  {!entity.exists && (
+                    <div className="mt-3 bg-white border border-amber-200 rounded p-3 text-xs">
+                      <p className="font-semibold text-gray-700 mb-2">Will create with:</p>
+                      <div className="space-y-1 text-gray-600 font-mono">
+                        <p><strong>Label (en):</strong> {entity.entityName}</p>
+                        <p><strong>Description (en):</strong> {entity.description}</p>
+                        <p>
+                          <strong>P31 (instance of):</strong>{' '}
+                          {entity.instanceOf.map((qid, i) => (
+                            <span key={qid}>
+                              {i > 0 && ', '}
+                              <a
+                                href={`https://www.wikidata.org/wiki/${qid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {qid}
+                              </a>
+                            </span>
+                          ))}
+                        </p>
+                        {entity.claims && Object.entries(entity.claims).map(([property, value]) => {
+                          if (!value) return null;
+                          return (
+                            <p key={property}>
+                              <strong>{property}:</strong>{' '}
+                              <a
+                                href={`https://www.wikidata.org/wiki/${value}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {value as string}
+                              </a>
+                              {property === 'P361' && entity.parentEntity && (
+                                <span className="text-gray-500"> (part of {entity.parentEntity})</span>
+                              )}
+                              {property === 'P373' && (
+                                <span className="text-gray-500"> (Commons category)</span>
+                              )}
+                            </p>
+                          );
+                        })}
+                        {eventDetails?.location && (
+                          <p className="text-gray-500 italic">+ Location: {eventDetails.location}</p>
+                        )}
+                        {eventDetails?.country && (
+                          <p className="text-gray-500 italic">+ Country: {eventDetails.country}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {entity.wikidataUrl && (
+                    <a
+                      href={entity.wikidataUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2"
+                    >
+                      View on Wikidata
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                <div className="text-sm font-medium">
+                  {entity.exists ? (
+                    <span className="text-green-600">Exists</span>
+                  ) : (
+                    <span className="text-amber-600">Needs Creation</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Performer/Band Entities */}
+      {!loadingEntities && performerEntities.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Performer Entities ({performerEntities.length})
+          </h3>
+          <div className="space-y-3">
+            {performerEntities.map((entity, index) => (
+              <div
+                key={index}
+                className={`flex items-start justify-between p-4 rounded-lg border ${
+                  entity.exists
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    {entity.exists ? (
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-amber-600" />
+                    )}
+                    <h4 className="font-medium text-gray-900">{entity.entityName}</h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{entity.description}</p>
+
+                  {/* Show missing claims for existing performer/band entities */}
+                  {entity.exists && entity.missingClaims && entity.missingClaims.length > 0 && (
+                    <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded p-3 text-xs">
+                      <p className="font-semibold text-yellow-800 mb-2">⚠️ Missing claims to add:</p>
+                      <div className="space-y-1 text-gray-600 font-mono">
+                        {entity.missingClaims.map((claim, i) => (
+                          <p key={i}>
+                            <strong>{claim.property}:</strong> {claim.description}
+                          </p>
+                        ))}
+                      </div>
+                      <p className="text-yellow-700 mt-2 text-xs">
+                        These will be added when you publish in the Publish pane
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Show what will be created for new entities */}
+                  {!entity.exists && (
+                    <div className="mt-3 bg-white border border-amber-200 rounded p-3 text-xs">
+                      <p className="font-semibold text-gray-700 mb-2">Will create with:</p>
+                      <div className="space-y-1 text-gray-600 font-mono">
+                        <p><strong>Label (en):</strong> {entity.entityName}</p>
+                        <p><strong>Description (en):</strong> {entity.description}</p>
+                        <p>
+                          <strong>P31 (instance of):</strong>{' '}
+                          {entity.instanceOf.map((qid, i) => (
+                            <span key={qid}>
+                              {i > 0 && ', '}
+                              <a
+                                href={`https://www.wikidata.org/wiki/${qid}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline"
+                              >
+                                {qid}
+                              </a>
+                            </span>
+                          ))}
+                        </p>
+                        {(entity as any).metadata?.instruments && (entity as any).metadata.instruments.length > 0 && (
+                          <p><strong>P1303 (instrument):</strong> {(entity as any).metadata.instruments.join(', ')}</p>
+                        )}
+                        {(entity as any).metadata?.nationality && (
+                          <p><strong>P27 (nationality):</strong> {(entity as any).metadata.nationality}</p>
+                        )}
+                        {(entity as any).metadata?.gender && (
+                          <p><strong>P21 (gender):</strong> {(entity as any).metadata.gender}</p>
+                        )}
+                        {(entity as any).metadata?.birthDate && (
+                          <p><strong>P569 (birth date):</strong> {(entity as any).metadata.birthDate}</p>
+                        )}
+                        {(entity as any).metadata?.legalName && (
+                          <p><strong>Also known as:</strong> {(entity as any).metadata.legalName}</p>
+                        )}
+                        {(entity as any).metadata?.bandId && !(entity as any).metadata.bandId.startsWith('pending-') && (
+                          <p>
+                            <strong>P463 (member of):</strong>{' '}
+                            <a
+                              href={`https://www.wikidata.org/wiki/${(entity as any).metadata.bandId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {(entity as any).metadata.bandId}
+                            </a>
+                          </p>
+                        )}
+                        {(entity as any).metadata?.bandId && (entity as any).metadata.bandId.startsWith('pending-') && (
+                          <p className="text-yellow-600">
+                            <strong>P463 (member of):</strong> Will be linked after band is created
+                          </p>
+                        )}
+                      </div>
+                      {(entity as any).postCreationActions && (entity as any).postCreationActions.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-amber-300">
+                          <p className="text-xs font-semibold text-yellow-700 mb-1">📋 After creation:</p>
+                          {(entity as any).postCreationActions.map((action: any, i: number) => (
+                            <p key={i} className="text-xs text-gray-600">
+                              • {action.description}
+                            </p>
+                          ))}
+                          <p className="text-xs text-yellow-600 mt-1 italic">
+                            This will create a bidirectional relationship
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {entity.wikidataUrl && (
+                    <a
+                      href={entity.wikidataUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mt-2"
+                    >
+                      View on Wikidata
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                <div className="text-sm font-medium">
+                  {entity.exists ? (
+                    <span className="text-green-600">Exists</span>
+                  ) : (
+                    <span className="text-amber-600">Needs Creation</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy: Band Members to Create (from old flow) */}
+      {pendingWikidataEntities.length === 0 && !loadingEntities && wikidataEntitiesToCreate.length === 0 && (
         <div className="text-center py-8">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-400" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Entities</h3>
           <p className="text-gray-500">
-            All bands and members are already in Wikidata, or you haven't added any custom members yet.
+            All events, bands and members are already in Wikidata, or you haven't added any custom members yet.
           </p>
         </div>
-      ) : (
+      )}
+
+      {pendingWikidataEntities.length > 0 && (
         <div className="space-y-6">
           {/* Bands to Create */}
           {bandEntities.length > 0 && (

@@ -113,35 +113,62 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
         id: 'categories',
         title: 'Categories',
         icon: FolderPlus,
-        getDescription: () => 'Organize with categories',
-        getDependencies: () => ['images'],
-        hasValues: () => false, // TODO: Implement category checking
-        isFinished: () => false // TODO: Implement category completion checking
-      },
-      {
-        id: 'templates',
-        title: 'Templates',
-        icon: FileText,
-        getDescription: () => 'Apply Commons templates',
-        getDependencies: () => ['categories'],
-        hasValues: () => false, // TODO: Implement template checking
-        isFinished: () => false // TODO: Implement template completion checking
+        getDescription: (formData) => {
+          const allCategories = formData.computed?.categories?.all || [];
+          const isChecked = formData.computed?.categories?.checked === true;
+          if (allCategories.length > 0 && isChecked) {
+            return `${allCategories.length} categories (verified)`;
+          }
+          return allCategories.length > 0 ? `${allCategories.length} categories` : 'Organize with categories';
+        },
+        getDependencies: () => ['event-details'], // Changed from 'images' to 'event-details'
+        hasValues: (formData) => {
+          const allCategories = formData.computed?.categories?.all || [];
+          return allCategories.length > 0;
+        },
+        isFinished: (formData) => {
+          // Categories pane is finished once categories exist and have been checked on Commons
+          const allCategories = formData.computed?.categories?.all || [];
+          const isChecked = formData.computed?.categories?.checked === true;
+          return allCategories.length > 0 && isChecked;
+        }
       },
       {
         id: 'wikidata',
         title: 'Wikidata',
         icon: Database,
-        getDescription: () => 'Link to Wikidata',
-        getDependencies: () => ['templates'],
-        hasValues: () => false, // TODO: Implement wikidata checking
-        isFinished: () => false // TODO: Implement wikidata completion checking
+        getDescription: (formData) => {
+          const entityCount = formData.computed?.wikidata?.entityCount || 0;
+          const isChecked = formData.computed?.wikidata?.checked === true;
+          if (entityCount > 0 && isChecked) {
+            return `${entityCount} entities (verified)`;
+          }
+          return entityCount > 0 ? `${entityCount} entities` : 'Link to Wikidata';
+        },
+        getDependencies: () => ['event-details'], // Changed from 'templates' to 'event-details'
+        hasValues: (formData) => {
+          // Has values if we have event details or entities
+          const hasEventDetails = !!formData.eventDetails?.title;
+          const hasEntities = (formData.entities?.people?.length || 0) > 0 ||
+                             (formData.entities?.organizations?.length || 0) > 0;
+          return hasEventDetails || hasEntities;
+        },
+        isFinished: (formData) => {
+          // Wikidata pane is finished once entities have been checked
+          const entityCount = formData.computed?.wikidata?.entityCount || 0;
+          const isChecked = formData.computed?.wikidata?.checked === true;
+          const hasData = !!formData.eventDetails?.title ||
+                         (formData.entities?.people?.length || 0) > 0 ||
+                         (formData.entities?.organizations?.length || 0) > 0;
+          return hasData && isChecked;
+        }
       },
       {
         id: 'upload',
         title: 'Publish',
         icon: Upload,
         getDescription: () => 'Publish to Wikimedia Commons',
-        getDependencies: () => ['wikidata'],
+        getDependencies: () => ['event-details'], // Changed to event-details so it's always accessible
         hasValues: () => false, // TODO: Implement upload checking
         isFinished: () => false // TODO: Implement upload completion checking
       }
@@ -245,7 +272,7 @@ export default function WorkflowStepper() {
   const workflowSteps = getWorkflowSteps();
 
   return (
-    <div className="bg-card rounded-lg shadow-sm border border-border p-6 sticky top-6 h-fit">
+    <div className="bg-card rounded-lg p-6 sticky top-6 h-fit">
       <h2 className="text-xl font-semibold text-card-foreground mb-4">Workflow Progress</h2>
       <div className="space-y-2">
         {workflowSteps.map((step) => {
