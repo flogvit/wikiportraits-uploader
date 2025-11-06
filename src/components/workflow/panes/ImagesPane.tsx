@@ -35,11 +35,12 @@ export default function ImagesPane({
     )
   );
   
-  const bandPerformers = { 
+  const bandPerformers = {
     performers: watch('entities.people') || [],
     selectedBand: selectedBandEntity ? {
       name: selectedBandEntity.labels?.en?.value || selectedBandEntity.labels?.['en']?.value || '',
-      id: selectedBandEntity.id
+      id: selectedBandEntity.id,
+      entity: selectedBandEntity // Include full entity for P18 checking
     } : null
   };
   
@@ -50,10 +51,10 @@ export default function ImagesPane({
   console.log('📦 newImages:', newImages.map((img: any) => ({ id: img.id, name: img.file?.name })));
   console.log('📦 existingImages:', existingImages.map((img: any) => ({ id: img.id, filename: img.filename })));
 
-  // Combine existing and new images for display
+  // Combine existing and new images for display (new images on top)
   const allImages = [
-    ...existingImages.map((img: any) => ({ ...img, isExisting: true })),
-    ...newImages.map((img: any) => ({ ...img, isExisting: false }))
+    ...newImages.map((img: any) => ({ ...img, isExisting: false })),
+    ...existingImages.map((img: any) => ({ ...img, isExisting: true }))
   ];
 
   const images = newImages; // Keep images as newImages for backward compatibility
@@ -118,6 +119,208 @@ export default function ImagesPane({
         </div>
       )}
 
+      {/* Personality Rights Permission - applies to all images */}
+      {allImages.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Personality Rights Permission
+          </h3>
+          <p className="text-sm text-gray-700 mb-3">
+            If these images show people, add permission information to avoid personality rights warnings
+          </p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={watch('eventDetails.hasPersonalityRightsPermission') || false}
+                onChange={(e) => {
+                  setValue('eventDetails.hasPersonalityRightsPermission', e.target.checked);
+
+                  if (e.target.checked) {
+                    // Apply permission to all images
+                    const permissionText = getValues('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.';
+                    const permissionTemplate = `{{Personality rights|${permissionText}}}`;
+
+                    // Update all new images
+                    const updatedQueue = (getValues('files.queue') || []).map((img: any) => {
+                      // Update wikitext permission field if exists
+                      let updatedWikitext = img.metadata?.wikitext || '';
+                      if (updatedWikitext && !img.metadata?.permissionOverride) {
+                        updatedWikitext = updatedWikitext.replace(
+                          /\|permission=([^\n]*)/,
+                          `|permission=${permissionTemplate}`
+                        );
+                      }
+
+                      return {
+                        ...img,
+                        metadata: {
+                          ...img.metadata,
+                          permission: img.metadata?.permissionOverride || permissionTemplate,
+                          wikitext: updatedWikitext || img.metadata?.wikitext,
+                          wikitextModified: !!updatedWikitext
+                        }
+                      };
+                    });
+                    setValue('files.queue', updatedQueue, { shouldDirty: true });
+
+                    // Update all existing images
+                    const updatedExisting = (getValues('files.existing') || []).map((img: any) => {
+                      // Update wikitext permission field
+                      let updatedWikitext = img.metadata?.wikitext || '';
+                      if (updatedWikitext && !img.metadata?.permissionOverride) {
+                        updatedWikitext = updatedWikitext.replace(
+                          /\|permission=([^\n]*)/,
+                          `|permission=${permissionTemplate}`
+                        );
+                      }
+
+                      return {
+                        ...img,
+                        metadata: {
+                          ...img.metadata,
+                          permission: img.metadata?.permissionOverride || permissionTemplate,
+                          wikitext: updatedWikitext,
+                          wikitextModified: true
+                        }
+                      };
+                    });
+                    setValue('files.existing', updatedExisting, { shouldDirty: true });
+                  } else {
+                    // Remove permission from all images that don't have override
+                    const updatedQueue = (getValues('files.queue') || []).map((img: any) => {
+                      // Update wikitext to remove permission
+                      let updatedWikitext = img.metadata?.wikitext || '';
+                      if (updatedWikitext && !img.metadata?.permissionOverride) {
+                        updatedWikitext = updatedWikitext.replace(
+                          /\|permission=([^\n]*)/,
+                          '|permission='
+                        );
+                      }
+
+                      return {
+                        ...img,
+                        metadata: {
+                          ...img.metadata,
+                          permission: img.metadata?.permissionOverride || '',
+                          wikitext: updatedWikitext || img.metadata?.wikitext,
+                          wikitextModified: !!updatedWikitext
+                        }
+                      };
+                    });
+                    setValue('files.queue', updatedQueue, { shouldDirty: true });
+
+                    const updatedExisting = (getValues('files.existing') || []).map((img: any) => {
+                      // Update wikitext to remove permission
+                      let updatedWikitext = img.metadata?.wikitext || '';
+                      if (updatedWikitext && !img.metadata?.permissionOverride) {
+                        updatedWikitext = updatedWikitext.replace(
+                          /\|permission=([^\n]*)/,
+                          '|permission='
+                        );
+                      }
+
+                      return {
+                        ...img,
+                        metadata: {
+                          ...img.metadata,
+                          permission: img.metadata?.permissionOverride || '',
+                          wikitext: updatedWikitext,
+                          wikitextModified: true
+                        }
+                      };
+                    });
+                    setValue('files.existing', updatedExisting, { shouldDirty: true });
+                  }
+                }}
+                className="mt-1 w-4 h-4 text-amber-600 rounded"
+              />
+              <div className="flex-1">
+                <span className="text-sm font-medium text-gray-900">
+                  I have permission to publish images showing people at this event
+                </span>
+              </div>
+            </label>
+
+            {watch('eventDetails.hasPersonalityRightsPermission') && (
+              <div className="ml-6 space-y-2">
+                <label className="block">
+                  <span className="text-sm text-gray-700">Permission details:</span>
+                  <textarea
+                    value={watch('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.'}
+                    onChange={(e) => {
+                      const permissionText = e.target.value;
+                      setValue('eventDetails.permissionText', permissionText);
+
+                      // Use plain text permission with consent statement
+                      const permissionTemplate = `${permissionText}`;
+
+                      // Update all new images
+                      const updatedQueue = (getValues('files.queue') || []).map((img: any) => {
+                        // Update wikitext permission field if exists
+                        let updatedWikitext = img.metadata?.wikitext || '';
+                        if (updatedWikitext && !img.metadata?.permissionOverride) {
+                          updatedWikitext = updatedWikitext.replace(
+                            /\|permission=([^\n]*)/,
+                            `|permission=${permissionTemplate}`
+                          );
+                        }
+
+                        return {
+                          ...img,
+                          metadata: {
+                            ...img.metadata,
+                            permission: img.metadata?.permissionOverride || permissionTemplate,
+                            wikitext: updatedWikitext || img.metadata?.wikitext,
+                            wikitextModified: !!updatedWikitext
+                          }
+                        };
+                      });
+                      setValue('files.queue', updatedQueue, { shouldDirty: true });
+
+                      // Update all existing images
+                      const updatedExisting = (getValues('files.existing') || []).map((img: any) => {
+                        // Update wikitext permission field
+                        let updatedWikitext = img.metadata?.wikitext || '';
+                        if (updatedWikitext && !img.metadata?.permissionOverride) {
+                          updatedWikitext = updatedWikitext.replace(
+                            /\|permission=([^\n]*)/,
+                            `|permission=${permissionTemplate}`
+                          );
+                        }
+
+                        return {
+                          ...img,
+                          metadata: {
+                            ...img.metadata,
+                            permission: img.metadata?.permissionOverride || permissionTemplate,
+                            wikitext: updatedWikitext,
+                            wikitextModified: true
+                          }
+                        };
+                      });
+                      setValue('files.existing', updatedExisting, { shouldDirty: true });
+                    }}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    rows={2}
+                    placeholder="Describe how you obtained permission..."
+                  />
+                </label>
+                <p className="text-xs text-gray-600">
+                  Will be added to the permission field as plain text (visible on Commons page)
+                </p>
+                <p className="text-xs text-amber-700">
+                  💡 You can override this on individual images in their expanded metadata forms
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Image uploader at the top */}
       <ImageUploader
         onImagesAddedAction={filesForm.addToQueue}
@@ -161,6 +364,13 @@ export default function ImagesPane({
               const isExisting = id.startsWith('existing-');
 
               console.log('📝 Updating image:', { id, updates, isExisting });
+
+              // Check for Promise values
+              Object.entries(updates).forEach(([key, value]) => {
+                if (value && typeof value === 'object' && 'then' in value) {
+                  console.error(`❌ ERROR: updates.${key} is a Promise!`, value);
+                }
+              });
 
               if (isExisting) {
                 // Update existing image metadata
