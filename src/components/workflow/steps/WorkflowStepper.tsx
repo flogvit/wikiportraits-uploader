@@ -104,10 +104,42 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
         id: 'images',
         title: 'Images',
         icon: ImagePlus,
-        getDescription: () => 'Upload and manage images',
+        getDescription: (formData) => {
+          const newCount = formData.files?.queue?.length || 0;
+          const existingCount = formData.files?.existing?.length || 0;
+          const totalCount = newCount + existingCount;
+
+          if (totalCount === 0) return 'Upload and manage images';
+          if (existingCount > 0 && newCount > 0) {
+            return `${totalCount} images (${newCount} new, ${existingCount} from Commons)`;
+          }
+          if (existingCount > 0) {
+            return `${existingCount} images from Commons`;
+          }
+          return `${newCount} images`;
+        },
         getDependencies: () => ['band-performers'],
-        hasValues: (formData) => (formData.files?.queue?.length || 0) > 0,
-        isFinished: (formData) => (formData.files?.queue?.length || 0) > 0 && formData.files?.queue?.every((file: any) => file.metadata?.description)
+        hasValues: (formData) => {
+          const newCount = formData.files?.queue?.length || 0;
+          const existingCount = formData.files?.existing?.length || 0;
+          return (newCount + existingCount) > 0;
+        },
+        isFinished: (formData) => {
+          const newCount = formData.files?.queue?.length || 0;
+          const existingCount = formData.files?.existing?.length || 0;
+          const totalCount = newCount + existingCount;
+
+          // Consider finished if we have any images (new or existing)
+          if (totalCount === 0) return false;
+
+          // For new images, check they have descriptions
+          if (newCount > 0) {
+            return formData.files?.queue?.every((file: any) => file.metadata?.description);
+          }
+
+          // If only existing images, consider finished
+          return true;
+        }
       },
       {
         id: 'categories',

@@ -50,7 +50,17 @@ export default function WikidataPane({
             entityId: o.id,
             directId: o.id,
             labels: o.labels,
+            instanceOf: o.claims?.P31?.map((c: any) => c.mainsnak?.datavalue?.value?.id),
             fullOrg: o
+          }))
+        });
+
+        console.log('👥 WikidataPane - Checking people:', {
+          count: people.length,
+          people: people.map((p: any) => ({
+            entityId: p.id,
+            labels: p.labels,
+            instanceOf: p.claims?.P31?.map((c: any) => c.mainsnak?.datavalue?.value?.id)
           }))
         });
 
@@ -149,6 +159,61 @@ export default function WikidataPane({
               }
             }
           }
+        }
+
+        // Check existing performers for missing P373 (Commons category)
+        const existingPeople = people.filter((p: any) => p.id && !p.id.startsWith('pending-'));
+        for (const person of existingPeople) {
+          const personName = person.labels?.en?.value;
+          if (!personName) continue;
+
+          // Re-fetch fresh entity data to check for P373 (in case it was added recently)
+          const { getWikidataEntity } = await import('@/utils/wikidata');
+          let freshEntity = person;
+          try {
+            freshEntity = await getWikidataEntity(person.id, 'en', 'labels|claims');
+          } catch (error) {
+            console.warn('Could not fetch fresh entity data for', person.id);
+          }
+
+          // Check if person has P373 (Commons category)
+          const hasCommonsCategory = freshEntity.claims?.P373?.length > 0;
+          const existingP373 = freshEntity.claims?.P373?.[0]?.mainsnak?.datavalue?.value;
+
+          console.log('👤 Checking performer:', personName, 'has P373:', hasCommonsCategory, 'value:', existingP373);
+
+          // Always show performers, but only mark P373 as missing if they don't have it
+          const missingClaims = [];
+
+          if (!hasCommonsCategory) {
+            // Determine the correct Commons category for this performer
+            const { getPerformerCategory } = await import('@/utils/performer-categories');
+            const performerInfo = await getPerformerCategory(person);
+
+            missingClaims.push({
+              property: 'P373',
+              value: performerInfo.commonsCategory,
+              description: `Commons category: ${performerInfo.commonsCategory}${performerInfo.source === 'disambiguated' ? ' (disambiguated)' : ''}`
+            });
+
+            console.log('✅ Performer needs P373:', personName, '->', performerInfo.commonsCategory);
+          } else {
+            console.log('✅ Performer already has P373:', personName, '->', existingP373);
+          }
+
+          // Add all performers to the list (whether they have P373 or not)
+          entities.push({
+            entityName: personName,
+            entityType: 'performer',
+            shouldCreate: false,
+            exists: true,
+            wikidataId: person.id,
+            wikidataUrl: `https://www.wikidata.org/wiki/${person.id}`,
+            description: 'musician/performer',
+            instanceOf: ['Q5'],
+            claims: {},
+            missingClaims
+          });
         }
 
         // Add manually created performers from entities.people

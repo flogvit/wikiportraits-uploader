@@ -90,8 +90,45 @@ export default function BandPerformersPane({
   const eventParticipants = eventDetails?.participants || [];
 
   const handleParticipantSelect = async (participant: any) => {
+    console.log('📍 Participant selected:', participant);
+
     // Store selected participant info
     form.setValue('workflow.selectedParticipant' as any, participant, { shouldDirty: false });
+
+    // If participant has a Wikidata ID, fetch the full entity and add as organization
+    if (participant.id) {
+      try {
+        const { getWikidataEntity } = await import('@/utils/wikidata');
+        const entity = await getWikidataEntity(participant.id, 'en', 'labels|descriptions|claims');
+
+        if (entity) {
+          console.log('✅ Fetched participant entity:', entity.id, entity.labels?.en?.value);
+
+          // Remove existing main band if any
+          const existingBandIndex = organizations.findIndex(org =>
+            org.claims?.['P31']?.some(claim =>
+              ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id)
+            )
+          );
+          if (existingBandIndex >= 0) {
+            removeOrganization(existingBandIndex);
+          }
+
+          // Add participant as main band/organization
+          addOrganization(entity);
+
+          // Set event title if empty
+          const currentTitle = form.getValues('eventDetails.title');
+          if (!currentTitle || currentTitle.trim() === '') {
+            setTitle(entity.labels?.en?.value || participant.name);
+          }
+
+          console.log('✅ Added participant as main organization');
+        }
+      } catch (error) {
+        console.error('Error fetching participant entity:', error);
+      }
+    }
 
     // Load images from Commons category
     if (participant.commonsCategory) {
@@ -99,30 +136,95 @@ export default function BandPerformersPane({
         const { CommonsClient } = await import('@/lib/api/CommonsClient');
         const { files } = await CommonsClient.getCategoryFiles(participant.commonsCategory, 500);
 
-        // Convert Commons files to the format expected by the form
-        const existingImages = files.map((file: any, index: number) => ({
-          id: `existing-${file.pageid}`,
-          filename: file.title.replace(/^File:/, ''),
-          commonsPageId: file.pageid,
-          url: file.url,
-          thumbUrl: file.thumburl,
-          preview: file.thumburl || file.url, // For ImagePreview component
-          isExisting: true, // Mark as existing (not new upload)
-          file: undefined, // No File object for existing images
-          metadata: {
-            description: file.extmetadata?.ImageDescription?.value || '',
-            categories: file.extmetadata?.Categories?.value?.split('|') || [],
-            date: file.extmetadata?.DateTime?.value || file.timestamp,
-            author: file.extmetadata?.Artist?.value || file.user,
-            source: 'Wikimedia Commons',
-            license: file.extmetadata?.LicenseShortName?.value || '',
+        // Fetch full wikitext for each image
+        const existingImages = await Promise.all(files.map(async (file: any, index: number) => {
+          // Fetch the actual wikitext from Commons
+          let wikitext = '';
+          let categories: string[] = [];
+
+          try {
+            const wikitextResponse = await fetch(
+              `https://commons.wikimedia.org/w/api.php?` +
+              new URLSearchParams({
+                action: 'query',
+                titles: file.title,
+                prop: 'revisions|categories',
+                rvprop: 'content',
+                rvslots: 'main',
+                format: 'json',
+                origin: '*',
+                cllimit: '500'
+              })
+            );
+
+            const wikitextData = await wikitextResponse.json();
+            const pages = wikitextData.query?.pages || {};
+            const page = Object.values(pages)[0] as any;
+
+            // Get wikitext
+            wikitext = page?.revisions?.[0]?.slots?.main?.['*'] || '';
+
+            // Parse categories from wikitext [[Category:...]] tags
+            // This gives us only the explicitly added categories, not hidden/maintenance ones
+            const categoryRegex = /\[\[Category:([^\]]+)\]\]/g;
+            const categoryMatches = [...wikitext.matchAll(categoryRegex)];
+            categories = categoryMatches.map(match => match[1]);
+          } catch (error) {
+            console.error('Error fetching wikitext for', file.title, error);
           }
+
+          // Extract author from wikitext - preserve original formatting (e.g., Wikidata links)
+          // NEVER modify author on existing images - that would be taking credit for others' work
+          let author = '';
+          if (wikitext) {
+            // Match author field, handling wikilinks with | pipes inside [[...]]
+            const authorMatch = wikitext.match(/\|author=(.+?)(?=\n\|)/s);
+            if (authorMatch) {
+              author = authorMatch[1].trim();
+            }
+          }
+
+          // Extract selectedBandMembers from {{Depicts}} templates in wikitext
+          const selectedBandMembers: string[] = [];
+          if (wikitext) {
+            const depictsMatches = wikitext.matchAll(/\{\{Depicts\|([Q\d]+)\}\}/g);
+            for (const match of depictsMatches) {
+              const qid = match[1];
+              // Exclude the band itself (check against participant.id)
+              if (qid !== participant.id) {
+                selectedBandMembers.push(qid);
+              }
+            }
+            console.log('🏷️ Extracted selectedBandMembers from Depicts templates:', selectedBandMembers);
+          }
+
+          return {
+            id: `existing-${file.pageid}`,
+            filename: file.title.replace(/^File:/, ''),
+            commonsPageId: file.pageid,
+            url: file.url,
+            thumbUrl: file.thumburl,
+            preview: file.thumburl || file.url,
+            isExisting: true,
+            file: undefined,
+            metadata: {
+              description: file.extmetadata?.ImageDescription?.value || '',
+              categories: categories,
+              date: file.extmetadata?.DateTime?.value || file.timestamp,
+              author: author,
+              source: 'Wikimedia Commons',
+              license: file.extmetadata?.LicenseShortName?.value || '',
+              wikitext: wikitext, // Store the actual wikitext
+              wikitextModified: true, // Mark as modified so it won't be auto-regenerated
+              selectedBandMembers: selectedBandMembers // Extract from Depicts templates
+            }
+          };
         }));
 
         // Store existing images in the form
         form.setValue('files.existing' as any, existingImages, { shouldDirty: false });
 
-        console.log(`Loaded ${existingImages.length} existing images for ${participant.name}`);
+        console.log(`✅ Loaded ${existingImages.length} existing images for ${participant.name}`);
       } catch (error) {
         console.error('Error loading participant images:', error);
       }

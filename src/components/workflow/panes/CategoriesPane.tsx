@@ -16,6 +16,7 @@ interface CategoryCreationInfo {
   categoryName: string;
   shouldCreate: boolean;
   parentCategory?: string;
+  additionalParents?: string[];
   description?: string;
   eventName?: string;
   teamName?: string;
@@ -43,6 +44,7 @@ export default function CategoriesPane({
   const images = watch('files.queue') || [];
   const eventDetails = watch('eventDetails');
   const organizations = watch('entities.organizations') || [];
+  const people = watch('entities.people') || [];
 
   // Get the main band - organizations is an array of WikidataEntity objects
   const selectedBand = organizations.length > 0 ? organizations[0] : null;
@@ -65,6 +67,15 @@ export default function CategoriesPane({
       directLabels: organizations[0].labels,
       fullOrg: organizations[0]
     } : null
+  });
+
+  console.log('🎤 CategoriesPane - Performers info:', {
+    peopleCount: people.length,
+    people: people.map(p => ({
+      id: p.id,
+      name: p.labels?.en?.value,
+      hasP373: !!p.claims?.P373
+    }))
   });
 
   const musicEventData = eventDetails;
@@ -205,6 +216,35 @@ export default function CategoriesPane({
       bandCategories.forEach(cat => combinedCategories.add(cat.categoryName));
     }
 
+    // Generate performer categories for individual band members/people
+    if (people && people.length > 0) {
+      console.log('🎤 Generating categories for', people.length, 'performers');
+
+      try {
+        const { getPerformerCategories } = await import('@/utils/performer-categories');
+        const performerCategoryInfos = await getPerformerCategories(people);
+
+        performerCategoryInfos.forEach(info => {
+          console.log('🎤 Adding performer category:', info.commonsCategory, 'from', info.source);
+
+          // Add to combined categories
+          combinedCategories.add(info.commonsCategory);
+
+          // Add to categories to create if needed
+          if (info.needsCreation) {
+            toCreate.push({
+              categoryName: info.commonsCategory,
+              shouldCreate: true,
+              description: info.description,
+              eventName: info.performerName
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Error generating performer categories:', error);
+      }
+    }
+
     // Add categories that need creation to the unified list
     toCreate.forEach((cat: CategoryCreationInfo) => combinedCategories.add(cat.categoryName));
 
@@ -213,7 +253,7 @@ export default function CategoriesPane({
     };
 
     generateCategories();
-  }, [uploadType, musicEventData, images, organizations, selectedBandName, selectedBand, setValue]);
+  }, [uploadType, musicEventData, images, organizations, people, selectedBandName, selectedBand, setValue]);
 
 
   const handleAddCategory = () => {
@@ -471,16 +511,25 @@ export default function CategoriesPane({
 
                       return (
                         <>
-                          {categoryToCreate?.parentCategory && (
-                            <p className="text-xs text-blue-600 mt-1">
-                              {categoryIsNew ? (
-                                <>→ Will be added to: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
-                              ) : categoryAlreadyExists ? (
-                                <>→ Already in: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
-                              ) : (
-                                <>→ Parent: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                          {(categoryToCreate?.parentCategory || categoryToCreate?.additionalParents) && (
+                            <div className="text-xs text-blue-600 mt-1 space-y-0.5">
+                              {categoryToCreate.parentCategory && (
+                                <p>
+                                  {categoryIsNew ? (
+                                    <>→ Will be added to: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                                  ) : categoryAlreadyExists ? (
+                                    <>→ Already in: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                                  ) : (
+                                    <>→ Parent: <span className="font-medium">{categoryToCreate.parentCategory}</span></>
+                                  )}
+                                </p>
                               )}
-                            </p>
+                              {categoryToCreate.additionalParents && categoryToCreate.additionalParents.length > 0 && (
+                                <p>
+                                  → Also in: <span className="font-medium">{categoryToCreate.additionalParents.join(', ')}</span>
+                                </p>
+                              )}
+                            </div>
                           )}
                           {categoryToCreate?.description && (
                             <p className="text-sm text-muted-foreground mt-1">{categoryToCreate.description}</p>
