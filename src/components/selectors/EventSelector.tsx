@@ -257,8 +257,9 @@ export default function EventSelector({
                 const participantEntity = await getWikidataEntity(participantId, 'en', 'labels');
                 const participantName = participantEntity.labels?.en?.value || '';
                 if (participantName) {
-                  // Generate Commons category name for participant: "<Artist> in the <Event>"
-                  const participantCommonsCategory = `${participantName} in the ${commonsCategory}`;
+                  // Generate Commons category name for participant: "<Artist> at <Event>"
+                  // This matches the band-categories.ts format
+                  const participantCommonsCategory = `${participantName} at ${commonsCategory}`;
 
                   participants.push({
                     id: participantId,

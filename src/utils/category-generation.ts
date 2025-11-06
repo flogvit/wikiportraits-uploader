@@ -401,15 +401,42 @@ export class CategoryGenerator {
 
     if (!context.entityData) return categories;
 
+    // Import performer category utilities
+    const { getPerformerCategory, isPerformer } = await import('./performer-categories');
+
     for (const [key, entity] of Object.entries(context.entityData)) {
-      // Generate categories based on entity type
+      // Special handling for performers (people)
+      if (isPerformer(entity)) {
+        try {
+          const performerInfo = await getPerformerCategory(entity);
+
+          if (!seenCategories.has(performerInfo.commonsCategory.toLowerCase())) {
+            seenCategories.add(performerInfo.commonsCategory.toLowerCase());
+            categories.push({
+              name: performerInfo.commonsCategory,
+              source: 'performer-entity',
+              type: 'auto',
+              priority: 9, // High priority for performer categories
+              confidence: performerInfo.source === 'p373' ? 1.0 : 0.85,
+              reasoning: performerInfo.source === 'p373'
+                ? `Using Commons category from Wikidata P373: ${performerInfo.commonsCategory}`
+                : `Generated performer category: ${performerInfo.commonsCategory} (${performerInfo.source})`
+            });
+          }
+        } catch (error) {
+          console.warn(`Could not generate performer category for ${entity.id}:`, error);
+        }
+        continue; // Skip the generic entity type handling for performers
+      }
+
+      // Generate categories based on entity type for non-performers
       const entityTypes = entity.claims?.['P31'] || [];
-      
+
       for (const typeStatement of entityTypes) {
         const typeId = typeStatement.mainsnak?.datavalue?.value?.id;
         if (typeId) {
           const typeCategories = this.generateFromEntityType(typeId, entity, context);
-          
+
           typeCategories.forEach(category => {
             if (!seenCategories.has(category.name.toLowerCase())) {
               seenCategories.add(category.name.toLowerCase());
@@ -435,32 +462,28 @@ export class CategoryGenerator {
     const entityName = entity.labels?.en?.value || entity.id;
 
     switch (typeId) {
-      case 'Q5': // Person
-        const nationality = entity.claims?.['P27']?.[0]?.mainsnak?.datavalue?.value;
-        if (nationality) {
-          const nationalityName = this.formatValue(nationality, 'nationality', context);
-          if (nationalityName) {
+      case 'Q5': // Person - should be handled by generateFromEntities, but keep as fallback
+        // Performers are now handled specially in generateFromEntities
+        // This is just a fallback for any persons that slip through
+        console.warn('Person entity reached generic type handler - should have been handled by performer logic:', entityName);
+        break;
+
+      case 'Q215627': // Musical group (band)
+        // For bands themselves (not members), we might want to add genre-based categories
+        const genre = entity.claims?.['P136']?.[0]?.mainsnak?.datavalue?.value;
+        if (genre) {
+          const genreName = this.formatValue(genre, 'genre', context);
+          if (genreName) {
             categories.push({
-              name: `${nationalityName} people`,
+              name: `${genreName} musical groups`,
               source: 'entity-analysis',
               type: 'suggested',
-              priority: 5,
+              priority: 6,
               confidence: 0.8,
-              reasoning: `Generated from person's nationality: ${nationalityName}`
+              reasoning: `Generated from band's genre: ${genreName}`
             });
           }
         }
-        break;
-
-      case 'Q215627': // Person (band member)
-        categories.push({
-          name: `${entityName} members`,
-          source: 'entity-analysis',
-          type: 'suggested',
-          priority: 6,
-          confidence: 0.9,
-          reasoning: `Generated from band name: ${entityName}`
-        });
         break;
 
       case 'Q132241': // Music festival

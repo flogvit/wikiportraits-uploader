@@ -92,8 +92,19 @@ function generateUnifiedEventCategories(eventData: any): string[] {
   const year = date ? new Date(date).getFullYear().toString() : '';
   const eventName = commonsCategory || (year ? `${title} ${year}` : title);
 
-  // Add WikiPortraits at Event category
-  categories.add(`WikiPortraits at ${eventName}`);
+  // Add WikiPortraits at Event category - use "WikiPortraits at {year} {event}" format
+  // Extract event name without year for WikiPortraits category
+  const eventNameWithoutYear = title; // Just the event name, no year
+  if (year) {
+    // Format: "WikiPortraits at 2025 Jærnåttå" (year first)
+    categories.add(`WikiPortraits at ${year} ${eventNameWithoutYear}`);
+    // Also add year category: "WikiPortraits in 2025"
+    categories.add(`WikiPortraits in ${year}`);
+    // Also add type category: "WikiPortraits at music events"
+    categories.add('WikiPortraits at music events');
+  } else {
+    categories.add(`WikiPortraits at ${eventName}`);
+  }
 
   // Add main event category
   categories.add(eventName);
@@ -415,14 +426,41 @@ function getUnifiedEventCategoriesToCreate(eventData: any): CategoryCreationInfo
     eventName: title
   });
 
-  // 4. Create WikiPortraits at Event category (e.g., "WikiPortraits at Eurovision Song Contest 2025")
-  const wikiPortraitsEventCategory = `WikiPortraits at ${eventName}`;
+  // 4. Create WikiPortraits year category (e.g., "WikiPortraits in 2025")
+  if (year) {
+    const wikiPortraitsYearCategory = `WikiPortraits in ${year}`;
+    categoriesToCreate.push({
+      categoryName: wikiPortraitsYearCategory,
+      shouldCreate: true,
+      parentCategory: 'WikiPortraits',
+      description: `Images uploaded via [[c:Commons:WikiPortraits|WikiPortraits]] in ${year}.`,
+      eventName: 'WikiPortraits'
+    });
+  }
+
+  // 5. Create WikiPortraits at music events category
+  const wikiPortraitsMusicCategory = 'WikiPortraits at music events';
+  categoriesToCreate.push({
+    categoryName: wikiPortraitsMusicCategory,
+    shouldCreate: true,
+    parentCategory: 'WikiPortraits',
+    description: `Images from music events uploaded via [[c:Commons:WikiPortraits|WikiPortraits]].`,
+    eventName: 'WikiPortraits'
+  });
+
+  // 6. Create WikiPortraits at Event category with proper format: "WikiPortraits at {year} {event}"
+  // e.g., "WikiPortraits at 2025 Jærnåttå" (year first for chronological sorting)
+  const wikiPortraitsEventCategory = year
+    ? `WikiPortraits at ${year} ${baseEventName}`
+    : `WikiPortraits at ${title}`;
+
   categoriesToCreate.push({
     categoryName: wikiPortraitsEventCategory,
     shouldCreate: true,
-    parentCategory: 'WikiPortraits',
-    description: `WikiPortraits photos taken at ${title}${year ? ` ${year}` : ''}.`,
-    eventName: title
+    parentCategory: year ? `WikiPortraits in ${year}` : 'WikiPortraits',
+    description: `Images from [[${title}]]${year ? ` ${year}` : ''} uploaded via [[c:Commons:WikiPortraits|WikiPortraits]].`,
+    eventName: title,
+    additionalParents: [wikiPortraitsMusicCategory]
   });
 
   // 5. Create band-specific categories (e.g., "FordRekord at Jærnåttå 2025")

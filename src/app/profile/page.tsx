@@ -7,6 +7,7 @@ import { User, ExternalLink, Edit, Settings, Camera, Globe, Link as LinkIcon, Ar
 import { loadAuthorWikidataQid } from '@/utils/localStorage';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import LoginButton from '@/components/auth/LoginButton';
+import ConfigurationPanel from '@/components/settings/ConfigurationPanel';
 
 interface WikidataEntity {
   id: string;
@@ -26,6 +27,7 @@ export default function ProfilePage() {
   const [photographerData, setPhotographerData] = useState<WikidataEntity | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -94,7 +96,22 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
+          {showSettings ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Profile
+                </button>
+              </div>
+              <ConfigurationPanel onClose={() => setShowSettings(false)} />
+            </div>
+          ) : (
+            <>
           <header className="mb-8">
             <div className="mb-4">
               <button
@@ -284,7 +301,18 @@ export default function ProfilePage() {
                       <p className="text-sm text-muted-foreground">Upload photos and manage workflow</p>
                     </div>
                   </button>
-                  
+
+                  <button
+                    onClick={() => setShowSettings(!showSettings)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left border border-border rounded-md hover:bg-muted transition-colors"
+                  >
+                    <Settings className="w-5 h-5" />
+                    <div>
+                      <p className="font-medium">Workflow Settings</p>
+                      <p className="text-sm text-muted-foreground">Configure categories, permissions, and defaults</p>
+                    </div>
+                  </button>
+
                   {photographerQid && (
                     <a
                       href={`https://www.wikidata.org/wiki/${photographerQid}`}
@@ -329,6 +357,8 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

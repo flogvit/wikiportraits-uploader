@@ -116,7 +116,10 @@ export const WD_PROPERTIES = {
   COORDINATE_LOCATION: 'P625',  // coordinate location
   COUNTRY: 'P17',               // country
   LOCATED_IN: 'P131',           // located in the administrative territorial entity
-  
+
+  // Wikimedia properties
+  COMMONS_CATEGORY: 'P373',     // Commons category
+
   // Time properties
   START_TIME: 'P580',           // start time
   END_TIME: 'P582',             // end time
