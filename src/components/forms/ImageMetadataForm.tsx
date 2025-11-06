@@ -20,6 +20,7 @@ const metadataSchema = z.object({
   time: z.string().optional(),
   source: z.string().optional(),
   license: z.string().optional(),
+  permission: z.string().optional(),
   selectedBand: z.string().optional(),
   template: z.string().optional(),
   wikitext: z.string().optional(),
@@ -65,6 +66,7 @@ export default function ImageMetadataForm({
     time: image.metadata?.time || '',
     source: image.metadata?.source || '',
     license: image.metadata?.license || 'CC-BY-SA-4.0',
+    permission: image.metadata?.permission || '',
     selectedBand: image.metadata?.selectedBand || '',
     template: image.metadata?.template || '',
     wikitext: image.metadata?.wikitext || '',
@@ -254,7 +256,7 @@ export default function ImageMetadataForm({
       };
 
       // Regenerate filename
-      const newFilename = generateCommonsFilename(image.file.name, formData as any, index);
+      const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
 
       // Regenerate description
       const newDescription = generateMusicEventDescription(formData as any);
@@ -428,6 +430,50 @@ export default function ImageMetadataForm({
         />
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-card-foreground mb-1">
+          Permission (optional)
+        </label>
+        <Controller
+          name="permission"
+          control={control}
+          render={({ field }) => (
+            <div className="space-y-2">
+              <textarea
+                {...field}
+                value={field.value || ''}
+                onChange={(e) => {
+                  field.onChange(e.target.value);
+                  const permissionValue = e.target.value;
+
+                  // Mark as override if changed
+                  handleMetadataChange('permission', permissionValue);
+                  handleMetadataChange('permissionOverride', permissionValue);
+
+                  // Update wikitext
+                  const currentWikitext = getValues('wikitext') || '';
+                  if (currentWikitext) {
+                    const updatedWikitext = currentWikitext.replace(
+                      /\|permission=([^\n]*)/,
+                      `|permission=${permissionValue}`
+                    );
+                    setValue('wikitext', updatedWikitext);
+                    handleMetadataChange('wikitext', updatedWikitext);
+                    handleMetadataChange('wikitextModified', true);
+                  }
+                }}
+                rows={2}
+                placeholder="e.g., Permission granted by performers via messenger on May 24, 2025. Available upon request."
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card text-sm resize-y"
+              />
+              <p className="text-xs text-muted-foreground">
+                Plain text describing how you obtained permission. This will be visible on the Commons page.
+              </p>
+            </div>
+          )}
+        />
+      </div>
+
       {musicEventData?.eventType === 'festival' && (
         <div>
           <label className="block text-sm font-medium text-card-foreground mb-1">
@@ -523,7 +569,7 @@ export default function ImageMetadataForm({
                 handleWikitextChange(e.target.value);
               }}
               className="w-full h-32 px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card font-mono text-sm resize-y"
-              placeholder="Wikitext will be generated automatically..."
+              placeholder={field.value ? "" : "Wikitext will be generated automatically..."}
             />
           )}
         />

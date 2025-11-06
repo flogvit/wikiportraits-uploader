@@ -42,8 +42,12 @@ export default function ImageCard({
 
   console.log('🖼️ ImageCard render - ID:', image.id, 'isExisting:', isExisting, 'has file:', !!image.file, 'suggestedFilename:', image.metadata?.suggestedFilename);
 
-  // Get current filename
-  const currentFilename = image.metadata?.suggestedFilename || generateFilename(image, index, musicEventData);
+  // Get current filename - ensure it's not a Promise
+  const suggestedFilename = image.metadata?.suggestedFilename;
+  if (suggestedFilename && typeof suggestedFilename === 'object' && 'then' in suggestedFilename) {
+    console.error('❌ ERROR: suggestedFilename is a Promise!', suggestedFilename);
+  }
+  const currentFilename = (typeof suggestedFilename === 'string' ? suggestedFilename : null) || generateFilename(image, index, musicEventData);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -162,6 +166,146 @@ export default function ImageCard({
         name: p.entity.labels.en.value
       })));
 
+      // For existing images, update selectedBandMembers, description, and wikitext with new categories
+      if (isExisting) {
+        console.log('📸 Existing image - updating selectedBandMembers, description, and adding performer categories to wikitext');
+
+        // Build formData for description generation
+        const bandOrganization = bandPerformers?.selectedBand ? [{
+          entity: {
+            id: bandPerformers.selectedBand.id,
+            labels: {
+              en: {
+                language: 'en' as const,
+                value: bandPerformers.selectedBand.name
+              }
+            }
+          }
+        }] : [];
+
+        const formData = {
+          workflowType: 'music-event',
+          eventDetails: {
+            ...eventDetails,
+            date: image.metadata?.date || eventDetails?.date
+          },
+          entities: {
+            people: selectedPerformers,
+            organizations: bandOrganization,
+            locations: [],
+            events: []
+          }
+        };
+
+        // Generate new description with performers
+        const { generateMusicEventDescription } = await import('@/utils/commons-description');
+        const newDescription = generateMusicEventDescription(formData as any);
+
+        // Get performer categories for the selected members
+        const { getPerformerCategories } = await import('@/utils/performer-categories');
+        const performerCategoryInfos = await getPerformerCategories(selectedPerformers.map((p: any) => p.entity));
+
+        // Get current wikitext
+        let currentWikitext = image.metadata?.wikitext || '';
+
+        // Update description in wikitext
+        // Match the entire description field including nested templates
+        // Pattern: |description={{...anything...}}  (handles single or double wrapping)
+        currentWikitext = currentWikitext.replace(
+          /\|description=\{\{(?:[^}]|\}(?!\}))*\}\}(?:\}\})?/s,
+          `|description=${newDescription}`
+        );
+
+        // Build separate {{Depicts}} templates for each entity with comments
+        const depictsTemplates: string[] = [];
+
+        // Add band/organization
+        if (bandOrganization.length > 0 && bandOrganization[0].entity.id) {
+          const bandName = bandOrganization[0].entity.labels?.en?.value || 'Band';
+          depictsTemplates.push(`{{Depicts|${bandOrganization[0].entity.id}}} <!-- ${bandName} -->`);
+        }
+
+        // Add each performer
+        selectedPerformers.forEach((p: any) => {
+          if (p.entity?.id) {
+            const performerName = p.entity.labels?.en?.value || 'Performer';
+            depictsTemplates.push(`{{Depicts|${p.entity.id}}} <!-- ${performerName} -->`);
+          }
+        });
+
+        // Remove existing Depicts templates
+        currentWikitext = currentWikitext.replace(/\{\{Depicts\|[^}]+\}\}[^\n]*\n?/g, '');
+
+        // Add depicts templates after Information template (before license header)
+        if (depictsTemplates.length > 0) {
+          const depictsSection = depictsTemplates.join('\n');
+
+          currentWikitext = currentWikitext.replace(
+            /(\}\})\s*(=={{int:license-header}}==)/,
+            `$1\n${depictsSection}\n\n$2`
+          );
+
+          console.log('🏷️ Added Depicts templates:', depictsTemplates);
+        }
+
+        // Extract existing categories from wikitext
+        const categoryRegex = /\[\[Category:([^\]]+)\]\]/g;
+        const existingCategoryMatches = [...currentWikitext.matchAll(categoryRegex)];
+        const existingCategories = existingCategoryMatches.map(match => match[1]);
+
+        // Get all performer categories (current selection)
+        const currentPerformerCategories = performerCategoryInfos.map(info => info.commonsCategory);
+
+        // Find categories to add and remove
+        const categoriesToAdd = currentPerformerCategories.filter(cat => !existingCategories.includes(cat));
+        const performerCategoriesToRemove = existingCategories.filter(cat => {
+          // Remove if it's a performer category that's no longer selected
+          // Keep all non-performer categories (event, band, WikiPortraits)
+          return !currentPerformerCategories.includes(cat) &&
+                 existingCategoryMatches.some(match => match[1] === cat) &&
+                 // Check if it looks like a performer category (has disambiguation or is a person name)
+                 (cat.includes('(musician)') || cat.includes('(singer)') || cat.includes('(guitarist)') ||
+                  cat.includes('(drummer)') || cat.includes('(bassist)') || cat.includes('(keyboardist)'));
+        });
+
+        // Remove performer categories that are no longer selected
+        if (performerCategoriesToRemove.length > 0) {
+          performerCategoriesToRemove.forEach(cat => {
+            currentWikitext = currentWikitext.replace(new RegExp(`\\[\\[Category:${cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]\\n?`, 'g'), '');
+          });
+          console.log('🗑️ Removed performer categories from wikitext:', performerCategoriesToRemove);
+        }
+
+        // Add new performer categories
+        if (categoriesToAdd.length > 0) {
+          // Find where to insert new categories (after the last category)
+          const updatedCategoryMatches = [...currentWikitext.matchAll(categoryRegex)];
+          const lastCategoryMatch = updatedCategoryMatches[updatedCategoryMatches.length - 1];
+
+          if (lastCategoryMatch && lastCategoryMatch.index !== undefined) {
+            // Insert after the last category
+            const insertPosition = lastCategoryMatch.index + lastCategoryMatch[0].length;
+            const newCategoryLines = categoriesToAdd.map(cat => `\n[[Category:${cat}]]`).join('');
+            currentWikitext = currentWikitext.slice(0, insertPosition) + newCategoryLines + currentWikitext.slice(insertPosition);
+          } else {
+            // No existing categories, add at the end
+            const newCategoryLines = categoriesToAdd.map(cat => `[[Category:${cat}]]`).join('\n');
+            currentWikitext += '\n\n' + newCategoryLines;
+          }
+
+          console.log('📋 Added performer categories to wikitext:', categoriesToAdd);
+        }
+
+        onUpdate(image.id, {
+          selectedBandMembers: memberIds,
+          description: newDescription.replace(/\{\{[^}]+\|1=([^}]+)\}\}/, '$1'), // Store plain description
+          wikitext: currentWikitext,
+          wikitextModified: true // Mark as modified by user action
+        });
+        return;
+      }
+
+      // For new images, regenerate filename and description
       // Build organization (band) info
       const bandOrganization = bandPerformers?.selectedBand ? [{
         entity: {
@@ -206,7 +350,7 @@ export default function ImageCard({
       }, null, 2));
 
       // Regenerate filename
-      const newFilename = generateCommonsFilename(image.file.name, formData as any, index);
+      const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
 
       // Generate base description (without custom text)
       const baseDescription = generateMusicEventDescription(formData as any);
@@ -395,31 +539,46 @@ export default function ImageCard({
         />
 
         {/* P18 (main image) selection */}
-        {bandPerformers?.selectedBand && (
-          <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={image.metadata?.setAsMainImage || false}
-                onChange={(e) => {
-                  onUpdate(image.id, { setAsMainImage: e.target.checked });
-                }}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <div className="flex-1">
-                <span className="text-sm font-medium text-blue-900">
-                  Suggest as main image for {bandPerformers.selectedBand.name}
-                </span>
-                <p className="text-xs text-blue-700 mt-0.5">
-                  Add P18 (image) to {bandPerformers.selectedBand.id} • Will be added with normal rank
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  ℹ️ If an image already exists, this will be added as an alternative. The Wikidata community can adjust rankings.
-                </p>
-              </div>
-            </label>
-          </div>
-        )}
+        {bandPerformers?.selectedBand && (() => {
+          // Check if band already has P18 (image)
+          const bandEntity = bandPerformers.selectedBand.entity;
+          const hasExistingP18 = bandEntity?.claims?.P18?.length > 0;
+          const existingImageCount = bandEntity?.claims?.P18?.length || 0;
+
+          return (
+            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={image.metadata?.setAsMainImage || false}
+                  onChange={(e) => {
+                    onUpdate(image.id, { setAsMainImage: e.target.checked });
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-blue-900">
+                    {hasExistingP18
+                      ? `Add as alternative image for ${bandPerformers.selectedBand.name}`
+                      : `Set as main image for ${bandPerformers.selectedBand.name}`
+                    }
+                  </span>
+                  <p className="text-xs text-blue-700 mt-0.5">
+                    {hasExistingP18
+                      ? `Add P18 (image) to ${bandPerformers.selectedBand.id} • ${existingImageCount} image${existingImageCount > 1 ? 's' : ''} already exist${existingImageCount === 1 ? 's' : ''}`
+                      : `Add P18 (image) to ${bandPerformers.selectedBand.id} • No image currently set`
+                    }
+                  </p>
+                  {hasExistingP18 && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      ℹ️ This will be added with normal rank. The Wikidata community can adjust rankings.
+                    </p>
+                  )}
+                </div>
+              </label>
+            </div>
+          );
+        })()}
 
         {/* Metadata warnings */}
         {image.metadata?.metadataStripped && image.metadata?.metadataWarnings && (

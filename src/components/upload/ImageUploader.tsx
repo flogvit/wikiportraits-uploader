@@ -59,7 +59,9 @@ export default function ImageUploader({
     if (eventDetails?.title) {
       const mainBandName = bandPerformers?.selectedBand?.name;
 
-      imageFiles.forEach((imageFile: any, index: number) => {
+      for (let index = 0; index < imageFiles.length; index++) {
+        const imageFile = imageFiles[index];
+
         // Use the image's EXIF date if available, otherwise fall back to event date
         const imageDate = imageFile.metadata?.date || eventDetails?.date;
 
@@ -101,7 +103,13 @@ export default function ImageUploader({
         };
 
         // 1. Generate Commons-compliant filename
-        const newFilename = generateCommonsFilename(imageFile.file.name, formData as any, index);
+        // Collect already suggested filenames to avoid duplicates
+        const existingFilenames = imageFiles
+          .slice(0, index)
+          .map((img: any) => img.metadata?.suggestedFilename)
+          .filter(Boolean);
+
+        const newFilename = await generateCommonsFilename(imageFile.file.name, formData as any, index, existingFilenames);
         imageFile.metadata.suggestedFilename = newFilename;
         console.log(`📝 Suggested filename: ${imageFile.file.name} → ${newFilename}`);
 
@@ -131,7 +139,7 @@ export default function ImageUploader({
 
         console.log('📝 Added WikiPortraits template:', templateUsage);
         console.log('📝 Regenerated wikitext with categories and template');
-      });
+      }
     }
 
     // Check for duplicates
