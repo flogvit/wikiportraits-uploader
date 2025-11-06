@@ -54,7 +54,7 @@ openssl rand -base64 32
 
 ## How Callback URLs Work with OAuth 1.0a
 
-With "Allow consumer to specify a callback in requests" enabled:
+With "Allow consumer to specify a callback in requests" enabled:Can you fix 
 
 ### Development
 - Your app uses: `http://localhost:3010/api/auth/callback/wikimedia`
