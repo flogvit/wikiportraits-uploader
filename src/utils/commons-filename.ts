@@ -43,13 +43,42 @@ export function sanitizeForFilename(text: string): string {
 }
 
 /**
- * Generate a Commons-compliant filename based on event data
+ * Check if a file exists on Commons
  */
-export function generateCommonsFilename(
+async function checkFileExistsOnCommons(filename: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `https://commons.wikimedia.org/w/api.php?` +
+      new URLSearchParams({
+        action: 'query',
+        titles: `File:${filename}`,
+        format: 'json',
+        origin: '*'
+      })
+    );
+
+    const data = await response.json();
+    const pages = data.query?.pages || {};
+    const page = Object.values(pages)[0] as any;
+
+    // If page.missing is present, file doesn't exist
+    return !page.missing;
+  } catch (error) {
+    console.error('Error checking file existence:', error);
+    return false; // Assume doesn't exist if check fails
+  }
+}
+
+/**
+ * Generate a Commons-compliant filename based on event data
+ * Checks for uniqueness against existing filenames and Commons
+ */
+export async function generateCommonsFilename(
   originalFilename: string,
   formData: UniversalFormData,
-  imageIndex: number
-): string {
+  imageIndex: number,
+  existingFilenames: string[] = []
+): Promise<string> {
   const ext = originalFilename.split('.').pop()?.toLowerCase() || 'jpg';
 
   // Get event details
@@ -64,7 +93,7 @@ export function generateCommonsFilename(
   // Try to get main band/organization first, then fall back to individual performers
   let mainPerformer = null;
   if (organizations.length > 0) {
-    mainPerformer = organizations[0].entity?.labels?.en?.value || organizations[0].entity?.id;
+    mainPerformer = organizations[0].entity?.labels?.en?.value || organizations[0].labels?.en?.value || organizations[0].entity?.id;
   } else if (performers.length > 0) {
     mainPerformer = performers[0].entity?.labels?.en?.value || performers[0].entity?.id;
   }
@@ -110,11 +139,34 @@ export function generateCommonsFilename(
     parts.push(dateStr);
   }
 
-  // 5. Image number (if multiple images)
-  parts.push(String(imageIndex + 1).padStart(2, '0'));
+  // 5. Image number - check for uniqueness
+  let counter = imageIndex + 1;
+  let baseFilename = parts.join('_');
+  let filename = `${baseFilename}_${String(counter).padStart(2, '0')}.${ext}`;
 
-  // Join parts and add extension
-  const filename = parts.join('_') + '.' + ext;
+  // Check against existing filenames and Commons
+  let isUnique = false;
+  while (!isUnique) {
+    // Check local list first (fast)
+    if (existingFilenames.includes(filename)) {
+      counter++;
+      filename = `${baseFilename}_${String(counter).padStart(2, '0')}.${ext}`;
+      console.log('⚠️  Local filename collision detected, incrementing to:', filename);
+      continue;
+    }
+
+    // Check Commons (slower, but necessary)
+    const existsOnCommons = await checkFileExistsOnCommons(filename);
+    if (existsOnCommons) {
+      counter++;
+      filename = `${baseFilename}_${String(counter).padStart(2, '0')}.${ext}`;
+      console.log('⚠️  Commons filename collision detected, incrementing to:', filename);
+      continue;
+    }
+
+    // Unique!
+    isUnique = true;
+  }
 
   return filename;
 }
@@ -122,26 +174,26 @@ export function generateCommonsFilename(
 /**
  * Generate a batch of filenames for multiple images
  */
-export function generateBatchFilenames(
+export async function generateBatchFilenames(
   files: Array<{ file: File; metadata?: any }>,
   formData: UniversalFormData
-): string[] {
-  return files.map((fileData, index) =>
+): Promise<string[]> {
+  return Promise.all(files.map((fileData, index) =>
     generateCommonsFilename(fileData.file.name, formData, index)
-  );
+  ));
 }
 
 /**
  * Preview filename without applying it
  */
-export function previewFilename(
+export async function previewFilename(
   originalFilename: string,
   formData: UniversalFormData,
   imageIndex: number
-): { original: string; suggested: string } {
+): Promise<{ original: string; suggested: string }> {
   return {
     original: originalFilename,
-    suggested: generateCommonsFilename(originalFilename, formData, imageIndex)
+    suggested: await generateCommonsFilename(originalFilename, formData, imageIndex)
   };
 }
 
