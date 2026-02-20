@@ -2,6 +2,7 @@
 
 import { RotateCcw } from 'lucide-react';
 import { imageCache } from '@/utils/image-cache';
+import { lookupCache } from '@/utils/lookup-cache';
 
 export default function StartFreshButton() {
   const handleStartFresh = async () => {
@@ -12,8 +13,9 @@ export default function StartFreshButton() {
       '• Event details\n' +
       '• Categories\n' +
       '• Wikidata entities\n' +
-      '• All workflow progress\n\n' +
-      'Your login and API cache will be preserved.\n\n' +
+      '• All workflow progress\n' +
+      '• API cache\n\n' +
+      'Your login will be preserved.\n\n' +
       'Are you sure?'
     );
 
@@ -23,6 +25,10 @@ export default function StartFreshButton() {
       // Clear images from IndexedDB
       await imageCache.clearImages();
       console.log('🗑️ Cleared images from IndexedDB');
+
+      // Clear API cache
+      lookupCache.clear();
+      console.log('🗑️ Cleared API cache from localStorage');
 
       // Clear form data from localStorage
       if (typeof window !== 'undefined') {

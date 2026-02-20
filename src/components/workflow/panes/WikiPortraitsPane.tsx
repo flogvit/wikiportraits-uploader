@@ -32,16 +32,6 @@ export default function WikiPortraitsPane({
 
   return (
     <div className="space-y-6">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-card-foreground mb-2">{getWorkflowTitle()}</h2>
-        <p className="text-muted-foreground">
-          {isWikiPortraitsJob === undefined 
-            ? 'Choose whether this is a WikiPortraits assignment or a general Wikimedia Commons upload'
-            : `You selected: ${isWikiPortraitsJob ? 'WikiPortraits Assignment' : 'Wikimedia Commons'}`
-          }
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* WikiPortraits Option */}
         <div 

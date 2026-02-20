@@ -39,6 +39,7 @@ export default function CacheManager() {
     if (confirm('Are you sure you want to clear all cached data? This will cause the next lookup to fetch fresh data from Wikidata and Commons.')) {
       lookupCache.clear();
       await refreshStats();
+      setShowDetails(false);
     }
   };
 
@@ -47,6 +48,7 @@ export default function CacheManager() {
       try {
         await imageCache.clearImages();
         await refreshStats();
+        setShowDetails(false);
       } catch (error) {
         console.error('Failed to clear images:', error);
       }

@@ -33,14 +33,6 @@ export default function EventTypePane({
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <Settings className="w-12 h-12 text-primary mx-auto mb-4" />
-        <h2 className="text-2xl font-semibold text-card-foreground mb-2">Event Type</h2>
-        <p className="text-muted-foreground">
-          Choose whether this is a festival or concert for proper categorization
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
         <button
           onClick={() => handleEventTypeSelect('festival')}

@@ -19,13 +19,6 @@ export default function EventDetailsPane({
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <Calendar className="w-12 h-12 mx-auto mb-4 text-primary" />
-        <h2 className="text-2xl font-bold text-card-foreground mb-2">Event Details</h2>
-        <p className="text-muted-foreground">
-          Configure the details of your event for better organization
-        </p>
-      </div>
 
       {uploadType === 'music' ? (
         <>

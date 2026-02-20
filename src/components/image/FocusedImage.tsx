@@ -21,8 +21,6 @@ export default function FocusedImage({
 
   const handleImageLoad = () => {
     setImageLoaded(true);
-    // Log cache status for debugging
-    console.log(`🖼️ Image loaded: ${src}`);
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {

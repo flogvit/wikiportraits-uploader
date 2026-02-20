@@ -156,16 +156,6 @@ export default function EventSelector({
             }
           }
 
-          console.log('📅 Event dates from Wikidata:', {
-            name,
-            eventDate,
-            eventEndDate,
-            year,
-            hasP580: !!startTime,
-            hasP582: !!endTime,
-            hasP585: !!pointInTime
-          });
-
           // Get location (P276 - location, P131 - located in administrative territorial entity)
           let location = '';
           let locationQid = '';
@@ -402,6 +392,16 @@ export default function EventSelector({
             onFocus={() => {
               if (searchResults.length > 0) {
                 setIsOpen(true);
+              }
+            }}
+            onKeyDown={(e) => {
+              // Prevent form submission on Enter key
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                // Trigger search if we have a search term
+                if (searchTerm.trim().length >= 3) {
+                  performSearch(searchTerm.trim());
+                }
               }
             }}
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
