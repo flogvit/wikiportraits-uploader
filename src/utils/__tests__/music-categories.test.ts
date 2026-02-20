@@ -116,8 +116,75 @@ describe('music-categories utility', () => {
 
     it('returns only WikiPortraits for empty event data', () => {
       const categories = generateMusicCategories({ eventData: null as any })
-      
+
       expect(categories).toEqual(['WikiPortraits'])
+    })
+
+    it('generates unified event categories when title is set without eventType', () => {
+      const categories = generateMusicCategories({
+        eventData: {
+          title: 'MyEvent',
+          date: '2025-06-15',
+          participants: [
+            { name: 'Alice', commonsCategory: 'Alice (musician)' },
+            { name: 'Bob' }, // no commonsCategory
+          ],
+        },
+      })
+
+      expect(categories).toContain('WikiPortraits')
+      expect(categories).toContain('WikiPortraits at 2025 MyEvent')
+      expect(categories).toContain('WikiPortraits in 2025')
+      expect(categories).toContain('WikiPortraits at music events')
+      expect(categories).toContain('MyEvent 2025')
+      expect(categories).toContain('Alice (musician)')
+    })
+
+    it('generates unified event categories without date', () => {
+      const categories = generateMusicCategories({
+        eventData: {
+          title: 'NoDateEvent',
+        },
+      })
+
+      expect(categories).toContain('WikiPortraits')
+      expect(categories).toContain('WikiPortraits at NoDateEvent')
+      expect(categories).toContain('NoDateEvent')
+    })
+
+    it('uses commonsCategory from eventData when available', () => {
+      const categories = generateMusicCategories({
+        eventData: {
+          title: 'MyFest',
+          date: '2025-01-01',
+          commonsCategory: 'CustomCategory',
+        },
+      })
+
+      expect(categories).toContain('CustomCategory')
+    })
+
+    it('generates unified event categories with title containing year', () => {
+      const categories = generateMusicCategories({
+        eventData: {
+          title: 'MyFest 2025',
+          date: '2025-01-01',
+        },
+      })
+
+      expect(categories).toContain('WikiPortraits at 2025 MyFest')
+    })
+
+    it('handles unified event with no participants', () => {
+      const categories = generateMusicCategories({
+        eventData: {
+          title: 'Solo Event',
+          date: '2025-03-01',
+          participants: [],
+        },
+      })
+
+      expect(categories).toContain('Solo Event 2025')
     })
   })
 
@@ -210,8 +277,44 @@ describe('music-categories utility', () => {
 
     it('returns empty array for invalid event data', () => {
       const categoriesToCreate = getCategoriesToCreate({} as any)
-      
+
       expect(categoriesToCreate).toEqual([])
+    })
+
+    it('returns unified event categories when title is set without eventType', () => {
+      const categoriesToCreate = getCategoriesToCreate({
+        title: 'MyEvent',
+        date: '2025-06-15',
+      })
+
+      expect(categoriesToCreate.length).toBeGreaterThan(0)
+      expect(categoriesToCreate).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            categoryName: expect.stringContaining('WikiPortraits at 2025 MyEvent'),
+          })
+        ])
+      )
+    })
+
+    it('returns unified event categories without date', () => {
+      const categoriesToCreate = getCategoriesToCreate({
+        title: 'SimpleEvent',
+      })
+
+      expect(categoriesToCreate.length).toBeGreaterThan(0)
+    })
+
+    it('returns unified event categories with participants', () => {
+      const categoriesToCreate = getCategoriesToCreate({
+        title: 'ParticipantEvent',
+        date: '2025-03-01',
+        participants: [
+          { name: 'Alice', commonsCategory: 'Alice (musician)' },
+        ],
+      })
+
+      expect(categoriesToCreate.length).toBeGreaterThan(0)
     })
   })
 })

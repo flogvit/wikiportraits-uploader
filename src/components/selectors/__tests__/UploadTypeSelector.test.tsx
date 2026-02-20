@@ -93,6 +93,7 @@ describe('UploadTypeSelector', () => {
     const unselectedButton = screen.getByText('General Upload').closest('button')
 
     expect(selectedButton).toHaveClass('border-primary')
-    expect(unselectedButton).toHaveClass('bg-muted')
+    // General Upload is disabled, so it gets disabled styling
+    expect(unselectedButton).toHaveClass('opacity-50')
   })
 })

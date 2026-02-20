@@ -23,7 +23,7 @@ describe('template-generator utility', () => {
 
   describe('generateTemplateName', () => {
     it('generates template name for music events', () => {
-      const templateName = generateTemplateName('music', mockMusicEventData, null)
+      const templateName = generateTemplateName('music', mockMusicEventData)
       expect(templateName).toBe('WikiPortraits at Test Festival 2024')
     })
 
@@ -31,7 +31,7 @@ describe('template-generator utility', () => {
 
   describe('generateTemplate', () => {
     it('generates template content for music events', () => {
-      const template = generateTemplate('music', mockMusicEventData, null)
+      const template = generateTemplate('music', mockMusicEventData, undefined)
       expect(template).toContain('WikiPortraits')
       expect(template).toContain('Test Festival 2024')
       expect(template).toContain('{{WikiPortraits')
@@ -41,7 +41,7 @@ describe('template-generator utility', () => {
     })
 
     it('includes proper WikiPortraits template structure', () => {
-      const template = generateTemplate('music', mockMusicEventData, null)
+      const template = generateTemplate('music', mockMusicEventData, undefined)
       expect(template).toContain('{{WikiPortraits')
       expect(template).toContain('|title =')
       expect(template).toContain('|photocat =')
