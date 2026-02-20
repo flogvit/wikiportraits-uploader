@@ -1,303 +1,21 @@
 'use client';
 
-import { CheckCircle, Clock, AlertCircle, Settings, Calendar, ImagePlus, FolderPlus, Database, Globe, Upload, FileText, Users, Camera, FileImage } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useWorkflow, StepStatus } from '../providers/WorkflowProvider';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
-
-// Workflow step configuration
-interface StepConfig {
-  id: string;
-  title: string;
-  icon: React.ComponentType<any>;
-  getDescription: (formData: any) => string;
-  getDependencies: () => string[];
-  hasValues: (formData: any) => boolean;
-  isFinished: (formData: any) => boolean;
-}
-
-interface WorkflowConfig {
-  steps: StepConfig[];
-}
-
-// Step configurations by workflow type
-const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
-  'music': {
-    steps: [
-      {
-        id: 'wiki-portraits',
-        title: 'WikiPortraits',
-        icon: Camera,
-        getDescription: (formData) => {
-          const isWikiPortraitsJob = formData.isWikiPortraitsJob;
-          return isWikiPortraitsJob === true
-            ? 'WikiPortraits Assignment'
-            : isWikiPortraitsJob === false
-            ? 'Wikimedia Commons'
-            : 'Select workflow type';
-        },
-        getDependencies: () => [],
-        hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
-        isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
-      },
-      {
-        id: 'upload-type',
-        title: 'Upload Type',
-        icon: FileImage,
-        getDescription: (formData) => {
-          const workflowType = formData.workflowType;
-          if (workflowType === 'music-event') return 'Music Event';
-          if (workflowType === 'soccer-match') return 'Soccer Match';
-          if (workflowType === 'portrait-session') return 'Portrait Session';
-          if (workflowType === 'general-upload') return 'General Upload';
-          return 'Choose upload type';
-        },
-        getDependencies: () => ['wiki-portraits'],
-        hasValues: (formData) => formData.workflowType !== undefined,
-        isFinished: (formData) => formData.workflowType !== undefined
-      },
-      {
-        id: 'event-type',
-        title: 'Event Type',
-        icon: Settings,
-        getDescription: (formData) => {
-          const selectedEventType = formData.eventDetails?.type;
-          return selectedEventType
-            ? selectedEventType.charAt(0).toUpperCase() + selectedEventType.slice(1)
-            : 'Choose event type';
-        },
-        getDependencies: () => ['wiki-portraits'],
-        hasValues: (formData) => formData.eventDetails?.type !== undefined,
-        isFinished: (formData) => formData.eventDetails?.type !== undefined
-      },
-      {
-        id: 'event-details',
-        title: 'Event Details',
-        icon: Calendar,
-        getDescription: (formData) => {
-          const eventName = formData.eventDetails?.title;
-          const eventYear = formData.eventDetails?.date ? new Date(formData.eventDetails.date).getFullYear() : null;
-          return eventName && eventYear
-            ? `${eventName} (${eventYear})`
-            : eventName 
-            ? `${eventName}`
-            : eventYear
-            ? `Event ${eventYear}`
-            : 'Configure event details';
-        },
-        getDependencies: () => ['event-type'],
-        hasValues: (formData) => formData.eventDetails?.title && formData.eventDetails?.date,
-        isFinished: (formData) => formData.eventDetails?.title && formData.eventDetails?.date
-      },
-      {
-        id: 'band-performers',
-        title: 'Band & Performers',
-        icon: Users,
-        getDescription: (formData) => {
-          const performers = formData.entities?.people || [];
-          return performers.length > 0 ? `${performers.length} performer(s)` : 'Select band and performers';
-        },
-        getDependencies: () => ['event-details'],
-        hasValues: (formData) => (formData.entities?.people?.length || 0) > 0,
-        isFinished: (formData) => (formData.entities?.people?.length || 0) > 0
-      },
-      {
-        id: 'images',
-        title: 'Images',
-        icon: ImagePlus,
-        getDescription: (formData) => {
-          const newCount = formData.files?.queue?.length || 0;
-          const existingCount = formData.files?.existing?.length || 0;
-          const totalCount = newCount + existingCount;
-
-          if (totalCount === 0) return 'Upload and manage images';
-          if (existingCount > 0 && newCount > 0) {
-            return `${totalCount} images (${newCount} new, ${existingCount} from Commons)`;
-          }
-          if (existingCount > 0) {
-            return `${existingCount} images from Commons`;
-          }
-          return `${newCount} images`;
-        },
-        getDependencies: () => ['band-performers'],
-        hasValues: (formData) => {
-          const newCount = formData.files?.queue?.length || 0;
-          const existingCount = formData.files?.existing?.length || 0;
-          return (newCount + existingCount) > 0;
-        },
-        isFinished: (formData) => {
-          const newCount = formData.files?.queue?.length || 0;
-          const existingCount = formData.files?.existing?.length || 0;
-          const totalCount = newCount + existingCount;
-
-          // Consider finished if we have any images (new or existing)
-          if (totalCount === 0) return false;
-
-          // For new images, check they have descriptions
-          if (newCount > 0) {
-            return formData.files?.queue?.every((file: any) => file.metadata?.description);
-          }
-
-          // If only existing images, consider finished
-          return true;
-        }
-      },
-      {
-        id: 'categories',
-        title: 'Categories',
-        icon: FolderPlus,
-        getDescription: (formData) => {
-          const allCategories = formData.computed?.categories?.all || [];
-          return allCategories.length > 0 ? `${allCategories.length} categories` : 'Organize with categories';
-        },
-        getDependencies: () => ['event-details'], // Changed from 'images' to 'event-details'
-        hasValues: (formData) => {
-          const allCategories = formData.computed?.categories?.all || [];
-          return allCategories.length > 0;
-        },
-        isFinished: (formData) => {
-          // Categories pane is finished once categories exist
-          const allCategories = formData.computed?.categories?.all || [];
-          return allCategories.length > 0;
-        }
-      },
-      {
-        id: 'wikidata',
-        title: 'Wikidata',
-        icon: Database,
-        getDescription: (formData) => {
-          const entityCount = formData.computed?.wikidata?.entityCount || 0;
-          return entityCount > 0 ? `${entityCount} entities` : 'Link to Wikidata';
-        },
-        getDependencies: () => ['event-details'], // Changed from 'templates' to 'event-details'
-        hasValues: (formData) => {
-          // Has values if we have event details or entities
-          const hasEventDetails = !!formData.eventDetails?.title;
-          const hasEntities = (formData.entities?.people?.length || 0) > 0 ||
-                             (formData.entities?.organizations?.length || 0) > 0;
-          return hasEventDetails || hasEntities;
-        },
-        isFinished: (formData) => {
-          // Wikidata pane is finished once we have data
-          const hasData = !!formData.eventDetails?.title ||
-                         (formData.entities?.people?.length || 0) > 0 ||
-                         (formData.entities?.organizations?.length || 0) > 0;
-          return hasData;
-        }
-      },
-      {
-        id: 'upload',
-        title: 'Publish',
-        icon: Upload,
-        getDescription: (formData) => {
-          const pendingActions = formData.computed?.publish?.pendingActions || 0;
-          const completedActions = formData.computed?.publish?.completedActions || 0;
-          const totalActions = formData.computed?.publish?.totalActions || 0;
-
-          if (totalActions === 0) return 'Publish to Wikimedia Commons';
-          if (completedActions === totalActions) return `All ${totalActions} actions completed`;
-          if (completedActions > 0) return `${completedActions}/${totalActions} actions completed`;
-          return `${pendingActions} pending actions`;
-        },
-        getDependencies: () => ['event-details'], // Changed to event-details so it's always accessible
-        hasValues: (formData) => {
-          // Has values if there are pending actions to publish
-          const pendingActions = formData.computed?.publish?.pendingActions || 0;
-          return pendingActions > 0;
-        },
-        isFinished: (formData) => {
-          // Finished when all actions are completed
-          const totalActions = formData.computed?.publish?.totalActions || 0;
-          const completedActions = formData.computed?.publish?.completedActions || 0;
-          return totalActions > 0 && completedActions === totalActions;
-        }
-      }
-    ]
-  },
-  'general': {
-    steps: [
-      {
-        id: 'wiki-portraits',
-        title: 'WikiPortraits',
-        icon: Camera,
-        getDescription: (formData) => {
-          const isWikiPortraitsJob = formData.isWikiPortraitsJob;
-          return isWikiPortraitsJob === true
-            ? 'WikiPortraits Assignment'
-            : isWikiPortraitsJob === false
-            ? 'Wikimedia Commons'
-            : 'Select workflow type';
-        },
-        getDependencies: () => [],
-        hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
-        isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
-      },
-      {
-        id: 'upload-type',
-        title: 'Upload Type',
-        icon: FileImage,
-        getDescription: (formData) => {
-          const workflowType = formData.workflowType;
-          if (workflowType === 'music-event') return 'Music Event';
-          if (workflowType === 'soccer-match') return 'Soccer Match';
-          if (workflowType === 'portrait-session') return 'Portrait Session';
-          if (workflowType === 'general-upload') return 'General Upload';
-          return 'Choose upload type';
-        },
-        getDependencies: () => ['wiki-portraits'],
-        hasValues: (formData) => formData.workflowType !== undefined,
-        isFinished: (formData) => formData.workflowType !== undefined
-      },
-      {
-        id: 'images',
-        title: 'Images',
-        icon: ImagePlus,
-        getDescription: () => 'Upload and manage images',
-        getDependencies: () => ['wiki-portraits'],
-        hasValues: (formData) => (formData.files?.queue?.length || 0) > 0,
-        isFinished: (formData) => (formData.files?.queue?.length || 0) > 0 && formData.files?.queue?.every((file: any) => file.metadata?.description)
-      },
-      {
-        id: 'upload',
-        title: 'Publish',
-        icon: Upload,
-        getDescription: (formData) => {
-          const pendingActions = formData.computed?.publish?.pendingActions || 0;
-          const completedActions = formData.computed?.publish?.completedActions || 0;
-          const totalActions = formData.computed?.publish?.totalActions || 0;
-
-          if (totalActions === 0) return 'Publish to Wikimedia Commons';
-          if (completedActions === totalActions) return `All ${totalActions} actions completed`;
-          if (completedActions > 0) return `${completedActions}/${totalActions} actions completed`;
-          return `${pendingActions} pending actions`;
-        },
-        getDependencies: () => ['images'],
-        hasValues: (formData) => {
-          // Has values if there are pending actions to publish
-          const pendingActions = formData.computed?.publish?.pendingActions || 0;
-          return pendingActions > 0;
-        },
-        isFinished: (formData) => {
-          // Finished when all actions are completed
-          const totalActions = formData.computed?.publish?.totalActions || 0;
-          const completedActions = formData.computed?.publish?.completedActions || 0;
-          return totalActions > 0 && completedActions === totalActions;
-        }
-      }
-    ]
-  }
-};
+import { getWorkflowConfig } from '@/config/workflow-registry';
 
 export default function WorkflowStepper() {
   const { activeTab, stepStatuses, handleStepClick } = useWorkflow();
   const { watch } = useUniversalForm();
   const workflowType = watch('workflowType');
   const uploadType = workflowType === 'music-event' ? 'music' : 'general';
-  
+
   // Get all form data once
   const formData = watch();
-  
-  // Get workflow configuration
-  const workflowConfig = WORKFLOW_CONFIGS[uploadType] || WORKFLOW_CONFIGS.general;
+
+  // Get workflow configuration from registry
+  const workflowConfig = getWorkflowConfig(uploadType);
 
   const getStatusIcon = (status: StepStatus) => {
     switch (status) {
@@ -314,76 +32,75 @@ export default function WorkflowStepper() {
     }
   };
 
-  const getWorkflowSteps = () => {
-    return workflowConfig.steps.map(stepConfig => ({
+  const workflowSteps = workflowConfig.steps.map(stepConfig => {
+    const canAccess = stepConfig.getDependencies().every(depId =>
+      workflowConfig.steps.find(s => s.id === depId)?.isFinished(formData) || false
+    );
+    const hasValues = stepConfig.hasValues(formData);
+    const isFinished = stepConfig.isFinished(formData);
+    const isActive = activeTab === stepConfig.id;
+    const status = stepStatuses[stepConfig.id] || 'pending';
+
+    return {
       id: stepConfig.id,
       title: stepConfig.title,
       description: stepConfig.getDescription(formData),
       icon: stepConfig.icon,
-      status: stepStatuses[stepConfig.id as keyof typeof stepStatuses] || 'pending',
-      dependencies: stepConfig.getDependencies(),
-      itemCount: stepConfig.id === 'images' ? (formData.files?.queue?.length || 0) : undefined
-    }));
-  };
-
-  const workflowSteps = getWorkflowSteps();
+      status,
+      isActive,
+      canAccess,
+      hasValues,
+      isFinished,
+      itemCount: stepConfig.id === 'images'
+        ? ((formData.files?.queue?.length || 0) + (formData.files?.existing?.length || 0))
+        : undefined,
+    };
+  });
 
   return (
     <div className="bg-card rounded-lg p-6 sticky top-6 h-fit">
       <h2 className="text-xl font-semibold text-card-foreground mb-4">Workflow Progress</h2>
       <div className="space-y-2">
-        {workflowSteps.map((step) => {
-          const isActive = activeTab === step.id;
-          // Simplified access check - just check if all dependencies are finished
-          const stepConfig = workflowConfig.steps.find(s => s.id === step.id);
-          const canAccess = !stepConfig || stepConfig.getDependencies().every(depId => 
-            workflowConfig.steps.find(s => s.id === depId)?.isFinished(formData) || false
-          );
-          
-          const hasValues = stepConfig?.hasValues(formData) || false;
-          const isFinished = stepConfig?.isFinished(formData) || false;
-          
-          return (
-            <button
-              key={step.id}
-              onClick={() => handleStepClick(step.id as any)}
-              disabled={!canAccess}
-              className={`w-full flex items-center p-3 rounded-lg transition-all duration-200 ${
-                isActive
-                  ? 'bg-primary/10 border-2 border-primary shadow-sm'
-                  : isFinished
-                  ? 'bg-green-50 hover:bg-green-100 border border-green-200'
-                  : hasValues
-                  ? 'bg-yellow-50 hover:bg-yellow-100 border border-yellow-200'
-                  : canAccess
-                  ? 'bg-muted hover:bg-muted/80 border border-border'
-                  : 'bg-muted/50 border border-border opacity-60 cursor-not-allowed'
-              }`}
-            >
-              <div className="flex items-center min-w-0 flex-1">
-                <div className="flex-shrink-0 mr-3">
-                  {getStatusIcon(step.status)}
+        {workflowSteps.map((step) => (
+          <button
+            key={step.id}
+            onClick={() => handleStepClick(step.id)}
+            disabled={!step.canAccess}
+            className={`w-full flex items-center p-3 rounded-lg transition-all duration-200 ${
+              step.isActive
+                ? 'bg-primary/10 border-2 border-primary shadow-sm'
+                : step.isFinished
+                ? 'bg-green-50 hover:bg-green-100 border border-green-200'
+                : step.hasValues
+                ? 'bg-yellow-50 hover:bg-yellow-100 border border-yellow-200'
+                : step.canAccess
+                ? 'bg-muted hover:bg-muted/80 border border-border'
+                : 'bg-muted/50 border border-border opacity-60 cursor-not-allowed'
+            }`}
+          >
+            <div className="flex items-center min-w-0 flex-1">
+              <div className="flex-shrink-0 mr-3">
+                {getStatusIcon(step.status)}
+              </div>
+              {step.icon && <step.icon className={`w-4 h-4 mr-2 flex-shrink-0 ${
+                step.isActive ? 'text-primary' : step.isFinished ? 'text-green-600' : step.hasValues ? 'text-yellow-600' : 'text-muted-foreground'
+              }`} />}
+              <div className="text-left min-w-0 flex-1">
+                <div className={`font-medium text-sm ${
+                  step.isActive ? 'text-primary' : step.isFinished ? 'text-green-700' : step.hasValues ? 'text-yellow-700' : 'text-card-foreground'
+                }`}>
+                  {step.title}
+                  {step.itemCount !== undefined && step.itemCount > 0 && ` (${step.itemCount})`}
                 </div>
-                {step.icon && <step.icon className={`w-4 h-4 mr-2 flex-shrink-0 ${
-                  isActive ? 'text-primary' : isFinished ? 'text-green-600' : hasValues ? 'text-yellow-600' : 'text-muted-foreground'
-                }`} />}
-                <div className="text-left min-w-0 flex-1">
-                  <div className={`font-medium text-sm ${
-                    isActive ? 'text-primary' : isFinished ? 'text-green-700' : hasValues ? 'text-yellow-700' : 'text-card-foreground'
-                  }`}>
-                    {step.title}
-                    {step.itemCount !== undefined && ` (${step.itemCount})`}
-                  </div>
-                  <div className={`text-xs truncate ${
-                    isFinished ? 'text-green-600' : hasValues ? 'text-yellow-600' : 'text-muted-foreground'
-                  }`}>
-                    {step.description}
-                  </div>
+                <div className={`text-xs truncate ${
+                  step.isFinished ? 'text-green-600' : step.hasValues ? 'text-yellow-600' : 'text-muted-foreground'
+                }`}>
+                  {step.description}
                 </div>
               </div>
-            </button>
-          );
-        })}
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );

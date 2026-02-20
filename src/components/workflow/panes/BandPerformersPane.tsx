@@ -14,13 +14,13 @@ import { globalEventBus } from '@/utils/event-bus';
 import { WDBand } from '@/classes';
 
 interface BandPerformersPaneProps {
-  onCompleteAction?: () => void;
+  onComplete?: () => void;
 }
 
 
 
-export default function BandPerformersPane({ 
-  onCompleteAction 
+export default function BandPerformersPane({
+  onComplete
 }: BandPerformersPaneProps) {
   const form = useUniversalForm();
   const { organizations, people, addOrganization, removeOrganization, removePerson } = useUniversalFormEntities();
@@ -482,7 +482,7 @@ export default function BandPerformersPane({
       {canComplete && (
         <div className="text-center">
           <button
-            onClick={() => onCompleteAction?.()}
+            onClick={() => onComplete?.()}
             className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             Band & Performers Complete - Continue to Categories

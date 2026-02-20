@@ -15,11 +15,11 @@ import { generateTemplateName, generateTemplate } from '@/utils/template-generat
 
 
 interface TemplatesPaneProps {
-  onCompleteAction: () => void;
+  onComplete?: () => void;
 }
 
 export default function TemplatesPane({
-  onCompleteAction
+  onComplete
 }: TemplatesPaneProps) {
   const { watch, setValue, getValues } = useUniversalForm();
   const [templateExists, setTemplateExists] = useState(false);
@@ -336,7 +336,7 @@ export default function TemplatesPane({
 
       <div className="flex justify-center pt-4">
         <button
-          onClick={onCompleteAction}
+          onClick={() => onComplete?.()}
           className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
         >
           Template Ready - Continue to Wikidata

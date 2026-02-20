@@ -9,11 +9,11 @@ import ImageUploader from '@/components/upload/ImageUploader';
 import ImageGrid from '@/components/image/ImageGrid';
 
 interface ImagesPaneProps {
-  onCompleteAction?: () => void;
+  onComplete?: () => void;
 }
 
 export default function ImagesPane({
-  onCompleteAction
+  onComplete
 }: ImagesPaneProps) {
   const { onExportMetadata, onBulkEdit, onScrollToImage, onImageClick } = useWorkflowUI();
   const { watch, setValue, getValues } = useUniversalForm();

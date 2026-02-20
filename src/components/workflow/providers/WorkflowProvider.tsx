@@ -1,87 +1,40 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-// import { ImageFile } from '@/types';
-// import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
-import { MusicEventMetadata } from '@/types/music';
-// import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
+import { getWorkflowConfig } from '@/config/workflow-registry';
 
-export type WorkflowStep = 'upload-type' | 'wiki-portraits' | 'event-type' | 'event-details' | 'band-performers' | 'categories' | 'images' | 'templates' | 'wikidata' | 'commons' | 'wikipedia' | 'upload';
 export type StepStatus = 'pending' | 'ready' | 'in-progress' | 'completed' | 'error';
 
-export interface WorkflowStepInfo {
-  id: WorkflowStep;
-  title: string;
-  description: string;
-  icon: unknown;
-  status: StepStatus;
-  itemCount?: number;
-  dependencies?: WorkflowStep[];
-}
-
 interface WorkflowContextType {
-  activeTab: WorkflowStep;
-  setActiveTab: (step: WorkflowStep) => void;
-  stepStatuses: Record<WorkflowStep, StepStatus>;
-  updateStepStatus: (step: WorkflowStep, status: StepStatus) => void;
-  canAccessStep: (step: WorkflowStepInfo) => boolean;
-  handleStepClick: (stepId: WorkflowStep) => void;
-  handleUploadTypeComplete: () => void;
-  handleWikiPortraitsComplete: () => void;
-  handleEventTypeComplete: () => void;
-  handleEventDetailsComplete: () => void;
-  handleBandPerformersComplete: () => void;
-  handleCategoriesComplete: () => void;
-  handleTemplatesComplete: () => void;
-  handleImagesComplete: () => void;
-}
-
-interface WorkflowProviderProps {
-  children: ReactNode;
-  musicEventData?: MusicEventMetadata | null;
-  onMusicEventUpdate?: (eventData: MusicEventMetadata) => void;
+  activeTab: string;
+  setActiveTab: (step: string) => void;
+  stepStatuses: Record<string, StepStatus>;
+  updateStepStatus: (step: string, status: StepStatus) => void;
+  handleStepClick: (stepId: string) => void;
+  handleStepComplete: (stepId: string) => void;
 }
 
 const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined);
 
-export function WorkflowProvider({ 
-  children
-}: WorkflowProviderProps) {
+export function WorkflowProvider({ children }: { children: ReactNode }) {
   const { watch, getValues } = useUniversalForm();
   const workflowType = watch('workflowType');
   const uploadType = workflowType === 'music-event' ? 'music' : 'general';
-  
-  const getInitialTab = useCallback((): WorkflowStep => {
-    // Always start with WikiPortraits selection
-    return 'wiki-portraits';
-  }, [uploadType]);
 
-  const [activeTab, setActiveTab] = useState<WorkflowStep>('wiki-portraits'); // Default fallback
-  const [stepStatuses, setStepStatuses] = useState<Record<WorkflowStep, StepStatus>>({
+  const [activeTab, setActiveTab] = useState<string>('wiki-portraits');
+  const [stepStatuses, setStepStatuses] = useState<Record<string, StepStatus>>({
     'wiki-portraits': 'ready',
-    'upload-type': 'pending',
-    'event-type': 'pending',
-    'event-details': 'pending',
-    'band-performers': 'pending',
-    categories: 'pending',
-    images: 'pending',
-    templates: 'pending',
-    wikidata: 'pending',
-    commons: 'pending',
-    wikipedia: 'pending',
-    upload: 'pending'
   });
 
-  // Set initial tab and update when upload type changes
+  // Reset to initial tab when upload type changes
   useEffect(() => {
-    setActiveTab(getInitialTab());
-  }, [getInitialTab]);
+    setActiveTab('wiki-portraits');
+  }, [uploadType]);
 
   // Watch form values and auto-complete steps when required fields are filled
   useEffect(() => {
     const subscription = watch((value, { name }) => {
-      // Watch event details and auto-complete when required fields are filled
       if (name?.startsWith('eventDetails.') || name === 'eventDetails') {
         const eventDetails = value.eventDetails;
         if (eventDetails?.title && eventDetails?.date) {
@@ -90,8 +43,7 @@ export function WorkflowProvider({
           updateStepStatus('event-details', 'pending');
         }
       }
-      
-      // Watch WikiPortraits selection
+
       if (name === 'isWikiPortraitsJob') {
         if (value.isWikiPortraitsJob !== undefined) {
           updateStepStatus('wiki-portraits', 'completed');
@@ -99,7 +51,6 @@ export function WorkflowProvider({
         }
       }
 
-      // Watch workflow type selection
       if (name === 'workflowType') {
         if (value.workflowType) {
           updateStepStatus('upload-type', 'completed');
@@ -107,7 +58,7 @@ export function WorkflowProvider({
       }
     });
 
-    // Also check initial values
+    // Check initial values
     const isWikiPortraitsJob = getValues('isWikiPortraitsJob');
     if (isWikiPortraitsJob !== undefined) {
       updateStepStatus('wiki-portraits', 'completed');
@@ -118,107 +69,48 @@ export function WorkflowProvider({
     if (currentWorkflowType) {
       updateStepStatus('upload-type', 'completed');
     }
-    
+
     const eventDetails = getValues('eventDetails');
     if (eventDetails?.title && eventDetails?.date) {
       updateStepStatus('event-details', 'completed');
     }
-    
+
     return () => subscription.unsubscribe();
   }, [watch, getValues]);
 
-
-  const updateStepStatus = (step: WorkflowStep, status: StepStatus) => {
+  const updateStepStatus = (step: string, status: StepStatus) => {
     setStepStatuses(prev => ({ ...prev, [step]: status }));
   };
 
-  const canAccessStep = (step: WorkflowStepInfo): boolean => {
-    // Allow access to all steps, but show helpful info if prerequisites are missing
-    return true;
-  };
-
-  const handleStepClick = (stepId: WorkflowStep) => {
+  const handleStepClick = (stepId: string) => {
     setActiveTab(stepId);
   };
 
-  const handleWikiPortraitsComplete = () => {
-    updateStepStatus('wiki-portraits', 'completed');
-    updateStepStatus('upload-type', 'ready');
-    setActiveTab('upload-type');
-  };
+  const handleStepComplete = useCallback((stepId: string) => {
+    // Mark current step as completed
+    updateStepStatus(stepId, 'completed');
 
-  const handleUploadTypeComplete = () => {
-    updateStepStatus('upload-type', 'completed');
-    const workflowType = getValues('workflowType');
-    if (workflowType === 'music-event') {
-      updateStepStatus('event-type', 'ready');
-      setActiveTab('event-type');
-    } else if (workflowType === 'soccer-match') {
-      updateStepStatus('event-details', 'ready');
-      setActiveTab('event-details');
-    } else {
-      updateStepStatus('images', 'ready');
-      setActiveTab('images');
+    // Determine active workflow config
+    const currentWorkflowType = getValues('workflowType');
+    const currentUploadType = currentWorkflowType === 'music-event' ? 'music' : 'general';
+    const config = getWorkflowConfig(currentUploadType);
+
+    // Find current step index and navigate to next
+    const currentIndex = config.steps.findIndex(s => s.id === stepId);
+    if (currentIndex >= 0 && currentIndex < config.steps.length - 1) {
+      const nextStep = config.steps[currentIndex + 1];
+      updateStepStatus(nextStep.id, 'ready');
+      setActiveTab(nextStep.id);
     }
-  };
-
-  const handleEventTypeComplete = () => {
-    updateStepStatus('event-type', 'completed');
-    updateStepStatus('event-details', 'ready');
-    setActiveTab('event-details');
-  };
-
-  const handleEventDetailsComplete = () => {
-    updateStepStatus('event-details', 'completed');
-    const workflowType = getValues('workflowType');
-    if (workflowType === 'music-event') {
-      updateStepStatus('band-performers', 'ready');
-      setActiveTab('band-performers');
-    } else {
-      updateStepStatus('categories', 'ready');
-      setActiveTab('categories');
-    }
-  };
-
-  const handleBandPerformersComplete = () => {
-    updateStepStatus('band-performers', 'completed');
-    updateStepStatus('images', 'ready');
-    setActiveTab('images');
-  };
-
-  const handleCategoriesComplete = () => {
-    updateStepStatus('categories', 'completed');
-    updateStepStatus('templates', 'ready');
-    setActiveTab('templates');
-  };
-
-  const handleTemplatesComplete = () => {
-    updateStepStatus('templates', 'completed');
-    updateStepStatus('wikidata', 'ready');
-    setActiveTab('wikidata');
-  };
-
-  const handleImagesComplete = () => {
-    updateStepStatus('images', 'completed');
-    updateStepStatus('categories', 'ready');
-    setActiveTab('categories');
-  };
+  }, [getValues]);
 
   const contextValue: WorkflowContextType = {
     activeTab,
     setActiveTab,
     stepStatuses,
     updateStepStatus,
-    canAccessStep,
     handleStepClick,
-    handleUploadTypeComplete,
-    handleWikiPortraitsComplete,
-    handleEventTypeComplete,
-    handleEventDetailsComplete,
-    handleBandPerformersComplete,
-    handleCategoriesComplete,
-    handleTemplatesComplete,
-    handleImagesComplete
+    handleStepComplete,
   };
 
   return (

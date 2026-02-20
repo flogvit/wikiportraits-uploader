@@ -1,142 +1,45 @@
 'use client';
 
-import { logger } from '@/utils/logger';
+import { Suspense } from 'react';
+import { Loader2 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useWorkflow } from '../providers/WorkflowProvider';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
-import UploadTypePane from '../panes/UploadTypePane';
-import WikiPortraitsPane from '../panes/WikiPortraitsPane';
-import EventTypePane from '../panes/EventTypePane';
-import EventDetailsPane from '../panes/EventDetailsPane';
-import BandPerformersPane from '../panes/BandPerformersPane';
-import CategoriesPane from '../panes/CategoriesPane';
-import ImagesPane from '../panes/ImagesPane';
-import TemplatesPane from '../panes/TemplatesPane';
-import WikidataPane from '../panes/WikidataPane';
-import PublishPane from '../panes/PublishPane';
+import { getWorkflowConfig } from '@/config/workflow-registry';
+
+function StepLoadingFallback() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      <span className="ml-3 text-muted-foreground">Loading...</span>
+    </div>
+  );
+}
 
 export default function WorkflowStep() {
   const { watch } = useUniversalForm();
-  const eventType = watch('workflowType') === 'music-event' ? 'festival' : 'general';
-  
-  const { 
-    activeTab, 
-    handleUploadTypeComplete,
-    handleWikiPortraitsComplete,
-    handleEventTypeComplete, 
-    handleEventDetailsComplete, 
-    handleBandPerformersComplete, 
-    handleCategoriesComplete, 
-    handleTemplatesComplete, 
-    handleImagesComplete 
-  } = useWorkflow();
+  const workflowType = watch('workflowType');
+  const uploadType = workflowType === 'music-event' ? 'music' : 'general';
 
-  const renderWikipediaPlaceholder = () => (
-    <div className="space-y-6">
-      <div className="text-center">
-        <div className="text-6xl mb-4">📖</div>
-        <h3 className="text-xl font-semibold text-card-foreground mb-2">Wikipedia</h3>
-        <p className="text-muted-foreground">
-          Update Wikipedia articles with your event information
-        </p>
-      </div>
-      
-      {!eventType ? (
-        <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-          <p className="text-warning font-medium">⚠️ Event Information Required</p>
-          <p className="text-muted-foreground text-sm mt-1">
-            Please complete the event setup steps to update Wikipedia articles.
-          </p>
-        </div>
-      ) : (
-        <div className="bg-info/10 border border-info/20 rounded-lg p-4">
-          <p className="text-info font-medium">🚧 Wikipedia - Coming Soon</p>
-          <p className="text-muted-foreground text-sm mt-1">
-            This step will help you update relevant Wikipedia articles with event information.
-          </p>
-        </div>
-      )}
-    </div>
-  );
+  const { activeTab, handleStepComplete } = useWorkflow();
 
-  const renderActiveStep = () => {
-    switch (activeTab) {
-      case 'upload-type':
-        return (
-          <UploadTypePane
-            onComplete={handleUploadTypeComplete}
-          />
-        );
+  // Get the workflow config and find the active step
+  const workflowConfig = getWorkflowConfig(uploadType);
+  const currentStep = workflowConfig.steps.find(s => s.id === activeTab);
 
-      case 'wiki-portraits':
-        return (
-          <WikiPortraitsPane
-            onComplete={handleWikiPortraitsComplete}
-          />
-        );
+  if (!currentStep) {
+    return <div>Select a step to continue</div>;
+  }
 
-      case 'event-type':
-        return (
-          <EventTypePane
-            onComplete={handleEventTypeComplete}
-          />
-        );
-
-      case 'event-details':
-        return (
-          <EventDetailsPane
-            onComplete={handleEventDetailsComplete}
-          />
-        );
-
-      case 'band-performers':
-        return (
-          <BandPerformersPane
-            onCompleteAction={handleBandPerformersComplete}
-          />
-        );
-
-      case 'categories':
-        return (
-          <CategoriesPane
-            onCompleteAction={handleCategoriesComplete}
-          />
-        );
-
-      case 'images':
-        return (
-          <ImagesPane
-            onCompleteAction={handleImagesComplete}
-          />
-        );
-
-      case 'wikidata':
-        return (
-          <WikidataPane
-            onComplete={() => logger.info('WorkflowStep', 'Wikidata step completed')}
-          />
-        );
-
-      case 'wikipedia':
-        return renderWikipediaPlaceholder();
-
-      case 'upload':
-        return (
-          <PublishPane
-            onComplete={() => logger.info('WorkflowStep', 'Publishing step completed')}
-          />
-        );
-
-      default:
-        return <div>Select a step to continue</div>;
-    }
-  };
+  const StepComponent = currentStep.component;
 
   return (
     <div className="bg-card rounded-lg p-6">
       <div className="space-y-6">
         <ErrorBoundary name={activeTab}>
-          {renderActiveStep()}
+          <Suspense fallback={<StepLoadingFallback />}>
+            <StepComponent onComplete={() => handleStepComplete(activeTab)} />
+          </Suspense>
         </ErrorBoundary>
       </div>
     </div>

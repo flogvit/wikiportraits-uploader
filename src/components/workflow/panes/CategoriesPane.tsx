@@ -5,11 +5,11 @@ import { usePublishData } from '@/providers/PublishDataProvider';
 import { FolderPlus, Check, AlertCircle, Eye, ExternalLink } from 'lucide-react';
 
 interface CategoriesPaneProps {
-  onCompleteAction?: () => void;
+  onComplete?: () => void;
 }
 
 export default function CategoriesPane({
-  onCompleteAction
+  onComplete
 }: CategoriesPaneProps) {
   const [showAllExisting, setShowAllExisting] = useState(false);
 
@@ -42,7 +42,7 @@ export default function CategoriesPane({
   };
 
   const handleCompleteStep = () => {
-    onCompleteAction?.();
+    onComplete?.();
   };
 
   // Filter categories that need creation
