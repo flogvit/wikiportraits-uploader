@@ -24,6 +24,22 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
   'music': {
     steps: [
       {
+        id: 'wiki-portraits',
+        title: 'WikiPortraits',
+        icon: Camera,
+        getDescription: (formData) => {
+          const isWikiPortraitsJob = formData.isWikiPortraitsJob;
+          return isWikiPortraitsJob === true
+            ? 'WikiPortraits Assignment'
+            : isWikiPortraitsJob === false
+            ? 'Wikimedia Commons'
+            : 'Select workflow type';
+        },
+        getDependencies: () => [],
+        hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
+        isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
+      },
+      {
         id: 'upload-type',
         title: 'Upload Type',
         icon: FileImage,
@@ -35,25 +51,9 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
           if (workflowType === 'general-upload') return 'General Upload';
           return 'Choose upload type';
         },
-        getDependencies: () => [],
+        getDependencies: () => ['wiki-portraits'],
         hasValues: (formData) => formData.workflowType !== undefined,
         isFinished: (formData) => formData.workflowType !== undefined
-      },
-      {
-        id: 'wiki-portraits',
-        title: 'WikiPortraits',
-        icon: Camera,
-        getDescription: (formData) => {
-          const isWikiPortraitsJob = formData.isWikiPortraitsJob;
-          return isWikiPortraitsJob === true 
-            ? 'WikiPortraits Assignment'
-            : isWikiPortraitsJob === false 
-            ? 'Wikimedia Commons'
-            : 'Select workflow type';
-        },
-        getDependencies: () => ['upload-type'],
-        hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
-        isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
       },
       {
         id: 'event-type',
@@ -147,10 +147,6 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
         icon: FolderPlus,
         getDescription: (formData) => {
           const allCategories = formData.computed?.categories?.all || [];
-          const isChecked = formData.computed?.categories?.checked === true;
-          if (allCategories.length > 0 && isChecked) {
-            return `${allCategories.length} categories (verified)`;
-          }
           return allCategories.length > 0 ? `${allCategories.length} categories` : 'Organize with categories';
         },
         getDependencies: () => ['event-details'], // Changed from 'images' to 'event-details'
@@ -159,10 +155,9 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
           return allCategories.length > 0;
         },
         isFinished: (formData) => {
-          // Categories pane is finished once categories exist and have been checked on Commons
+          // Categories pane is finished once categories exist
           const allCategories = formData.computed?.categories?.all || [];
-          const isChecked = formData.computed?.categories?.checked === true;
-          return allCategories.length > 0 && isChecked;
+          return allCategories.length > 0;
         }
       },
       {
@@ -171,10 +166,6 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
         icon: Database,
         getDescription: (formData) => {
           const entityCount = formData.computed?.wikidata?.entityCount || 0;
-          const isChecked = formData.computed?.wikidata?.checked === true;
-          if (entityCount > 0 && isChecked) {
-            return `${entityCount} entities (verified)`;
-          }
           return entityCount > 0 ? `${entityCount} entities` : 'Link to Wikidata';
         },
         getDependencies: () => ['event-details'], // Changed from 'templates' to 'event-details'
@@ -186,28 +177,60 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
           return hasEventDetails || hasEntities;
         },
         isFinished: (formData) => {
-          // Wikidata pane is finished once entities have been checked
-          const entityCount = formData.computed?.wikidata?.entityCount || 0;
-          const isChecked = formData.computed?.wikidata?.checked === true;
+          // Wikidata pane is finished once we have data
           const hasData = !!formData.eventDetails?.title ||
                          (formData.entities?.people?.length || 0) > 0 ||
                          (formData.entities?.organizations?.length || 0) > 0;
-          return hasData && isChecked;
+          return hasData;
         }
       },
       {
         id: 'upload',
         title: 'Publish',
         icon: Upload,
-        getDescription: () => 'Publish to Wikimedia Commons',
+        getDescription: (formData) => {
+          const pendingActions = formData.computed?.publish?.pendingActions || 0;
+          const completedActions = formData.computed?.publish?.completedActions || 0;
+          const totalActions = formData.computed?.publish?.totalActions || 0;
+
+          if (totalActions === 0) return 'Publish to Wikimedia Commons';
+          if (completedActions === totalActions) return `All ${totalActions} actions completed`;
+          if (completedActions > 0) return `${completedActions}/${totalActions} actions completed`;
+          return `${pendingActions} pending actions`;
+        },
         getDependencies: () => ['event-details'], // Changed to event-details so it's always accessible
-        hasValues: () => false, // TODO: Implement upload checking
-        isFinished: () => false // TODO: Implement upload completion checking
+        hasValues: (formData) => {
+          // Has values if there are pending actions to publish
+          const pendingActions = formData.computed?.publish?.pendingActions || 0;
+          return pendingActions > 0;
+        },
+        isFinished: (formData) => {
+          // Finished when all actions are completed
+          const totalActions = formData.computed?.publish?.totalActions || 0;
+          const completedActions = formData.computed?.publish?.completedActions || 0;
+          return totalActions > 0 && completedActions === totalActions;
+        }
       }
     ]
   },
   'general': {
     steps: [
+      {
+        id: 'wiki-portraits',
+        title: 'WikiPortraits',
+        icon: Camera,
+        getDescription: (formData) => {
+          const isWikiPortraitsJob = formData.isWikiPortraitsJob;
+          return isWikiPortraitsJob === true
+            ? 'WikiPortraits Assignment'
+            : isWikiPortraitsJob === false
+            ? 'Wikimedia Commons'
+            : 'Select workflow type';
+        },
+        getDependencies: () => [],
+        hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
+        isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
+      },
       {
         id: 'upload-type',
         title: 'Upload Type',
@@ -220,25 +243,9 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
           if (workflowType === 'general-upload') return 'General Upload';
           return 'Choose upload type';
         },
-        getDependencies: () => [],
+        getDependencies: () => ['wiki-portraits'],
         hasValues: (formData) => formData.workflowType !== undefined,
         isFinished: (formData) => formData.workflowType !== undefined
-      },
-      {
-        id: 'wiki-portraits',
-        title: 'WikiPortraits',
-        icon: Camera,
-        getDescription: (formData) => {
-          const isWikiPortraitsJob = formData.isWikiPortraitsJob;
-          return isWikiPortraitsJob === true 
-            ? 'WikiPortraits Assignment'
-            : isWikiPortraitsJob === false 
-            ? 'Wikimedia Commons'
-            : 'Select workflow type';
-        },
-        getDependencies: () => ['upload-type'],
-        hasValues: (formData) => formData.isWikiPortraitsJob !== undefined,
-        isFinished: (formData) => formData.isWikiPortraitsJob !== undefined
       },
       {
         id: 'images',
@@ -253,10 +260,28 @@ const WORKFLOW_CONFIGS: Record<string, WorkflowConfig> = {
         id: 'upload',
         title: 'Publish',
         icon: Upload,
-        getDescription: () => 'Publish to Wikimedia Commons',
+        getDescription: (formData) => {
+          const pendingActions = formData.computed?.publish?.pendingActions || 0;
+          const completedActions = formData.computed?.publish?.completedActions || 0;
+          const totalActions = formData.computed?.publish?.totalActions || 0;
+
+          if (totalActions === 0) return 'Publish to Wikimedia Commons';
+          if (completedActions === totalActions) return `All ${totalActions} actions completed`;
+          if (completedActions > 0) return `${completedActions}/${totalActions} actions completed`;
+          return `${pendingActions} pending actions`;
+        },
         getDependencies: () => ['images'],
-        hasValues: () => false,
-        isFinished: () => false
+        hasValues: (formData) => {
+          // Has values if there are pending actions to publish
+          const pendingActions = formData.computed?.publish?.pendingActions || 0;
+          return pendingActions > 0;
+        },
+        isFinished: (formData) => {
+          // Finished when all actions are completed
+          const totalActions = formData.computed?.publish?.totalActions || 0;
+          const completedActions = formData.computed?.publish?.completedActions || 0;
+          return totalActions > 0 && completedActions === totalActions;
+        }
       }
     ]
   }

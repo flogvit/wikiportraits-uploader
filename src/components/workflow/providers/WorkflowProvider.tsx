@@ -53,14 +53,14 @@ export function WorkflowProvider({
   const uploadType = workflowType === 'music-event' ? 'music' : 'general';
   
   const getInitialTab = useCallback((): WorkflowStep => {
-    // Always start with upload type selection
-    return 'upload-type';
+    // Always start with WikiPortraits selection
+    return 'wiki-portraits';
   }, [uploadType]);
 
-  const [activeTab, setActiveTab] = useState<WorkflowStep>('images'); // Default fallback
+  const [activeTab, setActiveTab] = useState<WorkflowStep>('wiki-portraits'); // Default fallback
   const [stepStatuses, setStepStatuses] = useState<Record<WorkflowStep, StepStatus>>({
-    'upload-type': 'ready',
-    'wiki-portraits': 'pending',
+    'wiki-portraits': 'ready',
+    'upload-type': 'pending',
     'event-type': 'pending',
     'event-details': 'pending',
     'band-performers': 'pending',
@@ -91,20 +91,32 @@ export function WorkflowProvider({
         }
       }
       
+      // Watch WikiPortraits selection
+      if (name === 'isWikiPortraitsJob') {
+        if (value.isWikiPortraitsJob !== undefined) {
+          updateStepStatus('wiki-portraits', 'completed');
+          updateStepStatus('upload-type', 'ready');
+        }
+      }
+
       // Watch workflow type selection
       if (name === 'workflowType') {
         if (value.workflowType) {
           updateStepStatus('upload-type', 'completed');
-          updateStepStatus('wiki-portraits', 'ready');
         }
       }
     });
-    
+
     // Also check initial values
+    const isWikiPortraitsJob = getValues('isWikiPortraitsJob');
+    if (isWikiPortraitsJob !== undefined) {
+      updateStepStatus('wiki-portraits', 'completed');
+      updateStepStatus('upload-type', 'ready');
+    }
+
     const currentWorkflowType = getValues('workflowType');
     if (currentWorkflowType) {
       updateStepStatus('upload-type', 'completed');
-      updateStepStatus('wiki-portraits', 'ready');
     }
     
     const eventDetails = getValues('eventDetails');
@@ -129,14 +141,14 @@ export function WorkflowProvider({
     setActiveTab(stepId);
   };
 
-  const handleUploadTypeComplete = () => {
-    updateStepStatus('upload-type', 'completed');
-    updateStepStatus('wiki-portraits', 'ready');
-    setActiveTab('wiki-portraits');
-  };
-
   const handleWikiPortraitsComplete = () => {
     updateStepStatus('wiki-portraits', 'completed');
+    updateStepStatus('upload-type', 'ready');
+    setActiveTab('upload-type');
+  };
+
+  const handleUploadTypeComplete = () => {
+    updateStepStatus('upload-type', 'completed');
     const workflowType = getValues('workflowType');
     if (workflowType === 'music-event') {
       updateStepStatus('event-type', 'ready');
