@@ -17,11 +17,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/wikiportraits.git"
+    "url": "https://github.com/flogvit/wikiportraits-uploader.git"
   },
-  "homepage": "https://github.com/your-username/wikiportraits#readme",
+  "homepage": "https://github.com/flogvit/wikiportraits-uploader#readme",
   "bugs": {
-    "url": "https://github.com/your-username/wikiportraits/issues"
+    "url": "https://github.com/flogvit/wikiportraits-uploader/issues"
   },
   "private": true,
   "scripts": {

@@ -32,7 +32,7 @@ This project adheres to a [Code of Conduct](./CODE_OF_CONDUCT.md). By participat
 1. **Fork the repository** on GitHub
 2. **Clone your fork**:
    ```bash
-   git clone https://github.com/your-username/wikiportraits.git
+   git clone https://github.com/flogvit/wikiportraits-uploader.git
    cd wikiportraits
    ```
 
@@ -316,8 +316,8 @@ src/
 If you need help with contributing:
 
 1. Check the [documentation](./README.md)
-2. Search existing [issues](https://github.com/your-username/wikiportraits/issues)
-3. Create a new [discussion](https://github.com/your-username/wikiportraits/discussions)
+2. Search existing [issues](https://github.com/flogvit/wikiportraits-uploader/issues)
+3. Create a new [discussion](https://github.com/flogvit/wikiportraits-uploader/discussions)
 4. Reach out to maintainers
 
 Thank you for contributing to WikiPortraits Bulk Uploader! 🎉

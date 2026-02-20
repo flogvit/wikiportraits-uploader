@@ -34,8 +34,8 @@ A Next.js web application for bulk uploading and managing images to Wikimedia Co
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/wikiportraits.git
-   cd wikiportraits
+   git clone https://github.com/flogvit/wikiportraits-uploader.git
+   cd wikiportraits-uploader
    ```
 
 2. **Install dependencies**
@@ -174,9 +174,9 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/wikiportraits/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/wikiportraits/discussions)
-- **Wiki**: [Project Wiki](https://github.com/your-username/wikiportraits/wiki)
+- **Issues**: [GitHub Issues](https://github.com/flogvit/wikiportraits-uploader/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/flogvit/wikiportraits-uploader/discussions)
+- **Wiki**: [Project Wiki](https://github.com/flogvit/wikiportraits-uploader/wiki)
 
 ---
 
