@@ -104,6 +104,43 @@ All panes work together through the universal form provider system and config-ba
 - [x] Legg til request timeouts på fetch-kall
 - [x] Legg til rate limiting på API-ruter
 
+## Workflow & Publish Refactoring (Completed)
+
+### Phase 1: Workflow Registry - [x] Done
+- [x] Created `src/config/workflow-registry.ts` with centralized step configurations
+- [x] Refactored `WorkflowProvider.tsx` - replaced 8 hardcoded handlers with generic `handleStepComplete()`
+- [x] Refactored `WorkflowStep.tsx` - replaced 12-case switch with dynamic component rendering via Suspense
+- [x] Refactored `WorkflowStepper.tsx` - imports config from registry
+- [x] Standardized pane interface: `onCompleteAction` -> `onComplete` (BandPerformersPane, CategoriesPane, ImagesPane, TemplatesPane)
+
+### Phase 2: ActionBuilder System - [x] Done
+- [x] Created `src/utils/action-builders/types.ts` - ActionBuilder interface
+- [x] Created `src/utils/action-builders/base-action-builder.ts` - shared logic (category existence, P373 checks, image/SDC helpers)
+- [x] Created `src/utils/action-builders/music-action-builder.ts` - music-specific category/wikidata/image logic
+- [x] Created `src/utils/action-builders/general-action-builder.ts` - general upload logic
+- [x] Created `src/utils/action-builders/index.ts` - factory with caching
+- [x] Refactored `PublishDataProvider.tsx` - delegates to ActionBuilders instead of monolithic calculateActions()
+
+### Phase 3: ActionExecutor System - [x] Done
+- [x] Created `src/utils/action-executors/category-executor.ts`
+- [x] Created `src/utils/action-executors/wikidata-executor.ts`
+- [x] Created `src/utils/action-executors/image-executor.ts`
+- [x] Created `src/utils/action-executors/structured-data-executor.ts`
+- [x] Created `src/utils/action-executors/index.ts` - dispatcher
+- [x] Refactored `PublishPane.tsx` - from ~1140 lines to ~300 lines, uses executors instead of inline publish functions
+
+### Phase 4: Cleanup - [x] Done
+- [x] Deleted `src/utils/pane-configuration.ts` (replaced by workflow-registry)
+- [x] Deleted `src/utils/publish-actions.ts` (replaced by action-builders)
+- [x] Deleted dead code: `usePublishActions.ts`, `useUniversalPane.ts`, `universal-validation.ts`, `category-generation.ts`, `PublishActionList.tsx`
+
+### Adding a new workflow (e.g., "awards")
+1. Create config in `workflow-registry.ts` with `sharedSteps` + custom steps
+2. Create `awards-action-builder.ts` extending `BaseActionBuilder`
+3. Register in `action-builders/index.ts`
+4. Create any workflow-specific pane components
+5. No changes needed in WorkflowProvider, WorkflowStep, WorkflowStepper, PublishPane, or PublishDataProvider
+
 ## Remaining Tasks
 
 ### Future Enhancements (Optional)
