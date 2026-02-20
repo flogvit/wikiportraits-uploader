@@ -83,6 +83,27 @@ Please go through each pane one by one:
 ### Workflow Integration
 All panes work together through the universal form provider system and config-based workflow stepper.
 
+## Open Source Readiness
+
+### Kritisk (må fikses)
+- [x] Fiks `your-username` plassholdere i package.json og CommonsClient.ts
+- [x] Opprett CODE_OF_CONDUCT.md (referert i CONTRIBUTING.md men mangler)
+
+### Alvorlig (bør fikses)
+- [x] Fjern/erstatt 462 console.log-statements med proper logging (src/utils/logger.ts)
+- [x] Opprett SECURITY.md
+- [x] Opprett CHANGELOG.md
+- [x] Slå på TypeScript strict mode og fiks resulterende feil
+- [x] Øk testdekning (kun 4% threshold, ~5 testfiler)
+- [x] Legg til React Error Boundaries (ErrorBoundary + error.tsx + global-error.tsx)
+
+### Moderat
+- [x] Fiks inkonsistente User-Agent-strenger
+- [x] Legg til kommentarer i .env.example
+- [x] Konverter TODO-kommentarer til GitHub Issues (#1-#8)
+- [x] Legg til request timeouts på fetch-kall
+- [x] Legg til rate limiting på API-ruter
+
 ## Remaining Tasks
 
 ### Future Enhancements (Optional)
