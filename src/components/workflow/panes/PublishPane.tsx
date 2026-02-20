@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Upload, CheckCircle, AlertCircle, Clock, Loader2, FolderPlus, FileText, Database, ImagePlus } from 'lucide-react';
 import { logger } from '@/utils/logger';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import {
   usePublishData,
   ActionStatus,
-  CategoryAction,
-  WikidataAction,
   ImageAction,
   StructuredDataAction,
   PublishAction as CentralizedAction,
@@ -27,9 +25,14 @@ interface DisplayAction {
   description: string;
   status: ActionStatus;
   error?: string;
-  canPublish: boolean;
-  dependsOn?: string;
+  dependsOn?: string[];
   preview?: string;
+}
+
+// Stores results from completed actions for propagation to dependents
+interface ActionResult {
+  entityId?: string;
+  pageId?: number;
 }
 
 export default function PublishPane({ onComplete }: PublishPaneProps) {
@@ -50,10 +53,22 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
   const [actions, setActions] = useState<DisplayAction[]>([]);
   const [localCompletedCount, setLocalCompletedCount] = useState(0);
   const [localErrorCount, setLocalErrorCount] = useState(0);
+  const [isPublishingAll, setIsPublishingAll] = useState(false);
+
+  // Track completed action results for dependency propagation
+  const completedResultsRef = useRef<Map<string, ActionResult>>(new Map());
+  const completedIdsRef = useRef<Set<string>>(new Set());
 
   const people = form.watch('entities.people') || [];
   const organizations = form.watch('entities.organizations') || [];
   const eventDetails = form.watch('eventDetails');
+
+  // Check if an action's dependencies are all satisfied
+  const canExecute = useCallback((action: DisplayAction): boolean => {
+    if (action.status !== 'pending') return false;
+    if (!action.dependsOn?.length) return true;
+    return action.dependsOn.every(dep => completedIdsRef.current.has(dep));
+  }, []);
 
   // Convert centralized actions to display format
   useEffect(() => {
@@ -62,38 +77,38 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     categories.forEach(cat => {
       if (cat.shouldCreate) {
         displayActions.push({
-          id: `category-${cat.categoryName}`,
+          id: cat.id,
           type: 'category',
           title: `Create Category: ${cat.categoryName}`,
           description: cat.description || 'Category on Wikimedia Commons',
           status: cat.status,
           error: cat.error,
-          canPublish: !cat.exists,
+          dependsOn: cat.dependsOn,
         });
       }
     });
 
     wikidataActions.forEach(wd => {
       displayActions.push({
-        id: `wikidata-${wd.entityId}`,
+        id: wd.id,
         type: 'wikidata',
         title: wd.action === 'create' ? `Create ${wd.entityType}: ${wd.entityLabel}` : `Update ${wd.entityLabel}`,
         description: wd.changes?.map(c => `${c.property}: ${c.newValue}`).join(', ') || 'Wikidata update',
         status: wd.status,
         error: wd.error,
-        canPublish: true,
+        dependsOn: wd.dependsOn,
       });
     });
 
     imageActions.forEach(img => {
       displayActions.push({
-        id: `image-${img.imageId}`,
+        id: img.id,
         type: 'image',
         title: img.action === 'upload' ? `Upload: ${img.filename}` : `Update: ${img.filename}`,
         description: img.metadata?.description || 'Image file',
         status: img.status,
         error: img.error,
-        canPublish: true,
+        dependsOn: img.dependsOn,
         preview: img.thumbnail,
       });
     });
@@ -110,13 +125,13 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         const filename = imageAny?.filename || imageAny?.metadata?.suggestedFilename || imageAny?.file?.name || 'Unknown';
 
         displayActions.push({
-          id: `sdc-${sd.imageId}`,
+          id: sd.id,
           type: 'structured-data',
           title: `Add structured data: ${filename}`,
           description: propDescriptions.join(', '),
           status: sd.status,
           error: sd.error,
-          canPublish: true,
+          dependsOn: sd.dependsOn,
           preview: imageAny?.preview || imageAny?.url,
         });
       }
@@ -127,26 +142,10 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     setLocalErrorCount(errorActions);
   }, [centralizedActions, categories, wikidataActions, imageActions, structuredDataActions, completedActions, errorActions, people, organizations, form]);
 
-  // Find the underlying centralized action from a display action ID
+  // Find the underlying centralized action by its id
   const findCentralizedAction = useCallback((actionId: string): CentralizedAction | undefined => {
-    if (actionId.startsWith('category-')) {
-      const categoryName = actionId.replace('category-', '');
-      return categories.find(c => c.categoryName === categoryName);
-    }
-    if (actionId.startsWith('wikidata-')) {
-      const entityId = actionId.replace('wikidata-', '');
-      return wikidataActions.find(w => w.entityId === entityId);
-    }
-    if (actionId.startsWith('image-')) {
-      const imageId = actionId.replace('image-', '');
-      return imageActions.find(i => i.imageId === imageId);
-    }
-    if (actionId.startsWith('sdc-')) {
-      const imageId = actionId.replace('sdc-', '');
-      return structuredDataActions.find(s => s.imageId === imageId);
-    }
-    return undefined;
-  }, [categories, wikidataActions, imageActions, structuredDataActions]);
+    return centralizedActions.find(a => a.id === actionId);
+  }, [centralizedActions]);
 
   // Build executor context
   const getExecutorContext = useCallback((): ExecutorContext => ({
@@ -160,9 +159,37 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     },
   }), [people, organizations, eventDetails, form]);
 
-  const handlePublish = async (actionId: string) => {
-    const displayAction = actions.find(a => a.id === actionId);
+  /**
+   * Propagate results from a completed action to its dependents.
+   * Updates centralized state so dependent actions have the data they need.
+   */
+  const propagateResults = useCallback((completedActionId: string, result: any, action: CentralizedAction) => {
+    completedIdsRef.current.add(completedActionId);
+    const actionResult: ActionResult = {};
+
+    if (action.type === 'image' && (action as ImageAction).action === 'upload' && result?.pageId) {
+      actionResult.pageId = result.pageId;
+      // Propagate pageId to dependent SDC actions
+      const imgAction = action as ImageAction;
+      updateStructuredDataPageId(imgAction.imageId, result.pageId);
+    }
+
+    if (action.type === 'wikidata' && result?.entityId) {
+      actionResult.entityId = result.entityId;
+    }
+
+    completedResultsRef.current.set(completedActionId, actionResult);
+  }, [updateStructuredDataPageId]);
+
+  const handlePublish = async (actionId: string, actionOverride?: DisplayAction) => {
+    const displayAction = actionOverride || actions.find(a => a.id === actionId);
     if (!displayAction) return;
+
+    // Check dependencies before executing
+    if (!canExecute(displayAction)) {
+      logger.warn('PublishPane', 'Cannot execute action - dependencies not met', actionId);
+      return;
+    }
 
     // Mark as in-progress
     setActions(prev =>
@@ -176,44 +203,30 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       // Execute via dispatcher
       const result = await executeAction(centralizedAction, getExecutorContext());
 
-      // Post-execution side effects
-      if (centralizedAction.type === 'image') {
-        const imgAction = centralizedAction as ImageAction;
-        if (imgAction.action === 'upload' && result?.pageId) {
-          // Update structured data actions with the new pageId
-          const sdActions = structuredDataActions.filter(sd => sd.imageId === imgAction.imageId);
-          if (sdActions.length > 0) {
-            updateStructuredDataPageId(imgAction.imageId, result.pageId);
-            setActions(prev => prev.map(a =>
-              a.id === `sdc-${imgAction.imageId}` ? { ...a, canPublish: true } : a
-            ));
-          }
-        }
-        if (imgAction.action === 'update-metadata') {
-          await reloadImageFromCommons(imgAction.imageId);
-        }
-      }
+      // Propagate results to dependents
+      propagateResults(actionId, result, centralizedAction);
 
+      // Post-execution side effects
+      if (centralizedAction.type === 'image' && (centralizedAction as ImageAction).action === 'update-metadata') {
+        await reloadImageFromCommons((centralizedAction as ImageAction).imageId);
+      }
       if (centralizedAction.type === 'structured-data') {
         await reloadImageFromCommons((centralizedAction as StructuredDataAction).imageId);
       }
 
       // Update centralized status
       updateActionStatus(actionId, 'completed');
-      await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Remove from display list and enable dependent actions
-      setActions(prev =>
-        prev
-          .filter(a => a.id !== actionId)
-          .map(a => a.dependsOn === actionId ? { ...a, canPublish: true } : a)
-      );
+      // Remove from display list
+      setActions(prev => prev.filter(a => a.id !== actionId));
       setLocalCompletedCount(prev => prev + 1);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('PublishPane', 'Action failed', { actionId, error: errorMessage });
       setActions(prev =>
         prev.map(a =>
           a.id === actionId
-            ? { ...a, status: 'error' as ActionStatus, error: error instanceof Error ? error.message : 'Unknown error' }
+            ? { ...a, status: 'error' as ActionStatus, error: errorMessage }
             : a
         )
       );
@@ -222,15 +235,42 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
   };
 
   const handlePublishAll = async () => {
-    let remainingActions = actions.filter(a => a.status === 'pending');
+    setIsPublishingAll(true);
+    try {
+      // Execute actions respecting dependency order.
+      // Each iteration picks actions whose dependencies are all completed.
+      let maxIterations = 100; // Safety limit
+      while (maxIterations-- > 0) {
+        // Re-read current actions from state via a synchronous snapshot
+        const currentActions = await new Promise<DisplayAction[]>(resolve => {
+          setActions(prev => {
+            resolve([...prev]);
+            return prev;
+          });
+        });
 
-    while (remainingActions.some(a => a.canPublish)) {
-      const nextAction = remainingActions.find(a => a.canPublish);
-      if (!nextAction) break;
+        const pendingActions = currentActions.filter(a => a.status === 'pending');
+        if (pendingActions.length === 0) break;
 
-      await handlePublish(nextAction.id);
-      await new Promise(resolve => setTimeout(resolve, 100));
-      remainingActions = remainingActions.filter(a => a.id !== nextAction.id);
+        // Find next executable action (all dependencies satisfied)
+        const nextAction = pendingActions.find(a => canExecute(a));
+        if (!nextAction) {
+          // No executable actions remain - either all blocked or errored
+          logger.warn('PublishPane', 'No more executable actions', {
+            pending: pendingActions.length,
+            blocked: pendingActions.filter(a => !canExecute(a)).map(a => ({
+              id: a.id,
+              waitingFor: a.dependsOn?.filter(d => !completedIdsRef.current.has(d)),
+            })),
+          });
+          break;
+        }
+
+        await handlePublish(nextAction.id, nextAction);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    } finally {
+      setIsPublishingAll(false);
     }
   };
 
@@ -269,7 +309,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     }
   };
 
-  const pendingCount = actions.filter(a => a.status === 'pending' && a.canPublish).length;
+  const pendingExecutable = actions.filter(a => canExecute(a)).length;
 
   if (actions.length === 0) {
     return (
@@ -297,16 +337,22 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           <div>
             <h3 className="font-semibold text-gray-900">Publish Summary</h3>
             <div className="text-sm text-gray-600 mt-1">
-              {pendingCount} pending &bull; {localCompletedCount} completed &bull; {localErrorCount} errors
+              {pendingExecutable} ready &bull; {actions.length - pendingExecutable} waiting &bull; {localCompletedCount} completed &bull; {localErrorCount} errors
             </div>
           </div>
-          {pendingCount > 0 && (
+          {pendingExecutable > 0 && !isPublishingAll && (
             <button
               onClick={handlePublishAll}
               className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-medium"
             >
-              Publish All ({pendingCount})
+              Publish All ({actions.length})
             </button>
+          )}
+          {isPublishingAll && (
+            <div className="flex items-center gap-2 text-blue-600">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="font-medium">Publishing...</span>
+            </div>
           )}
         </div>
       </div>
@@ -317,6 +363,9 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           const ActionIcon = getActionIcon(action.type);
           const StatusIcon = getStatusIcon(action.status);
           const statusColor = getStatusColor(action.status);
+          const isExecutable = canExecute(action);
+          const hasDeps = action.dependsOn && action.dependsOn.length > 0;
+          const unmetDeps = hasDeps ? action.dependsOn!.filter(d => !completedIdsRef.current.has(d)) : [];
 
           return (
             <div
@@ -325,7 +374,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
                 action.status === 'completed' ? 'border-green-200 bg-green-50'
                 : action.status === 'error' ? 'border-red-200 bg-red-50'
                 : action.status === 'in-progress' ? 'border-blue-200 bg-blue-50'
-                : !action.canPublish && action.dependsOn ? 'border-gray-300 bg-gray-100 opacity-60'
+                : !isExecutable && hasDeps ? 'border-gray-300 bg-gray-100 opacity-60'
                 : 'border-gray-200'
               }`}
             >
@@ -339,8 +388,10 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-gray-900">{action.title}</h4>
                     <p className="text-sm text-gray-600 mt-1">{action.description}</p>
-                    {action.dependsOn && !action.canPublish && (
-                      <p className="text-xs text-gray-500 mt-2">Waiting for prerequisite to complete first</p>
+                    {!isExecutable && unmetDeps.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Waiting for: {unmetDeps.length} prerequisite{unmetDeps.length !== 1 ? 's' : ''}
+                      </p>
                     )}
                     {action.error && (
                       <p className="text-sm text-red-600 mt-2">Error: {action.error}</p>
@@ -350,7 +401,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
                 <div className="flex items-center gap-3 ml-4">
                   <StatusIcon className={`w-5 h-5 ${statusColor} flex-shrink-0`} />
-                  {action.status === 'pending' && action.canPublish && (
+                  {action.status === 'pending' && isExecutable && !isPublishingAll && (
                     <button
                       onClick={() => handlePublish(action.id)}
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
@@ -358,8 +409,8 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
                       Publish
                     </button>
                   )}
-                  {action.status === 'pending' && !action.canPublish && (
-                    <span className="text-sm text-gray-500">{action.dependsOn ? 'Waiting...' : 'Not ready'}</span>
+                  {action.status === 'pending' && !isExecutable && (
+                    <span className="text-sm text-gray-500">Waiting...</span>
                   )}
                   {action.status === 'completed' && (
                     <span className="text-sm text-green-600 font-medium">Done</span>

@@ -107,6 +107,7 @@ export class MusicActionBuilder extends BaseActionBuilder {
     if (eventDetails?.title && !eventDetails?.wikidataId) {
       actions.push({
         type: 'wikidata',
+        id: 'wikidata-new-event',
         entityId: 'new-event',
         entityType: 'event',
         entityLabel: eventDetails.title,

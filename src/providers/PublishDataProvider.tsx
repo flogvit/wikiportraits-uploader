@@ -17,6 +17,8 @@ export type ActionStatus = 'pending' | 'ready' | 'in-progress' | 'completed' | '
 
 export interface CategoryAction {
   type: 'category';
+  id: string;
+  dependsOn?: string[];
   categoryName: string;
   status: ActionStatus;
   exists: boolean;
@@ -29,6 +31,8 @@ export interface CategoryAction {
 
 export interface WikidataAction {
   type: 'wikidata';
+  id: string;
+  dependsOn?: string[];
   entityId: string;
   entityType: 'person' | 'organization' | 'event' | 'location';
   entityLabel: string;
@@ -44,6 +48,8 @@ export interface WikidataAction {
 
 export interface ImageAction {
   type: 'image';
+  id: string;
+  dependsOn?: string[];
   imageId: string;
   filename: string;
   status: ActionStatus;
@@ -62,6 +68,8 @@ export interface ImageAction {
 
 export interface StructuredDataAction {
   type: 'structured-data';
+  id: string;
+  dependsOn?: string[];
   imageId: string;
   commonsPageId: number;
   status: ActionStatus;
@@ -239,6 +247,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
 
     setActions(prev => [...prev, {
       type: 'category' as const,
+      id: `category-${trimmed}`,
       categoryName: trimmed,
       status: 'pending' as const,
       exists: false,
@@ -253,18 +262,8 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateActionStatus = (actionId: string, status: ActionStatus, error?: string) => {
-    let actualId = actionId;
-    if (actionId.startsWith('sdc-')) {
-      actualId = actionId.replace('sdc-', '');
-    }
-
     setActions(prev => prev.map(action => {
-      const id = action.type === 'category' ? (action as CategoryAction).categoryName :
-                 action.type === 'wikidata' ? (action as WikidataAction).entityId :
-                 action.type === 'image' ? (action as ImageAction).imageId :
-                 (action as StructuredDataAction).imageId;
-
-      if (id === actualId) {
+      if (action.id === actionId) {
         return { ...action, status, error };
       }
       return action;
@@ -272,13 +271,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
 
     // Update original state ref when structured data completes
     if (status === 'completed') {
-      const action = actions.find(a => {
-        const id = a.type === 'category' ? (a as CategoryAction).categoryName :
-                   a.type === 'wikidata' ? (a as WikidataAction).entityId :
-                   a.type === 'image' ? (a as ImageAction).imageId :
-                   (a as StructuredDataAction).imageId;
-        return id === actualId;
-      });
+      const action = actions.find(a => a.id === actionId);
 
       if (action?.type === 'structured-data') {
         const sdAction = action as StructuredDataAction;

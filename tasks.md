@@ -129,6 +129,17 @@ All panes work together through the universal form provider system and config-ba
 - [x] Created `src/utils/action-executors/index.ts` - dispatcher
 - [x] Refactored `PublishPane.tsx` - from ~1140 lines to ~300 lines, uses executors instead of inline publish functions
 
+### Phase 3b: Dependency Tracking - [x] Done
+- [x] Added `id` and `dependsOn` fields to all action types (CategoryAction, WikidataAction, ImageAction, StructuredDataAction)
+- [x] Set action IDs and dependencies in BaseActionBuilder (SDC depends on image upload, P18 depends on new image upload)
+- [x] Set action IDs in MusicActionBuilder (event creation, P373 updates)
+- [x] Rewrote PublishPane with dependency-aware execution:
+  - `canExecute()` checks all dependencies are completed before allowing execution
+  - `propagateResults()` forwards pageIds and entityIds to dependent actions
+  - `handlePublishAll()` re-reads state each iteration and respects dependency order
+  - Actions with unmet dependencies show "Waiting for N prerequisites" in UI
+- [x] Removed stale state bug in `handlePublishAll` (was using captured snapshot, now reads fresh state)
+
 ### Phase 4: Cleanup - [x] Done
 - [x] Deleted `src/utils/pane-configuration.ts` (replaced by workflow-registry)
 - [x] Deleted `src/utils/publish-actions.ts` (replaced by action-builders)

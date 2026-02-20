@@ -64,6 +64,7 @@ export abstract class BaseActionBuilder implements ActionBuilder {
 
       actions.push({
         type: 'category',
+        id: `category-${categoryName}`,
         categoryName,
         status: exists ? 'completed' : shouldCreate ? 'pending' : 'ready',
         exists,
@@ -102,6 +103,7 @@ export abstract class BaseActionBuilder implements ActionBuilder {
         const categoryValue = await getCategoryValue(freshEntity);
         return {
           type: 'wikidata',
+          id: `wikidata-p373-${entityId}`,
           entityId,
           entityType,
           entityLabel,
@@ -129,6 +131,7 @@ export abstract class BaseActionBuilder implements ActionBuilder {
   ): ImageAction[] {
     return images.map((img: any) => ({
       type: 'image' as const,
+      id: `image-${img.id}`,
       imageId: img.id,
       filename: img.metadata?.suggestedFilename || img.file?.name || 'Unknown',
       status: 'pending' as const,
@@ -174,6 +177,7 @@ export abstract class BaseActionBuilder implements ActionBuilder {
       if (img.commonsPageId && wikitextChanged) {
         actions.push({
           type: 'image',
+          id: `image-${img.id}`,
           imageId: img.id,
           filename: img.filename,
           status: 'pending',
@@ -225,8 +229,10 @@ export abstract class BaseActionBuilder implements ActionBuilder {
 
       return {
         type: 'structured-data' as const,
+        id: `sdc-${img.id}`,
+        dependsOn: [`image-${img.id}`],
         imageId: img.id,
-        commonsPageId: 0, // Will be set after upload
+        commonsPageId: 0, // Will be set after upload via result propagation
         status: 'pending' as const,
         properties,
       };
@@ -274,6 +280,7 @@ export abstract class BaseActionBuilder implements ActionBuilder {
         if (sdProperties.length > 0) {
           actions.push({
             type: 'structured-data',
+            id: `sdc-${img.id}`,
             imageId: img.id,
             commonsPageId: img.commonsPageId,
             status: 'pending',
@@ -302,8 +309,12 @@ export abstract class BaseActionBuilder implements ActionBuilder {
     [...images, ...existingImages].forEach((img: any) => {
       if (img.metadata?.setAsMainImage) {
         const filename = img.metadata?.suggestedFilename || img.filename || img.file?.name || 'Unknown';
+        const imageId = img.id;
+        const isNewImage = !img.commonsPageId;
         actions.push({
           type: 'wikidata',
+          id: `wikidata-p18-${selectedBand.id}-${imageId}`,
+          dependsOn: isNewImage ? [`image-${imageId}`] : undefined,
           entityId: selectedBand.id,
           entityType: 'organization',
           entityLabel: bandName,
