@@ -7,6 +7,11 @@ export interface ImageFile {
   metadata: ImageMetadata;
 }
 
+export interface Caption {
+  language: string; // ISO language code (e.g., 'en', 'no', 'de')
+  text: string; // Short caption text
+}
+
 export interface ImageMetadata {
   description: string;
   author: string; // Generated from Q-ID using {{Creator:Q-ID}} format
@@ -18,6 +23,8 @@ export interface ImageMetadata {
   license: string;
   categories: string[];
   wikiPortraitsEvent: string;
+  // Captions - short multilingual descriptions for structured data
+  captions?: Caption[];
   // Music-specific fields
   musicEvent?: MusicEventMetadata;
   selectedBand?: string; // Band name selected for this specific image
@@ -30,6 +37,8 @@ export interface ImageMetadata {
   // Template to include in wikitext (editable by user)
   template?: string;
   templateModified?: boolean; // Track if user has manually edited template
+  // WikiPortraits template (if this is a WikiPortraits job)
+  wikiportraitsTemplate?: string;
 }
 
 export interface GPSMetadata {
@@ -38,4 +47,15 @@ export interface GPSMetadata {
   source: 'exif' | 'event' | 'manual';
 }
 
-export type UploadType = 'music';
+export type UploadType =
+  | 'music'
+  | 'general'
+  | 'awards'
+  | 'red-carpet'
+  | 'press'
+  | 'sports'
+  | 'production'
+  | 'political'
+  | 'cultural'
+  | 'corporate'
+  | 'portraits';

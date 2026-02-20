@@ -9,6 +9,7 @@ import { ImageFile } from '@/types';
 import { MusicEventMetadata, BandMember } from '@/types/music';
 import { updateImageWikitext, regenerateImageWikitext } from '@/utils/commons-template';
 import { extractCategoriesFromWikitext } from '@/utils/category-extractor';
+import CaptionEditor from './CaptionEditor';
 import CommonsPreview from '../image/CommonsPreview';
 import CategoryForm from './CategoryForm';
 import CompactPerformerSelector from '../image/CompactPerformerSelector';
@@ -25,6 +26,10 @@ const metadataSchema = z.object({
   template: z.string().optional(),
   wikitext: z.string().optional(),
   categories: z.array(z.string()).optional(),
+  captions: z.array(z.object({
+    language: z.string().min(1),
+    text: z.string().min(1)
+  })).optional(),
   dateFromExif: z.boolean().optional(),
   templateModified: z.boolean().optional(),
   wikitextModified: z.boolean().optional(),
@@ -57,8 +62,6 @@ export default function ImageMetadataForm({
   bandPerformers,
   musicEventData
 }: ImageMetadataFormProps) {
-  console.log('🎨 ImageMetadataForm render - image.id:', image.id, 'eventDetails:', eventDetails);
-
   const defaultValues = useMemo(() => ({
     description: image.metadata?.description || '',
     author: image.metadata?.author || '',
@@ -71,6 +74,7 @@ export default function ImageMetadataForm({
     template: image.metadata?.template || '',
     wikitext: image.metadata?.wikitext || '',
     categories: image.metadata?.categories || [],
+    captions: image.metadata?.captions || [],
     dateFromExif: image.metadata?.dateFromExif || false,
     templateModified: image.metadata?.templateModified || false,
     wikitextModified: image.metadata?.wikitextModified || false,
@@ -89,22 +93,13 @@ export default function ImageMetadataForm({
   useEffect(() => {
     const currentCategories = image.metadata?.categories || [];
 
-    console.log('🔄 Auto-populate check:', {
-      currentCategoriesLength: currentCategories.length,
-      hasEventTitle: !!eventDetails?.title,
-      eventTitle: eventDetails?.title,
-      selectedBand: selectedBandValue
-    });
-
     // Only auto-populate if categories are empty (first time)
     if (currentCategories.length === 0 && eventDetails?.title) {
       // Generate event categories with selected band
       import('@/utils/music-categories').then(({ generateImageCategories }) => {
         const eventCategories = generateImageCategories(eventDetails, selectedBandValue);
 
-        console.log('📁 Generated categories:', eventCategories);
         if (eventCategories.length > 0) {
-          console.log('📁 Auto-populating categories:', eventCategories);
           setValue('categories', eventCategories);
           onUpdate(image.id, { categories: eventCategories });
         }
@@ -115,43 +110,30 @@ export default function ImageMetadataForm({
 
   const watchedData = watch();
 
-  console.log('📝 ImageMetadataForm watchedData.categories:', watchedData.categories);
-
   // Update form when image prop changes
   useEffect(() => {
     Object.entries(defaultValues).forEach(([key, value]) => {
-      // Don't reset categories if they're already populated
-      if (key === 'categories') {
-        const currentCategories = getValues('categories');
-        if (currentCategories && currentCategories.length > 0) {
-          console.log('⏭️ Skipping categories reset, already has:', currentCategories);
-          return; // Skip resetting categories
-        }
-      }
       setValue(key as keyof MetadataFormData, value);
     });
-  }, [defaultValues, setValue, getValues]);
+  }, [defaultValues, setValue]);
 
   // Handle metadata changes with automatic wikitext regeneration
   const handleMetadataChange = (field: keyof MetadataFormData, value: string | string[] | boolean) => {
     setValue(field, value);
-    
+
     // Update the metadata immediately
     onUpdate(image.id, { [field]: value });
-    
-    // If wikitext hasn't been manually modified, regenerate it automatically
+
+    // Always regenerate wikitext from centralized metadata if not manually modified
     if (!watchedData.wikitextModified) {
-      const wikitextFields = ['description', 'author', 'date', 'time', 'source', 'license', 'categories', 'selectedBand', 'template'];
-      if (wikitextFields.includes(field as string)) {
-        // Regenerate wikitext after a short delay
-        setTimeout(() => {
-          const currentValues = getValues();
-          const updatedImage = { ...image, metadata: { ...image.metadata, ...currentValues, [field]: value } };
-          const newWikitext = regenerateImageWikitext(updatedImage);
-          setValue('wikitext', newWikitext.metadata.wikitext || '');
-          onUpdate(image.id, { wikitext: newWikitext.metadata.wikitext, wikitextModified: false });
-        }, 100);
-      }
+      // Regenerate wikitext after a short delay to allow all updates to settle
+      setTimeout(() => {
+        const currentValues = getValues();
+        const updatedImage = { ...image, metadata: { ...image.metadata, ...currentValues, [field]: value } };
+        const regenerated = regenerateImageWikitext(updatedImage);
+        setValue('wikitext', regenerated.metadata.wikitext || '');
+        onUpdate(image.id, { wikitext: regenerated.metadata.wikitext, wikitextModified: false });
+      }, 100);
     }
   };
 
@@ -213,17 +195,17 @@ export default function ImageMetadataForm({
   };
 
   const handleBandMembersChange = async (imageId: string, memberIds: string[]) => {
-    onUpdate(imageId, { selectedBandMembers: memberIds });
-
-    // Regenerate filename and description based on new performers
+    // Update selectedBandMembers - central data will handle category updates automatically
+    // Just update the selected members, description, and filename here
     try {
       const { generateCommonsFilename } = await import('@/utils/commons-filename');
       const { generateMusicEventDescription } = await import('@/utils/commons-description');
 
-      // Get selected performers
-      const selectedPerformers = bandPerformers?.members?.filter((m: any) =>
-        memberIds.includes(m.entity?.id)
-      ) || [];
+      // Get selected performers from the correct data structure
+      const selectedPerformers = bandPerformers?.performers?.filter((p: any) => {
+        const performerId = p.entity?.id || p.id;
+        return memberIds.includes(performerId);
+      }) || [];
 
       // Build form data with updated performers
       const bandOrganization = bandPerformers?.selectedBand ? [{
@@ -255,22 +237,53 @@ export default function ImageMetadataForm({
         }
       };
 
-      // Regenerate filename
-      const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
-
       // Regenerate description
       const newDescription = generateMusicEventDescription(formData as any);
 
-      // Update both
-      onUpdate(imageId, {
-        selectedBandMembers: memberIds,
-        suggestedFilename: newFilename,
-        description: newDescription
-      });
+      // Note: Categories are now managed by central data in ImagesPane
+      // When selectedBandMembers changes, ImagesPane automatically fetches
+      // performer categories from Wikidata and updates the image metadata
 
-      console.log('🔄 Regenerated filename and description based on performer changes');
+      const updates: any = {
+        selectedBandMembers: memberIds,
+        description: newDescription
+      };
+
+      // Only regenerate filename for NEW images (not existing Commons images)
+      if (!image.isExisting && image.file) {
+        const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
+        updates.suggestedFilename = newFilename;
+      }
+
+      // Update form values
+      setValue('selectedBandMembers', memberIds);
+      setValue('description', newDescription);
+
+      // Update metadata in parent - this will trigger category update in ImagesPane
+      onUpdate(imageId, updates);
+
+      // Regenerate wikitext with ALL updated metadata if not manually modified
+      // Categories will be added by the central data update
+      if (!watchedData.wikitextModified) {
+        setTimeout(() => {
+          // Build updated image with ALL new metadata
+          const updatedImage = {
+            ...image,
+            metadata: {
+              ...image.metadata,
+              ...updates,
+              description: newDescription,
+              selectedBandMembers: memberIds
+            }
+          };
+          const regenerated = regenerateImageWikitext(updatedImage);
+          setValue('wikitext', regenerated.metadata.wikitext || '');
+          onUpdate(imageId, { wikitext: regenerated.metadata.wikitext, wikitextModified: false });
+        }, 100);
+      }
+
     } catch (error) {
-      console.error('Failed to regenerate filename/description:', error);
+      console.error('Failed to regenerate metadata:', error);
     }
   };
 
@@ -278,7 +291,7 @@ export default function ImageMetadataForm({
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-medium text-card-foreground mb-1">
-          Description *
+          Description (English) *
         </label>
         <Controller
           name="description"
@@ -334,7 +347,7 @@ export default function ImageMetadataForm({
                 <input
                   {...field}
                   type="date"
-                  value={field.value || ''}
+                  value={field.value ? field.value.substring(0, 10) : ''}
                   onChange={(e) => {
                     field.onChange(e.target.value);
                     handleMetadataChange('date', e.target.value);
@@ -500,44 +513,89 @@ export default function ImageMetadataForm({
       )}
 
 
+      <CaptionEditor
+        captions={(watchedData.captions || []) as any}
+        onUpdate={(captions) => {
+          setValue('captions', captions as any);
+          onUpdate(image.id, { captions });
+        }}
+        suggestedCaptions={(() => {
+          const { generateMultilingualCaptions } = require('@/utils/caption-generator');
+
+          // Use image.metadata directly, not watchedData (which might be stale)
+          const taggedMemberIds = image.metadata?.selectedBandMembers || [];
+
+          // EXACT copy from ImageCard lines 128-162
+          const selectedPerformersRaw = bandPerformers?.performers?.filter((p: any) => {
+            const performerId = p.entity?.id || p.id;
+            return taggedMemberIds.includes(performerId);
+          }) || [];
+
+          const selectedPerformers = selectedPerformersRaw.map((p: any) => {
+            const performerName =
+              p.entity?.labels?.en?.value ||
+              p.entity?.labels?.en ||
+              p.labels?.en?.value ||
+              p.labels?.en ||
+              p.name ||
+              p.entity?.id ||
+              p.id ||
+              'Unknown';
+
+            return {
+              entity: {
+                id: p.entity?.id || p.id,
+                labels: {
+                  en: {
+                    language: 'en' as const,
+                    value: performerName
+                  }
+                }
+              },
+              roles: p.roles || [],
+              isNew: p.isNew || false,
+              metadata: p.metadata || {}
+            };
+          });
+
+          // EXACT copy from ImageCard lines 174-184
+          const bandOrganization = bandPerformers?.selectedBand ? [{
+            entity: {
+              id: bandPerformers.selectedBand.id,
+              labels: {
+                en: {
+                  language: 'en' as const,
+                  value: bandPerformers.selectedBand.name
+                }
+              }
+            }
+          }] : [];
+
+          // EXACT copy from ImageCard lines 186-198
+          const formData = {
+            workflowType: 'music-event',
+            eventDetails: {
+              ...eventDetails,
+              date: image.metadata?.date || eventDetails?.date
+            },
+            entities: {
+              people: selectedPerformers,
+              organizations: bandOrganization,
+              locations: [],
+              events: []
+            }
+          };
+
+          return generateMultilingualCaptions(formData as any, eventDetails?.location, eventDetails?.date);
+        })()}
+      />
+
       <CategoryForm
         categories={watchedData.categories || []}
         onCategoriesChange={(cats) => {
-          console.log('📁 CategoryForm onChange called with:', cats);
           handleCategoriesChange(cats);
         }}
       />
-
-
-      {/* Template Editor */}
-      <div className="pt-4 border-t border-border">
-        <label className="block text-sm font-medium text-card-foreground mb-1">
-          WikiPortraits Template
-          {watchedData.templateModified && (
-            <span className="text-xs text-orange-500 ml-1">(modified)</span>
-          )}
-        </label>
-        <Controller
-          name="template"
-          control={control}
-          render={({ field }) => (
-            <input
-              {...field}
-              type="text"
-              value={field.value || ''}
-              onChange={(e) => {
-                field.onChange(e.target.value);
-                handleTemplateChange(e.target.value);
-              }}
-              placeholder="e.g. WikiPortraits Event Name (leave empty for no template)"
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary text-card-foreground bg-card font-mono text-sm"
-            />
-          )}
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          The template to include in the wikitext (without curly braces). Leave empty to remove template.
-        </p>
-      </div>
 
       {/* Wikitext Editor */}
       <div className="pt-4 border-t border-border">

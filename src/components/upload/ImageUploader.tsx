@@ -120,6 +120,15 @@ export default function ImageUploader({
           console.log(`📝 Auto-generated description: ${description}`);
         }
 
+        // 2b. Auto-generate captions in multiple languages with proper translations
+        const { generateMultilingualCaptions } = await import('@/utils/caption-generator');
+        imageFile.metadata.captions = generateMultilingualCaptions(
+          formData as any,
+          eventDetails.location,
+          eventDetails.date
+        );
+        console.log(`📝 Auto-generated captions in 6 languages`);
+
         // 3. Auto-populate categories
         const eventCategories = generateImageCategories(eventDetails, mainBandName);
         console.log('📁 Auto-populating categories on upload with band:', mainBandName, 'Categories:', eventCategories);
