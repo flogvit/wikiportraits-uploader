@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { MapPin, X } from 'lucide-react';
 import { searchWikidataEntities } from '@/utils/wikidata';
+import { logger } from '@/utils/logger';
 
 interface LocationResult {
   id: string;
@@ -97,13 +98,13 @@ export default function LocationSelector({
               wikidataUrl: `https://www.wikidata.org/wiki/${entity.id}`
             });
           } catch (error) {
-            console.error('Error processing location result:', error);
+            logger.error('LocationSelector', 'Error processing location result', error);
           }
         }
 
         setResults(locationResults);
       } catch (error) {
-        console.error('Error searching locations:', error);
+        logger.error('LocationSelector', 'Error searching locations', error);
         setResults([]);
       } finally {
         setLoading(false);

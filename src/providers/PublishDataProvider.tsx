@@ -8,6 +8,7 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState, useMemo, useRef } from 'react';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
+import { logger } from '@/utils/logger';
 import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';
 import { getAllBandCategoryStructures, flattenBandCategories } from '@/utils/band-categories';
@@ -141,7 +142,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
 
   // Get main band
   const selectedBand = organizations.length > 0 ? organizations[0] : null;
-  const selectedBandName = selectedBand?.entity?.labels?.en?.value ||
+  const selectedBandName = (selectedBand as any)?.entity?.labels?.en?.value ||
                           selectedBand?.labels?.en?.value ||
                           null;
 
@@ -315,7 +316,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
         // Check people/performers for missing P373
         const { getWikidataEntity } = await import('@/utils/wikidata');
         for (const person of people) {
-          if (person.id && !person.id.startsWith('pending-') && !person.isNew) {
+          if (person.id && !person.id.startsWith('pending-') && !(person as any).isNew) {
             // Fetch fresh entity data to check for P373
             try {
               const freshPerson = await getWikidataEntity(person.id, 'en', 'labels|claims');
@@ -340,14 +341,14 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
                 });
               }
             } catch (error) {
-              console.error('Error checking P373 for person', person.id, error);
+              logger.error('PublishDataProvider', 'Error checking P373 for person', person.id, error);
             }
           }
         }
 
         // Check organizations for missing P373
         for (const org of organizations) {
-          if (org.id && !org.id.startsWith('pending-') && !org.isNew) {
+          if (org.id && !org.id.startsWith('pending-') && !(org as any).isNew) {
             // Fetch fresh entity data to check for P373
             try {
               const freshOrg = await getWikidataEntity(org.id, 'en', 'labels|claims');
@@ -374,7 +375,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
                 });
               }
             } catch (error) {
-              console.error('Error checking P373 for organization', org.id, error);
+              logger.error('PublishDataProvider', 'Error checking P373 for organization', org.id, error);
             }
           }
         }
@@ -408,7 +409,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
 
           // If this image is set as main image for the band, create Wikidata action
           if (img.metadata?.setAsMainImage && selectedBand?.id) {
-            const bandName = selectedBand?.labels?.en?.value || selectedBand?.entity?.labels?.en?.value || 'Band';
+            const bandName = selectedBand?.labels?.en?.value || (selectedBand as any)?.entity?.labels?.en?.value || 'Band';
             const filename = img.metadata?.suggestedFilename || img.file?.name || 'Unknown';
 
             newActions.push({
@@ -547,7 +548,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
 
           // If this image is set as main image for the band, create Wikidata action
           if (img.metadata?.setAsMainImage && selectedBand?.id) {
-            const bandName = selectedBand?.labels?.en?.value || selectedBand?.entity?.labels?.en?.value || 'Band';
+            const bandName = selectedBand?.labels?.en?.value || (selectedBand as any)?.entity?.labels?.en?.value || 'Band';
             const filename = img.filename || 'Unknown';
 
             newActions.push({
@@ -581,7 +582,7 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
         }
 
       } catch (error) {
-        console.error('❌ Error calculating actions:', error);
+        logger.error('PublishDataProvider', 'Error calculating actions', error);
       } finally {
         setIsCalculating(false);
         calculatingRef.current = false;
@@ -679,10 +680,11 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
 
         if (img && originalImageStateRef.current.has(img.id)) {
           // Update the original state to match current state
+          const imgMeta = img.metadata as any;
           originalImageStateRef.current.set(img.id, {
-            wikitext: img.metadata?.wikitext || '',
-            selectedBandMembers: img.metadata?.selectedBandMembers || [],
-            captions: img.metadata?.captions || []
+            wikitext: imgMeta?.wikitext || '',
+            selectedBandMembers: imgMeta?.selectedBandMembers || [],
+            captions: imgMeta?.captions || []
           });
         }
       }
@@ -753,9 +755,9 @@ export function PublishDataProvider({ children }: { children: ReactNode }) {
         captions
       });
 
-      console.log('🔄 Reloaded image from Commons:', img.filename);
+      logger.info('PublishDataProvider', 'Reloaded image from Commons', img.filename);
     } catch (error) {
-      console.error('Error reloading image from Commons:', error);
+      logger.error('PublishDataProvider', 'Error reloading image from Commons', error);
     }
   };
 

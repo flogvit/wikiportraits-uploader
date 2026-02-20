@@ -3,6 +3,7 @@
 import { signIn, getSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { logger } from '@/utils/logger'
 
 export default function SignIn() {
   const [isLoading, setIsLoading] = useState(false)
@@ -24,7 +25,7 @@ export default function SignIn() {
         redirect: true 
       })
     } catch (error) {
-      console.error('Sign in error:', error)
+      logger.error('signin', 'Sign in error', error)
       setIsLoading(false)
     }
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { useUniversalForm, useUniversalFormEntities, useUniversalFormEventDetails } from '@/providers/UniversalFormProvider';
 import ArtistSelector from '@/components/selectors/ArtistSelector';
 import BandMemberSelector from '@/components/selectors/BandMemberSelector';
@@ -81,7 +82,7 @@ export default function BandPerformersPane({
       }
     };
 
-    postSemanticData().catch(console.error);
+    postSemanticData().catch(err => logger.error('BandPerformersPane', 'Failed to post semantic data', err));
   }, [selectedBand, performers]);
 
 
@@ -121,7 +122,7 @@ export default function BandPerformersPane({
 
         }
       } catch (error) {
-        console.error('Error fetching participant entity:', error);
+        logger.error('BandPerformersPane', 'Error fetching participant entity', error);
       }
     }
 
@@ -165,7 +166,7 @@ export default function BandPerformersPane({
             const categoryMatches = [...wikitext.matchAll(categoryRegex)];
             categories = categoryMatches.map(match => match[1]);
           } catch (error) {
-            console.error('Error fetching wikitext for', file.title, error);
+            logger.error('BandPerformersPane', 'Error fetching wikitext for', file.title, error);
           }
 
           // Extract description from wikitext and unwrap from language template
@@ -244,7 +245,7 @@ export default function BandPerformersPane({
               // Fetch captions
               captions = await getExistingCaptions(file.pageid);
             } catch (error) {
-              console.error('Error fetching structured data:', error);
+              logger.error('BandPerformersPane', 'Error fetching structured data', error);
 
               // Fallback to wikitext parsing if structured data fails
               if (wikitext) {
@@ -289,7 +290,7 @@ export default function BandPerformersPane({
         // Store existing images in the form
         form.setValue('files.existing' as any, existingImages, { shouldDirty: false });
       } catch (error) {
-        console.error('Error loading participant images:', error);
+        logger.error('BandPerformersPane', 'Error loading participant images', error);
       }
     }
   };

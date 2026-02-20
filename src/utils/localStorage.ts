@@ -1,4 +1,5 @@
 // Simple localStorage utility
+import { logger } from '@/utils/logger';
 export const setItem = (key: string, value: string) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem(key, value);
@@ -32,7 +33,7 @@ export const getJsonItem = <T>(key: string, defaultValue: T): T => {
       try {
         return JSON.parse(item);
       } catch (e) {
-        console.warn(`Failed to parse localStorage item for key "${key}":`, e);
+        logger.warn('localStorage', `Failed to parse localStorage item for key "${key}"`, e);
       }
     }
   }

@@ -1,7 +1,9 @@
 // import { getToken } from 'next-auth/jwt';
 
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
+
 const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php';
-const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)';
+const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)';
 
 async function getWikidataCsrfToken(accessToken: string): Promise<string> {
   const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
@@ -16,11 +18,12 @@ async function getWikidataCsrfToken(accessToken: string): Promise<string> {
     type: 'csrf',
   });
 
-  const response = await fetch(`${WIKIDATA_API_URL}?${params.toString()}`, {
+  const response = await fetchWithTimeout(`${WIKIDATA_API_URL}?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       'User-Agent': USER_AGENT,
     },
+    timeoutMs: TOKEN_TIMEOUT_MS,
   });
 
   if (!response.ok) {
@@ -78,7 +81,7 @@ export async function createClaim(accessToken: string, entityId: string, propert
     format: 'json',
   });
 
-  const response = await fetch(WIKIDATA_API_URL, {
+  const response = await fetchWithTimeout(WIKIDATA_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -104,7 +107,7 @@ export async function getClaim(entityId: string, propertyId: string): Promise<an
     format: 'json',
   });
 
-  const response = await fetch(`${WIKIDATA_API_URL}?${params.toString()}`, {
+  const response = await fetchWithTimeout(`${WIKIDATA_API_URL}?${params.toString()}`, {
     headers: {
       'User-Agent': USER_AGENT,
     },

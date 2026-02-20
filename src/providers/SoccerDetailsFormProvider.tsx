@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { WikidataEntity } from '@/types/wikidata';
+import { logger } from '@/utils/logger';
 
 interface SoccerMatch {
   id: string;
@@ -105,7 +106,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setMatch = useCallback((match: SoccerMatch) => {
     form.setValue(`${FORM_KEY}.match`, match);
-    console.log('⚽ Set soccer match:', `${match.homeTeam.labels?.en?.value} vs ${match.awayTeam.labels?.en?.value}`);
+    logger.debug('SoccerDetailsFormProvider', 'Set soccer match', `${match.homeTeam.labels?.en?.value} vs ${match.awayTeam.labels?.en?.value}`);
   }, [form]);
 
   const getHomeTeam = useCallback((): WikidataEntity | null => {
@@ -114,7 +115,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setHomeTeam = useCallback((team: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.homeTeam`, team);
-    console.log('🏠 Set home team:', team.labels?.en?.value || team.id);
+    logger.debug('SoccerDetailsFormProvider', 'Set home team', team.labels?.en?.value || team.id);
   }, [form]);
 
   const getAwayTeam = useCallback((): WikidataEntity | null => {
@@ -123,7 +124,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setAwayTeam = useCallback((team: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.awayTeam`, team);
-    console.log('🚌 Set away team:', team.labels?.en?.value || team.id);
+    logger.debug('SoccerDetailsFormProvider', 'Set away team', team.labels?.en?.value || team.id);
   }, [form]);
 
   const getPlayers = useCallback((): WikidataEntity[] => {
@@ -132,7 +133,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setPlayers = useCallback((players: WikidataEntity[]) => {
     form.setValue(`${FORM_KEY}.players`, players);
-    console.log('👥 Set players:', players.length);
+    logger.debug('SoccerDetailsFormProvider', 'Set players', players.length);
   }, [form]);
 
   const addPlayer = useCallback((player: WikidataEntity) => {
@@ -142,7 +143,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
     if (!exists) {
       const updatedPlayers = [...players, player];
       setPlayers(updatedPlayers);
-      console.log('➕ Added player:', player.labels?.en?.value || player.id);
+      logger.debug('SoccerDetailsFormProvider', 'Added player', player.labels?.en?.value || player.id);
     }
   }, [getPlayers, setPlayers]);
 
@@ -150,7 +151,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
     const players = getPlayers();
     const updatedPlayers = players.filter(p => p.id !== playerId);
     setPlayers(updatedPlayers);
-    console.log('➖ Removed player:', playerId);
+    logger.debug('SoccerDetailsFormProvider', 'Removed player', playerId);
   }, [getPlayers, setPlayers]);
 
   const getPlayersByTeam = useCallback((teamId: string): WikidataEntity[] => {
@@ -166,7 +167,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setVenue = useCallback((venue: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.venue`, venue);
-    console.log('🏟️ Set venue:', venue.labels?.en?.value || venue.id);
+    logger.debug('SoccerDetailsFormProvider', 'Set venue', venue.labels?.en?.value || venue.id);
   }, [form]);
 
   const getDate = useCallback((): string | null => {
@@ -175,7 +176,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setDate = useCallback((date: string) => {
     form.setValue(`${FORM_KEY}.date`, date);
-    console.log('📅 Set match date:', date);
+    logger.debug('SoccerDetailsFormProvider', 'Set match date', date);
   }, [form]);
 
   const getCompetition = useCallback((): string | null => {
@@ -184,7 +185,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setCompetition = useCallback((competition: string) => {
     form.setValue(`${FORM_KEY}.competition`, competition);
-    console.log('🏆 Set competition:', competition);
+    logger.debug('SoccerDetailsFormProvider', 'Set competition', competition);
   }, [form]);
 
   const getScore = useCallback((): string | null => {
@@ -193,7 +194,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setScore = useCallback((score: string) => {
     form.setValue(`${FORM_KEY}.score`, score);
-    console.log('⚽ Set score:', score);
+    logger.debug('SoccerDetailsFormProvider', 'Set score', score);
   }, [form]);
 
   const getReferee = useCallback((): WikidataEntity | null => {
@@ -202,7 +203,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setReferee = useCallback((referee: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.referee`, referee);
-    console.log('👨‍⚖️ Set referee:', referee.labels?.en?.value || referee.id);
+    logger.debug('SoccerDetailsFormProvider', 'Set referee', referee.labels?.en?.value || referee.id);
   }, [form]);
 
   const getAttendance = useCallback((): number | null => {
@@ -211,7 +212,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setAttendance = useCallback((attendance: number) => {
     form.setValue(`${FORM_KEY}.attendance`, attendance);
-    console.log('👥 Set attendance:', attendance);
+    logger.debug('SoccerDetailsFormProvider', 'Set attendance', attendance);
   }, [form]);
 
   const getStadium = useCallback((): WikidataEntity | null => {
@@ -220,7 +221,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setStadium = useCallback((stadium: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.stadium`, stadium);
-    console.log('🏟️ Set stadium:', stadium.labels?.en?.value || stadium.id);
+    logger.debug('SoccerDetailsFormProvider', 'Set stadium', stadium.labels?.en?.value || stadium.id);
   }, [form]);
 
   const getLocation = useCallback((): string | null => {
@@ -229,7 +230,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
   const setLocation = useCallback((location: string) => {
     form.setValue(`${FORM_KEY}.location`, location);
-    console.log('📍 Set location:', location);
+    logger.debug('SoccerDetailsFormProvider', 'Set location', location);
   }, [form]);
 
   const validate = useCallback((): boolean => {
@@ -240,25 +241,25 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
 
     // Both teams must be defined
     if (!homeTeam || !awayTeam) {
-      console.warn('⚠️ Both home and away teams must be defined');
+      logger.warn('SoccerDetailsFormProvider', 'Both home and away teams must be defined');
       return false;
     }
 
     // Teams must be different
     if (homeTeam.id === awayTeam.id) {
-      console.warn('⚠️ Home and away teams cannot be the same');
+      logger.warn('SoccerDetailsFormProvider', 'Home and away teams cannot be the same');
       return false;
     }
 
     // Date is required
     if (!date) {
-      console.warn('⚠️ Match date must be defined');
+      logger.warn('SoccerDetailsFormProvider', 'Match date must be defined');
       return false;
     }
 
     // At least some players should be defined (recommended but not required)
     if (players.length === 0) {
-      console.warn('⚠️ No players defined (recommended to add players)');
+      logger.warn('SoccerDetailsFormProvider', 'No players defined (recommended to add players)');
     }
 
     return true;
@@ -279,7 +280,7 @@ export function SoccerDetailsFormProvider({ children }: SoccerDetailsFormProvide
       stadium: null,
       location: null
     });
-    console.log('🧹 Cleared soccer details');
+    logger.debug('SoccerDetailsFormProvider', 'Cleared soccer details');
   }, [form]);
 
   const value: SoccerDetailsFormContextType = {

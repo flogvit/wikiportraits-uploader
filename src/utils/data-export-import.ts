@@ -1,6 +1,7 @@
 import { WikidataEntity } from '../types/wikidata';
 import { dataVersionManager, DataVersion } from './data-versioning';
 import { suggestionCache } from './suggestion-cache';
+import { logger } from '@/utils/logger';
 
 /**
  * Data Export/Import Utilities for WikiPortraits
@@ -272,11 +273,11 @@ export class DataExportImportManager {
 
       // Import configuration
       // This would integrate with the workflow system
-      console.log('Importing workflow configuration:', config.workflowId);
+      logger.info('data-export-import', `Importing workflow configuration: ${config.workflowId}`);
       
       return true;
     } catch (error) {
-      console.error('Failed to import workflow configuration:', error);
+      logger.error('data-export-import', 'Failed to import workflow configuration', error);
       return false;
     }
   }
@@ -289,7 +290,7 @@ export class DataExportImportManager {
     
     // This would create a backup of current data
     // For now, we'll simulate the backup creation
-    console.log(`Creating import backup: ${backupId}`);
+    logger.info('data-export-import', `Creating import backup: ${backupId}`);
     
     return backupId;
   }
@@ -300,10 +301,10 @@ export class DataExportImportManager {
   async restoreFromBackup(backupId: string): Promise<boolean> {
     try {
       // This would restore data from a backup
-      console.log(`Restoring from backup: ${backupId}`);
+      logger.info('data-export-import', `Restoring from backup: ${backupId}`);
       return true;
     } catch (error) {
-      console.error('Failed to restore from backup:', error);
+      logger.error('data-export-import', 'Failed to restore from backup', error);
       return false;
     }
   }
@@ -601,7 +602,7 @@ export class DataExportImportManager {
 
   private async saveEntity(entity: WikidataEntity, mergeStrategy: string): Promise<void> {
     // This would save an entity to the system
-    console.log(`Saving entity ${entity.id} with strategy ${mergeStrategy}`);
+    logger.debug('data-export-import', `Saving entity ${entity.id} with strategy ${mergeStrategy}`);
   }
 
   private generateChecksum(data: string): string {

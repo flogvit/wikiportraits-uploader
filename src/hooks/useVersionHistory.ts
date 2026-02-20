@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { 
-  dataVersionManager, 
-  DataVersion, 
-  VersionDiff, 
+import {
+  dataVersionManager,
+  DataVersion,
+  FieldChange,
+  VersionDiff,
   VersionQuery,
-  RestoreOptions 
+  RestoreOptions
 } from '../utils/data-versioning';
 
 export interface UseVersionHistoryOptions {
@@ -144,14 +145,15 @@ export function useVersionHistory<T = any>(
 
   // Restore to a specific version
   const restoreVersion = useCallback(async (
-    versionId: string, 
-    options: RestoreOptions = {}
+    versionId: string,
+    options: Partial<RestoreOptions> = {}
   ): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
     try {
       const result = dataVersionManager.restoreVersion<T>(dataId, versionId, {
+        targetVersion: versionId,
         createBackup: true,
         validateData: true,
         ...options

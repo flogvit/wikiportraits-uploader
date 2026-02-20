@@ -8,9 +8,11 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import WikimediaWorkflow from '@/components/workflow/workflows/WikimediaWorkflow';
 import CacheManager from '@/components/common/CacheManager';
 import StartFreshButton from '@/components/common/StartFreshButton';
+import { logger } from '@/utils/logger';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 // import { CategoryCreationInfo } from '@/utils/soccer-categories';
 
-type CategoryCreationInfo = any; // TODO: Define proper type when soccer module is implemented
+type CategoryCreationInfo = any; // See GitHub issue #1
 
 export default function Home() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
@@ -18,7 +20,7 @@ export default function Home() {
 
   const handleCreateCategories = async (categories: CategoryCreationInfo[]) => {
     // Categories are created by the modal, we just need to close it
-    console.log('Categories created:', categories);
+    logger.debug('home', 'Categories created', categories);
   };
 
   return (
@@ -46,7 +48,9 @@ export default function Home() {
             </header>
 
             <div className="space-y-8">
-              <WikimediaWorkflow />
+              <ErrorBoundary name="Workflow">
+                <WikimediaWorkflow />
+              </ErrorBoundary>
             </div>
           </div>
         </div>

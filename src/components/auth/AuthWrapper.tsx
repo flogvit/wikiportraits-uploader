@@ -6,6 +6,7 @@ import { loadAuthorWikidataQid } from '@/utils/localStorage';
 import LoginButton from '@/components/auth/LoginButton';
 import PhotographerOnboarding from '@/components/auth/PhotographerOnboarding';
 import { Camera } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -37,7 +38,7 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
   }, [status]);
 
   const handleOnboardingComplete = (qid: string) => {
-    console.log('Onboarding completed with Q-ID:', qid);
+    logger.info('AuthWrapper', 'Onboarding completed with Q-ID', qid);
     setNeedsOnboarding(false);
   };
 

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { CheckCircle, AlertCircle, Clock, FileText } from 'lucide-react';
+import { logger } from '@/utils/logger';
 import { useUniversalForm, useUniversalFormFiles } from '@/providers/UniversalFormProvider';
 import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
@@ -52,33 +53,24 @@ export default function UploadPane({
     eventType: 'concert' as const,
     concertData: {
       concert: {
-        artist: eventDetails.musicEvent?.mainBand ? {
-          name: eventDetails.musicEvent.mainBand.labels?.en?.value || 'Unknown Artist',
-          id: eventDetails.musicEvent.mainBand.id
+        artist: eventDetails?.mainBand ? {
+          name: eventDetails.mainBand.labels?.en?.value || 'Unknown Artist',
+          id: eventDetails.mainBand.id
         } : undefined,
-        venue: eventDetails.musicEvent?.venue ? {
-          name: eventDetails.musicEvent.venue.labels?.en?.value || 'Unknown Venue'
+        venue: eventDetails?.venue ? {
+          name: eventDetails.venue.labels?.en?.value || 'Unknown Venue'
         } : undefined,
-        date: eventDetails.common?.date
+        date: eventDetails?.date
       }
     }
   } : undefined;
-  
-  const soccerMatchData = workflowType === 'soccer-match' ? {
-    homeTeam: eventDetails.soccerMatch?.homeTeam ? {
-      name: eventDetails.soccerMatch.homeTeam.labels?.en?.value || 'Unknown Team'
-    } : undefined,
-    awayTeam: eventDetails.soccerMatch?.awayTeam ? {
-      name: eventDetails.soccerMatch.awayTeam.labels?.en?.value || 'Unknown Team'
-    } : undefined
-  } : undefined;
-  
+
   // Map workflow types
-  const uploadType = workflowType === 'music-event' ? 'music' : 
-                     workflowType === 'soccer-match' ? 'soccer' : 'general';
-  
-  const templateName = generateTemplateName(uploadType, musicEventData, soccerMatchData);
-  const templateCode = generateTemplate(uploadType, musicEventData, soccerMatchData);
+  const uploadType = workflowType === 'music-event' ? 'music' :
+                     workflowType === 'soccer-match' ? 'general' : 'general';
+
+  const templateName = generateTemplateName(uploadType, musicEventData as any);
+  const templateCode = generateTemplate(uploadType, musicEventData as any);
   const templateUrl = `https://commons.wikimedia.org/wiki/Template:${encodeURIComponent(templateName)}`;
 
   const uploadSteps: UploadStepInfo[] = [
@@ -126,7 +118,7 @@ export default function UploadPane({
     if (uploadType === 'general' || templateCreated) {
       // Skip template creation for general uploads or if already created
       updateStepStatus('template', 'completed');
-      setValue('upload.currentStep', 'images');
+      setUploadState(prev => ({ ...prev, currentStep: 'images' }));
       return;
     }
 
@@ -149,7 +141,7 @@ export default function UploadPane({
       }
 
       const result = await response.json();
-      console.log('Template creation result:', result);
+      logger.info('UploadPane', 'Template creation result', result);
       
       setUploadState(prev => ({
         ...prev,
@@ -159,7 +151,7 @@ export default function UploadPane({
       updateStepStatus('template', 'completed');
       
     } catch (error) {
-      console.error('Template creation failed:', error);
+      logger.error('UploadPane', 'Template creation failed', error);
       updateStepStatus('template', 'error');
     }
   };
@@ -168,7 +160,7 @@ export default function UploadPane({
     updateStepStatus('images', 'in-progress');
     
     try {
-      // TODO: Implement actual image upload
+      // See GitHub issue #6
       // For now, simulate upload progress
       for (let i = 0; i < (images?.length || 0); i++) {
         setUploadState(prev => ({
@@ -190,7 +182,7 @@ export default function UploadPane({
       updateStepStatus('complete', 'completed');
       
     } catch (error) {
-      console.error('Image upload failed:', error);
+      logger.error('UploadPane', 'Image upload failed', error);
       updateStepStatus('images', 'error');
     }
   };

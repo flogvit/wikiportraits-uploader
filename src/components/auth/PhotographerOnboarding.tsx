@@ -7,6 +7,7 @@ import { saveAuthorWikidataQid, loadAuthorWikidataQid } from '@/utils/localStora
 import LoginButton from '@/components/auth/LoginButton';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import CountrySelector from '@/components/selectors/CountrySelector';
+import { logger } from '@/utils/logger';
 
 interface WikidataEntity {
   id: string;
@@ -70,7 +71,7 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
       
       // Look for exact matches or photographer matches
       const exactMatch = results.find((r: WikidataEntity) => 
-        r.label.toLowerCase() === session.user.name.toLowerCase() && (r.isPhotographer || r.isHuman)
+        r.label.toLowerCase() === (session.user?.name ?? '').toLowerCase() && (r.isPhotographer || r.isHuman)
       );
       
       const photographerMatch = results.find((r: WikidataEntity) => r.isPhotographer);
@@ -87,7 +88,7 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
       
       setSearchResults(results);
     } catch (err) {
-      console.error('Auto-search error:', err);
+      logger.error('PhotographerOnboarding', 'Auto-search error', err);
       setError('Failed to auto-search. Please search manually.');
       setStep('manual-search');
     } finally {
@@ -117,7 +118,7 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
       setSearchResults(data.results || []);
       setHasSearched(true);
     } catch (err) {
-      console.error('Search error:', err);
+      logger.error('PhotographerOnboarding', 'Search error', err);
       setError('Failed to search Wikidata. Please try again.');
       setSearchResults([]);
       setHasSearched(true);
@@ -155,16 +156,12 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
       };
 
       // Log the exact data that will be sent to the API
-      console.log('=== PHOTOGRAPHER CREATION REQUEST ===');
-      console.log('URL:', '/api/wikidata/create-entity');
-      console.log('Method:', 'POST');
-      console.log('Headers:', {
-        'Content-Type': 'application/json',
+      logger.debug('PhotographerOnboarding', 'Photographer creation request', {
+        url: '/api/wikidata/create-entity',
+        method: 'POST',
+        requestBody,
+        formData
       });
-      console.log('Request Body:', JSON.stringify(requestBody, null, 2));
-      console.log('Form Data:', formData);
-      console.log('Session:', session);
-      console.log('=====================================');
       
       const response = await fetch('/api/wikidata/create-entity', {
         method: 'POST',
@@ -179,13 +176,13 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
       }
       
       const result = await response.json();
-      console.log('API Response:', result);
-      
+      logger.debug('PhotographerOnboarding', 'API Response', result);
+
       if (result.success) {
         const qid = result.wikidataId;
-        console.log('Created photographer profile:', qid);
+        logger.info('PhotographerOnboarding', 'Created photographer profile', qid);
         if (result.wikidataUrl) {
-          console.log('View on wikidata.org:', result.wikidataUrl);
+          logger.info('PhotographerOnboarding', 'View on wikidata.org', result.wikidataUrl);
         }
         saveAuthorWikidataQid(qid);
         onComplete(qid);
@@ -193,7 +190,7 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
         throw new Error(result.message || 'Failed to create photographer');
       }
     } catch (err) {
-      console.error('Creation error:', err);
+      logger.error('PhotographerOnboarding', 'Creation error', err);
       setError('Failed to create photographer profile. Please try again.');
     } finally {
       setIsCreating(false);
@@ -549,11 +546,11 @@ export default function PhotographerOnboarding({ onComplete }: PhotographerOnboa
                 </div>
               </form>
 
-              {searchResults?.length > 0 && (
+              {(searchResults?.length ?? 0) > 0 && (
                 <div className="mb-6">
                   <h4 className="font-medium text-sm mb-3">Search Results</h4>
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {searchResults.map((result) => (
+                    {searchResults!.map((result) => (
                       <div
                         key={result.id}
                         className="p-3 border border-border rounded-lg hover:bg-muted cursor-pointer"

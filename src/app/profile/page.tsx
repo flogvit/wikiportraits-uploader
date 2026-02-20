@@ -8,6 +8,7 @@ import { loadAuthorWikidataQid } from '@/utils/localStorage';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import LoginButton from '@/components/auth/LoginButton';
 import ConfigurationPanel from '@/components/settings/ConfigurationPanel';
+import { logger } from '@/utils/logger';
 
 interface WikidataEntity {
   id: string;
@@ -49,19 +50,19 @@ export default function ProfilePage() {
 
   const fetchPhotographerData = async (qid: string) => {
     try {
-      console.log('Fetching photographer data for Q-ID:', qid);
+      logger.debug('profile', 'Fetching photographer data for Q-ID', qid);
       const response = await fetch(`/api/wikidata/get-entity?id=${qid}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Photographer data received:', data);
+        logger.debug('profile', 'Photographer data received', data);
         setPhotographerData(data);
       } else {
         const errorData = await response.json();
-        console.error('API error:', errorData);
+        logger.error('profile', 'API error fetching photographer data', errorData);
         setError(`Failed to fetch photographer data: ${errorData.error || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error('Fetch error:', err);
+      logger.error('profile', 'Fetch error loading photographer profile', err);
       setError('Error loading photographer profile');
     } finally {
       setIsLoading(false);
@@ -69,8 +70,8 @@ export default function ProfilePage() {
   };
 
   const handleEditProfile = () => {
-    // TODO: Implement edit profile functionality
-    console.log('Edit profile clicked');
+    // See GitHub issue #4
+    logger.debug('profile', 'Edit profile clicked');
   };
 
   const handleManagePhotos = () => {

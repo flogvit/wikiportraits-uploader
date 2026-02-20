@@ -5,6 +5,7 @@
 
 import { CommonsClient } from '@/lib/api/CommonsClient';
 import { CategoryCreationInfo } from '@/types/categories';
+import { logger } from '@/utils/logger';
 
 export interface BandCategoryInfo {
   bandName: string;
@@ -33,7 +34,7 @@ export async function checkNeedsDisambiguation(
 
       if (existingP373) {
         // Entity already has a Commons category set - use that!
-        console.log(`✅ Using existing P373 from ${expectedQid}:`, existingP373);
+        logger.debug('band-categories', `Using existing P373 from ${expectedQid}`, existingP373);
         return {
           needsDisambiguation: existingP373 !== categoryName,
           suggestedName: existingP373,
@@ -41,7 +42,7 @@ export async function checkNeedsDisambiguation(
         };
       }
     } catch (error) {
-      console.warn('Could not fetch Wikidata entity for P373 check:', error);
+      logger.warn('band-categories', 'Could not fetch Wikidata entity for P373 check', error);
     }
 
     // No P373 on Wikidata - check if category exists on Commons
@@ -77,7 +78,7 @@ export async function checkNeedsDisambiguation(
     const hasWikidataTemplate = content.includes('{{Wikidata Infobox');
     const wikidataQidInCategory = wikidataTemplateMatch?.[1]?.trim();
 
-    console.log('🔍 Category disambiguation check:', {
+    logger.debug('band-categories', 'Category disambiguation check', {
       categoryName,
       exists,
       expectedQid,
@@ -102,7 +103,7 @@ export async function checkNeedsDisambiguation(
       reason: `Category:${categoryName} exists but links to different entity (${wikidataQidInCategory || 'none'})`
     };
   } catch (error) {
-    console.error('Error checking disambiguation:', error);
+    logger.error('band-categories', 'Error checking disambiguation', error);
     // On error, be conservative and disambiguate
     return {
       needsDisambiguation: true,

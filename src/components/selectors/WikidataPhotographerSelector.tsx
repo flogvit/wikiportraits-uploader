@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, User, Plus, Check } from 'lucide-react';
 import { saveAuthorWikidataQid, loadAuthorWikidataQid, clearAuthorWikidataQid } from '@/utils/localStorage';
+import { logger } from '@/utils/logger';
 
 interface WikidataEntity {
   id: string;
@@ -41,7 +42,7 @@ export default function WikidataPhotographerSelector({
         onPhotographerSelect(entity);
       }
     } catch (error) {
-      console.error('Error fetching entity details:', error);
+      logger.error('WikidataPhotographerSelector', 'Error fetching entity details', error);
     }
   }, [onPhotographerSelect]);
 
@@ -78,12 +79,12 @@ export default function WikidataPhotographerSelector({
       }
 
       const data = await response.json();
-      console.log('Search response:', data);
-      console.log('Results array:', data.results);
-      console.log('Results length:', data.results?.length);
+      logger.debug('WikidataPhotographerSelector', 'Search response', data);
+      logger.debug('WikidataPhotographerSelector', 'Results array', data.results);
+      logger.debug('WikidataPhotographerSelector', 'Results length', data.results?.length);
       setSearchResults(data.results || []);
     } catch (err) {
-      console.error('Search error:', err);
+      logger.error('WikidataPhotographerSelector', 'Search error', err);
       setError('Failed to search Wikidata. Please try again.');
       setSearchResults([]);
     } finally {
@@ -113,8 +114,8 @@ export default function WikidataPhotographerSelector({
   };
 
   const handleCreateNew = () => {
-    // TODO: Implement create new photographer functionality
-    console.log('Create new photographer not yet implemented');
+    // See GitHub issue #2
+    logger.debug('WikidataPhotographerSelector', 'Create new photographer not yet implemented');
   };
 
   if (selectedPhotographer) {
@@ -202,11 +203,11 @@ export default function WikidataPhotographerSelector({
           </div>
         )}
 
-        {searchResults?.length > 0 && (
+        {(searchResults?.length ?? 0) > 0 && (
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Search Results</h4>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {searchResults.map((result) => (
+              {searchResults!.map((result) => (
                 <div
                   key={result.id}
                   className="p-3 border border-border rounded-lg hover:bg-muted cursor-pointer"
@@ -249,7 +250,7 @@ export default function WikidataPhotographerSelector({
 
         {(() => {
           const shouldShow = searchResults?.length === 0 && searchTerm && !isSearching;
-          console.log('No results condition:', {
+          logger.debug('WikidataPhotographerSelector', 'No results condition', {
             searchResultsLength: searchResults?.length,
             searchTerm,
             isSearching,

@@ -366,8 +366,8 @@ export function updateWorkflowItem<T = WikidataEntity>(
   // Detect conflicts if external data is provided
   if (externalData && !workflowItem.new) {
     const conflicts = detectConflicts(
-      workflowItem as WorkflowItem<WikidataEntity>,
-      externalData as WikidataEntity
+      workflowItem as unknown as WorkflowItem<WikidataEntity>,
+      externalData as unknown as WikidataEntity
     );
     updated.conflicts = conflicts;
   }

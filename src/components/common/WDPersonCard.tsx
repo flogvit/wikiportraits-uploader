@@ -4,6 +4,7 @@ import { X, User, Music, Calendar, Globe, UserPlus, MapPin } from 'lucide-react'
 import { WikidataEntity } from '@/types/wikidata';
 import { WDPersonUtils, WDMusicianUtils, WDSoccerPlayerUtils, getThumbnailUrl } from '@/utils/wd-utils';
 import FocusedImage from '@/components/image/FocusedImage';
+import { logger } from '@/utils/logger';
 
 interface WDPersonCardProps {
   entity: WikidataEntity;
@@ -165,7 +166,7 @@ export default function WDPersonCard({
             className="ml-3"
             size={48}
             onError={(e) => {
-              console.log('🖼️ WD image failed to load:', imageUrl);
+              logger.debug('WDPersonCard', 'WD image failed to load', imageUrl);
               e.currentTarget.style.display = 'none';
             }}
           />

@@ -5,6 +5,7 @@
 
 import { CommonsClient } from '@/lib/api/CommonsClient';
 import { WikidataEntity, WD_PROPERTIES } from '@/types/wikidata';
+import { logger } from '@/utils/logger';
 
 export interface PerformerCategoryInfo {
   performerName: string;
@@ -173,7 +174,7 @@ async function verifyCategoryEntity(
       foundQid
     };
   } catch (error) {
-    console.error('Error verifying category entity:', error);
+    logger.error('performer-categories', 'Error verifying category entity', error);
     return { isCorrect: false };
   }
 }

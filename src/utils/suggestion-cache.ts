@@ -1,5 +1,6 @@
 import { WikidataEntity } from '../types/wikidata';
 import { RelationshipSuggestion, SuggestionContext } from './event-relationships';
+import { logger } from '@/utils/logger';
 
 /**
  * Advanced Local Caching System for Event Suggestions
@@ -204,7 +205,7 @@ export class SuggestionCache {
     });
 
     if (expiredKeys.length > 0) {
-      console.log(`Cleaned up ${expiredKeys.length} expired cache entries`);
+      logger.debug('suggestion-cache', `Cleaned up ${expiredKeys.length} expired cache entries`);
     }
   }
 
@@ -260,7 +261,7 @@ export class SuggestionCache {
 
     // This would typically make API calls to preload common suggestions
     // For now, we'll just log the prefetch attempt
-    console.log('Prefetching suggestions for', commonContexts.length, 'common contexts');
+    logger.debug('suggestion-cache', 'Prefetching suggestions for common contexts', commonContexts.length);
   }
 
   /**
@@ -303,7 +304,7 @@ export class SuggestionCache {
       
       return true;
     } catch (error) {
-      console.error('Failed to import cache data:', error);
+      logger.error('suggestion-cache', 'Failed to import cache data', error);
       return false;
     }
   }
@@ -408,7 +409,7 @@ export class SuggestionCache {
         }
       });
     } catch (error) {
-      console.error('Failed to load cache from storage:', error);
+      logger.error('suggestion-cache', 'Failed to load cache from storage', error);
     }
   }
 
@@ -419,7 +420,7 @@ export class SuggestionCache {
       const storageKey = this.options.storagePrefix + key;
       localStorage.setItem(storageKey, JSON.stringify(entry));
     } catch (error) {
-      console.error('Failed to persist cache entry:', error);
+      logger.error('suggestion-cache', 'Failed to persist cache entry', error);
     }
   }
 
@@ -430,7 +431,7 @@ export class SuggestionCache {
       const storageKey = this.options.storagePrefix + key;
       localStorage.removeItem(storageKey);
     } catch (error) {
-      console.error('Failed to remove cache entry from storage:', error);
+      logger.error('suggestion-cache', 'Failed to remove cache entry from storage', error);
     }
   }
 
@@ -443,7 +444,7 @@ export class SuggestionCache {
       );
       keys.forEach(key => localStorage.removeItem(key));
     } catch (error) {
-      console.error('Failed to clear cache storage:', error);
+      logger.error('suggestion-cache', 'Failed to clear cache storage', error);
     }
   }
 

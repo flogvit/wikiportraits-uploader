@@ -1,5 +1,6 @@
 import { parse } from 'exifr';
 import { ExifData } from '@/types/common';
+import { logger } from '@/utils/logger';
 
 export type { ExifData } from '@/types/common';
 
@@ -64,7 +65,7 @@ export async function extractExifData(file: File): Promise<ExifData | null> {
       gps
     };
   } catch (error) {
-    console.warn('Failed to extract EXIF data:', error);
+    logger.warn('exif-reader', 'Failed to extract EXIF data', error);
     return null;
   }
 }

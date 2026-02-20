@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'commons-create-template'), { limit: 30 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession(authOptions);
     
     if (!session?.accessToken) {
@@ -26,11 +32,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Get CSRF token
-    const csrfResponse = await fetch('https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&format=json', {
+    const csrfResponse = await fetchWithTimeout('https://commons.wikimedia.org/w/api.php?action=query&meta=tokens&format=json', {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
         'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)',
       },
+      timeoutMs: TOKEN_TIMEOUT_MS,
     });
 
     if (!csrfResponse.ok) {
@@ -41,7 +48,7 @@ export async function POST(request: NextRequest) {
     const csrfToken = csrfData.query.tokens.csrftoken;
 
     // Create the template page
-    const createResponse = await fetch('https://commons.wikimedia.org/w/api.php', {
+    const createResponse = await fetchWithTimeout('https://commons.wikimedia.org/w/api.php', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -87,7 +94,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Template creation error:', error);
+    logger.error('commons/create-template', 'Template creation failed', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create template' },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { loadAuthorWikidataQid } from './localStorage';
+import { logger } from '@/utils/logger';
 
 /**
  * Fetch photographer details from Wikidata Q-ID
@@ -23,7 +24,7 @@ export const fetchPhotographerDetails = async (qid?: string) => {
       };
     }
   } catch (error) {
-    console.error('Error fetching photographer details:', error);
+    logger.error('photographer', 'Error fetching photographer details', error);
   }
   return null;
 };

@@ -39,11 +39,11 @@ export function generateMusicEventDescription(
   const performers = formData.entities?.people || [];
 
   const bandName = organizations.length > 0
-    ? organizations[0].entity?.labels?.en?.value || organizations[0].entity?.id
+    ? (organizations[0] as any).entity?.labels?.en?.value || (organizations[0] as any).entity?.id || organizations[0].labels?.en?.value || organizations[0].id
     : null;
 
   const performerNames = performers
-    .map(p => p.entity?.labels?.en?.value || p.entity?.id)
+    .map(p => (p as any).entity?.labels?.en?.value || (p as any).entity?.id || p.labels?.en?.value || p.id)
     .filter(Boolean);
 
   // Build description
@@ -92,8 +92,10 @@ export function generateMusicEventDescription(
   // Add location
   if ((venue || location) && includeLocation) {
     const locationParts: string[] = [];
-    if (venue) locationParts.push(venue);
-    if (location && location !== venue) locationParts.push(location);
+    const venueStr = typeof venue === 'string' ? venue : venue?.labels?.en?.value || '';
+    const locationStr = typeof location === 'string' ? location : location?.labels?.en?.value || '';
+    if (venueStr) locationParts.push(venueStr);
+    if (locationStr && locationStr !== venueStr) locationParts.push(locationStr);
 
     if (locationParts.length > 0) {
       if (parts.length > 0) {

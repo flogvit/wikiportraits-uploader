@@ -3,11 +3,12 @@
 import { ImageFile } from '@/types';
 import { extractExifData, formatDateForCommons, formatTimeForCommons } from '@/utils/exif-reader';
 import { generateCommonsWikitext } from '@/utils/commons-template';
-import { UploadType } from '@/types/upload';
+import { UploadType, ImageMetadata } from '@/types/upload';
 import { MusicEventMetadata } from '@/types/music';
 import { generateEventDescription } from '@/utils/music-categories';
 import { generateAuthorField, getCurrentPhotographerQid } from '@/utils/photographer';
 import { checkImageMetadata } from '@/utils/exif-checker';
+import { logger } from '@/utils/logger';
 
 interface FileProcessorProps {
   uploadType: UploadType;
@@ -54,7 +55,7 @@ export class FileProcessor {
           const photographerEntity = await getWikidataEntity(wikidataQid, 'en', 'labels');
           photographerName = photographerEntity.labels?.en?.value;
         } catch (error) {
-          console.error('Error fetching photographer name:', error);
+          logger.error('FileProcessor', 'Error fetching photographer name', error);
         }
       }
 
@@ -94,7 +95,7 @@ export class FileProcessor {
         id: `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         file,
         preview,
-        metadata: initialMetadata,
+        metadata: initialMetadata as ImageMetadata,
       };
 
       // Generate initial wikitext

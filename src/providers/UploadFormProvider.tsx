@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { logger } from '@/utils/logger';
 
 interface UploadItem {
   id: string;
@@ -147,7 +148,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
     updateQueue(() => queue);
     form.setValue(STATUS_KEY, 'uploading');
 
-    console.log('🚀 Starting upload process with', queue.length, 'items');
+    logger.info('UploadFormProvider', 'Starting upload process', queue.length, 'items');
 
     const maxConcurrent = config?.maxConcurrent || 3;
     const activeUploads = new Set<string>();
@@ -200,7 +201,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
       if (!stillProcessing) {
         const failed = finalQueue.filter(item => item.status === 'failed');
         form.setValue(STATUS_KEY, failed.length > 0 ? 'failed' : 'completed');
-        console.log('✅ Upload process completed');
+        logger.info('UploadFormProvider', 'Upload process completed');
       }
     };
 
@@ -218,7 +219,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
 
   const pause = useCallback(() => {
     form.setValue(STATUS_KEY, 'paused');
-    console.log('⏸️ Upload process paused');
+    logger.info('UploadFormProvider', 'Upload process paused');
   }, [form]);
 
   const cancel = useCallback((itemId?: string) => {
@@ -226,7 +227,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
       updateQueue(queue => 
         queue.map(q => q.id === itemId ? { ...q, status: 'cancelled' as const } : q)
       );
-      console.log('❌ Cancelled upload:', itemId);
+      logger.info('UploadFormProvider', 'Cancelled upload', itemId);
     } else {
       updateQueue(queue => 
         queue.map(q => q.status === 'pending' || q.status === 'uploading' ? 
@@ -234,7 +235,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
         )
       );
       form.setValue(STATUS_KEY, 'idle');
-      console.log('❌ Cancelled all uploads');
+      logger.info('UploadFormProvider', 'Cancelled all uploads');
     }
   }, [updateQueue, form]);
 
@@ -247,7 +248,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
         error: undefined 
       } : q)
     );
-    console.log('🔄 Retrying upload:', itemId);
+    logger.info('UploadFormProvider', 'Retrying upload', itemId);
   }, [updateQueue]);
 
   const getProgress = useCallback((): UploadStats => {
@@ -273,7 +274,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
   const clear = useCallback(() => {
     form.setValue(FORM_KEY, []);
     form.setValue(STATUS_KEY, 'idle');
-    console.log('🧹 Cleared upload queue');
+    logger.debug('UploadFormProvider', 'Cleared upload queue');
   }, [form]);
 
   // Helper function to get all entities from form data
@@ -290,7 +291,7 @@ export function UploadFormProvider({ children, config }: UploadFormProviderProps
       Object.values(details).forEach(value => {
         if (Array.isArray(value)) {
           entities.push(...value.filter(item => item && item.id));
-        } else if (value && typeof value === 'object' && value.id) {
+        } else if (value && typeof value === 'object' && (value as any).id) {
           entities.push(value);
         }
       });

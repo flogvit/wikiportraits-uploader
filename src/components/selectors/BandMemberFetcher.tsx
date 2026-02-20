@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import { useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { WDPerson } from '@/classes';
+import { WikidataEntity } from '@/types/wikidata';
 
 interface BandMemberFetcherProps {
   bandName?: string;
@@ -67,8 +68,8 @@ export default function BandMemberFetcher({
           };
 
           // Use WDPerson class to add properties cleanly
-          const wdPerson = new WDPerson(baseEntity);
-          
+          const wdPerson = new WDPerson(baseEntity as WikidataEntity);
+
           // Add band membership if bandId is available
           if (bandId) {
             wdPerson.addBandMembership(bandId);

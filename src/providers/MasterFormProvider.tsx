@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
+import { logger } from '@/utils/logger';
 import { CategoriesFormProvider, useCategoriesForm } from './CategoriesFormProvider';
 import { ImagesFormProvider, useImagesForm } from './ImagesFormProvider';
 import { TemplatesFormProvider, defaultTemplateGenerators, useTemplatesForm } from './TemplatesFormProvider';
@@ -122,7 +123,7 @@ export function MasterFormProvider({
     }
   };
 
-  console.log('🏗️ MasterFormProvider initialized with form keys:', Object.keys(form.getValues()));
+  logger.info('MasterFormProvider', 'Initialized with form keys', Object.keys(form.getValues()));
 
   return (
     <FormProvider {...form}>
@@ -145,7 +146,7 @@ export function MasterFormProvider({
 
 // Default upload handlers - these would be implemented with actual API calls
 async function defaultImageUploadHandler(item: any): Promise<any> {
-  console.log('📸 Uploading image:', item.name);
+  logger.info('MasterFormProvider', 'Uploading image', item.name);
   
   // Simulate upload progress
   return new Promise((resolve) => {
@@ -167,7 +168,7 @@ async function defaultImageUploadHandler(item: any): Promise<any> {
 }
 
 async function defaultTemplateUploadHandler(item: any): Promise<any> {
-  console.log('📄 Creating template:', item.name);
+  logger.info('MasterFormProvider', 'Creating template', item.name);
   
   // Simulate template creation
   return new Promise((resolve) => {
@@ -182,7 +183,7 @@ async function defaultTemplateUploadHandler(item: any): Promise<any> {
 }
 
 async function defaultEntityUploadHandler(item: any): Promise<any> {
-  console.log('🆕 Creating entity:', item.name);
+  logger.info('MasterFormProvider', 'Creating entity', item.name);
   
   // Simulate entity creation
   return new Promise((resolve) => {
@@ -198,7 +199,7 @@ async function defaultEntityUploadHandler(item: any): Promise<any> {
 }
 
 async function defaultCategoryUploadHandler(item: any): Promise<any> {
-  console.log('📁 Creating category:', item.name);
+  logger.info('MasterFormProvider', 'Creating category', item.name);
   
   // Simulate category creation
   return new Promise((resolve) => {

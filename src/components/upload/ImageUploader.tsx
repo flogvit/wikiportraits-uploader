@@ -8,6 +8,7 @@ import FileDropzone from './FileDropzone';
 import { FileProcessor } from './FileProcessor';
 import { useDuplicateHandler } from './DuplicateHandler';
 import DuplicateWarningModal from '../modals/DuplicateWarningModal';
+import { logger } from '@/utils/logger';
 
 interface ImageUploaderProps {
   onImagesAddedAction: (images: ImageFile[]) => void;
@@ -65,7 +66,7 @@ export default function ImageUploader({
         // Use the image's EXIF date if available, otherwise fall back to event date
         const imageDate = imageFile.metadata?.date || eventDetails?.date;
 
-        console.log(`🖼️ Image ${index + 1} date info:`, {
+        logger.debug('ImageUploader', `Image ${index + 1} date info`, {
           exifDate: imageFile.metadata?.date,
           eventDate: eventDetails?.date,
           usingDate: imageDate
@@ -111,13 +112,13 @@ export default function ImageUploader({
 
         const newFilename = await generateCommonsFilename(imageFile.file.name, formData as any, index, existingFilenames);
         imageFile.metadata.suggestedFilename = newFilename;
-        console.log(`📝 Suggested filename: ${imageFile.file.name} → ${newFilename}`);
+        logger.debug('ImageUploader', `Suggested filename: ${imageFile.file.name} -> ${newFilename}`);
 
         // 2. Generate standard description
         if (!imageFile.metadata.description || imageFile.metadata.description.trim() === '') {
           const description = generateMusicEventDescription(formData as any);
           imageFile.metadata.description = description;
-          console.log(`📝 Auto-generated description: ${description}`);
+          logger.debug('ImageUploader', `Auto-generated description: ${description}`);
         }
 
         // 2b. Auto-generate captions in multiple languages with proper translations
@@ -127,11 +128,11 @@ export default function ImageUploader({
           eventDetails.location,
           eventDetails.date
         );
-        console.log(`📝 Auto-generated captions in 6 languages`);
+        logger.debug('ImageUploader', 'Auto-generated captions in 6 languages');
 
         // 3. Auto-populate categories
         const eventCategories = generateImageCategories(eventDetails, mainBandName);
-        console.log('📁 Auto-populating categories on upload with band:', mainBandName, 'Categories:', eventCategories);
+        logger.debug('ImageUploader', 'Auto-populating categories on upload', { band: mainBandName, categories: eventCategories });
         imageFile.metadata.categories = eventCategories;
 
         // 4. Add WikiPortraits template (uses standard template with parameters)
@@ -146,8 +147,8 @@ export default function ImageUploader({
         // We'll need to pass isWikiPortraitsJob flag - for now we'll regenerate in the next step
         imageFile.metadata.wikitext = `${templateUsage}\n${generateCommonsWikitext(imageFile)}`;
 
-        console.log('📝 Added WikiPortraits template:', templateUsage);
-        console.log('📝 Regenerated wikitext with categories and template');
+        logger.debug('ImageUploader', 'Added WikiPortraits template', templateUsage);
+        logger.debug('ImageUploader', 'Regenerated wikitext with categories and template');
       }
     }
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Trash2, RefreshCw, Database } from 'lucide-react';
 import { lookupCache } from '@/utils/lookup-cache';
 import { imageCache, formatBytes } from '@/utils/image-cache';
+import { logger } from '@/utils/logger';
 
 export default function CacheManager() {
   const [stats, setStats] = useState(lookupCache.getStats());
@@ -24,7 +25,7 @@ export default function CacheManager() {
       const imgStats = await imageCache.getCacheSize();
       setImageStats(imgStats);
     } catch (error) {
-      console.warn('Failed to get image cache stats:', error);
+      logger.warn('CacheManager', 'Failed to get image cache stats', error);
     }
   };
 
@@ -50,7 +51,7 @@ export default function CacheManager() {
         await refreshStats();
         setShowDetails(false);
       } catch (error) {
-        console.error('Failed to clear images:', error);
+        logger.error('CacheManager', 'Failed to clear images', error);
       }
     }
   };

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DataVersion, VersionDiff } from '../../utils/data-versioning';
 import { useVersionHistory } from '../../hooks/useVersionHistory';
+import { logger } from '@/utils/logger';
 
 export interface VersionHistoryPanelProps<T = any> {
   dataId: string;
@@ -95,7 +96,7 @@ export function VersionHistoryPanel<T = any>({
     try {
       await saveVersion(currentData, 'Manual save');
     } catch (error) {
-      console.error('Failed to save version:', error);
+      logger.error('VersionHistoryPanel', 'Failed to save version', error);
     }
   };
 

@@ -36,7 +36,7 @@ const LICENSE_OPTIONS = [
 
 export default function BulkEditForm({ images, onBulkUpdate, onClose }: BulkEditFormProps) {
   const { control, watch, setValue, getValues, reset } = useForm<BulkEditFormData>({
-    resolver: zodResolver(bulkEditSchema),
+    resolver: zodResolver(bulkEditSchema) as any,
     defaultValues: {
       author: '',
       date: '',

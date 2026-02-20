@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { fetchCSRFToken } from '@/utils/commons-api';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'csrf-token'), { limit: 60 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession();
     
     if (!session?.accessToken) {
@@ -20,7 +25,7 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('CSRF token fetch error:', error);
+    logger.error('csrf-token', 'CSRF token fetch error', error);
     
     return NextResponse.json(
       { 

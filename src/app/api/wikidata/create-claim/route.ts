@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createClaim } from '@/utils/wikidata-api';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 
 export async function POST(request: NextRequest) {
+  const rl = checkRateLimit(getRateLimitKey(request, 'wikidata-create-claim'), { limit: 30 });
+  if (!rl.success) return rateLimitResponse(rl);
+
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token?.accessToken) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { ImagePlus } from 'lucide-react';
+import { logger } from '@/utils/logger';
 import { useUniversalForm, useUniversalFormFiles } from '@/providers/UniversalFormProvider';
 import { usePublishData } from '@/providers/PublishDataProvider';
 import { useWorkflowUI } from '../providers/WorkflowUIProvider';
@@ -127,13 +128,13 @@ export default function ImagesPane({
             <label className="flex items-start gap-2">
               <input
                 type="checkbox"
-                checked={watch('eventDetails.hasPersonalityRightsPermission') || false}
+                checked={(watch as any)('eventDetails.hasPersonalityRightsPermission') || false}
                 onChange={(e) => {
-                  setValue('eventDetails.hasPersonalityRightsPermission', e.target.checked);
+                  (setValue as any)('eventDetails.hasPersonalityRightsPermission', e.target.checked);
 
                   if (e.target.checked) {
                     // Apply permission to all images
-                    const permissionText = getValues('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.';
+                    const permissionText = (getValues as any)('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.';
                     const permissionTemplate = `{{Personality rights}}`;
 
                     // Update all new images
@@ -255,15 +256,15 @@ export default function ImagesPane({
               </div>
             </label>
 
-            {watch('eventDetails.hasPersonalityRightsPermission') && (
+            {(watch as any)('eventDetails.hasPersonalityRightsPermission') && (
               <div className="ml-6 space-y-2">
                 <label className="block">
                   <span className="text-sm text-gray-700">Permission details:</span>
                   <textarea
-                    value={watch('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.'}
+                    value={(watch as any)('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.'}
                     onChange={(e) => {
                       const permissionText = e.target.value;
-                      setValue('eventDetails.permissionText', permissionText);
+                      (setValue as any)('eventDetails.permissionText', permissionText);
 
                       // Use plain text permission with consent statement
                       const permissionTemplate = `${permissionText}`;
@@ -373,12 +374,12 @@ export default function ImagesPane({
               // Check if this is an existing image or new image
               const isExisting = id.startsWith('existing-');
 
-              console.log('📝 Image pane posting update to central data:', { id, updates, isExisting });
+              logger.debug('ImagesPane', 'Posting update to central data', { id, updates, isExisting });
 
               // Check for Promise values
               Object.entries(updates).forEach(([key, value]) => {
                 if (value && typeof value === 'object' && 'then' in value) {
-                  console.error(`❌ ERROR: updates.${key} is a Promise!`, value);
+                  logger.error('ImagesPane', `updates.${key} is a Promise!`, value);
                 }
               });
 
@@ -400,11 +401,11 @@ export default function ImagesPane({
             }}
             onImageRemove={(id) => {
               // Only allow removing new images, not existing ones
-              console.log('🗑️ Remove image called with ID:', id);
+              logger.debug('ImagesPane', 'Remove image called with ID', id);
 
               // Handle images without IDs by finding them in the array
               if (!id || id === 'undefined') {
-                console.log('No valid ID, removing by finding image without ID');
+                logger.debug('ImagesPane', 'No valid ID, removing by finding image without ID');
                 const currentQueue = getValues('files.queue') || [];
                 const filtered = currentQueue.filter((img: any, idx: number) => {
                   // Remove the first image without an ID
@@ -418,12 +419,12 @@ export default function ImagesPane({
               }
 
               const isExisting = id.startsWith('existing-');
-              console.log('Is existing:', isExisting);
+              logger.debug('ImagesPane', 'Is existing', isExisting);
               if (!isExisting) {
-                console.log('Removing from queue:', id);
+                logger.debug('ImagesPane', 'Removing from queue', id);
                 filesForm.removeFromQueue(id);
               } else {
-                console.log('Cannot remove existing image');
+                logger.debug('ImagesPane', 'Cannot remove existing image');
               }
             }}
             onExportMetadata={onExportMetadata}

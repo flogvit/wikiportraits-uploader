@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { logger } from '@/utils/logger';
 
 interface Category {
   id: string;
@@ -72,8 +73,8 @@ export function CategoriesFormProvider({ children, config }: CategoriesFormProvi
       };
     } else {
       newCategory = {
-        id: `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ...category,
+        id: category.id || `cat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         auto: category.auto || false
       };
     }
@@ -83,7 +84,7 @@ export function CategoriesFormProvider({ children, config }: CategoriesFormProvi
     if (!exists) {
       const updatedCategories = [...categories, newCategory];
       form.setValue(FORM_KEY, updatedCategories);
-      console.log('📝 Added category:', newCategory.name);
+      logger.debug('CategoriesFormProvider', 'Added category', newCategory.name);
     }
   }, [form, getCategories]);
 
@@ -91,7 +92,7 @@ export function CategoriesFormProvider({ children, config }: CategoriesFormProvi
     const categories = getCategories();
     const updatedCategories = categories.filter(cat => cat.id !== categoryId);
     form.setValue(FORM_KEY, updatedCategories);
-    console.log('🗑️ Removed category:', categoryId);
+    logger.debug('CategoriesFormProvider', 'Removed category', categoryId);
   }, [form, getCategories]);
 
   const getAutoCategories = useCallback((): Category[] => {
@@ -129,7 +130,7 @@ export function CategoriesFormProvider({ children, config }: CategoriesFormProvi
     
     // Basic validation - at least one category
     if (categories.length === 0) {
-      console.warn('⚠️ No categories defined');
+      logger.warn('CategoriesFormProvider', 'No categories defined');
       return false;
     }
 
@@ -139,7 +140,7 @@ export function CategoriesFormProvider({ children, config }: CategoriesFormProvi
     );
 
     if (invalidCategories.length > 0) {
-      console.warn('⚠️ Categories with invalid names:', invalidCategories);
+      logger.warn('CategoriesFormProvider', 'Categories with invalid names', invalidCategories);
       return false;
     }
 
@@ -148,7 +149,7 @@ export function CategoriesFormProvider({ children, config }: CategoriesFormProvi
 
   const clear = useCallback(() => {
     form.setValue(FORM_KEY, []);
-    console.log('🧹 Cleared all categories');
+    logger.debug('CategoriesFormProvider', 'Cleared all categories');
   }, [form]);
 
   // Watch for changes in other form data to trigger auto-generation

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS, UPLOAD_TIMEOUT_MS } from '@/utils/fetch-utils';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'commons-upload'), { limit: 30 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession(authOptions);
 
     if (!session?.accessToken) {
@@ -27,14 +33,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('📤 Uploading to Commons:', {
+    logger.info('commons/upload', 'Uploading to Commons', {
       filename,
       size: file.size,
       type: file.type
     });
 
     // Get CSRF token
-    const tokenResponse = await fetch(
+    const tokenResponse = await fetchWithTimeout(
       'https://commons.wikimedia.org/w/api.php?' +
       new URLSearchParams({
         action: 'query',
@@ -45,7 +51,8 @@ export async function POST(request: NextRequest) {
         headers: {
           'Authorization': `Bearer ${session.accessToken}`,
           'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)'
-        }
+        },
+        timeoutMs: TOKEN_TIMEOUT_MS
       }
     );
 
@@ -70,7 +77,7 @@ export async function POST(request: NextRequest) {
     uploadFormData.append('token', csrfToken);
 
     // Upload to Commons
-    const uploadResponse = await fetch(
+    const uploadResponse = await fetchWithTimeout(
       'https://commons.wikimedia.org/w/api.php',
       {
         method: 'POST',
@@ -78,14 +85,15 @@ export async function POST(request: NextRequest) {
           'Authorization': `Bearer ${session.accessToken}`,
           'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)'
         },
-        body: uploadFormData
+        body: uploadFormData,
+        timeoutMs: UPLOAD_TIMEOUT_MS
       }
     );
 
     const uploadResult = await uploadResponse.json();
 
     if (uploadResult.error) {
-      console.error('Commons upload error:', uploadResult.error);
+      logger.error('commons/upload', 'Commons upload error', uploadResult.error);
       return NextResponse.json(
         { error: uploadResult.error.info || 'Upload failed' },
         { status: 500 }
@@ -101,12 +109,12 @@ export async function POST(request: NextRequest) {
 
     // Check upload result
     if (uploadResult.upload.result === 'Success') {
-      console.log('✅ Upload successful');
+      logger.info('commons/upload', 'Upload successful');
 
       const filename = uploadResult.upload.filename;
 
       // MediaWiki upload API doesn't return pageid directly, so we need to query for it
-      const pageInfoResponse = await fetch(
+      const pageInfoResponse = await fetchWithTimeout(
         'https://commons.wikimedia.org/w/api.php?' +
         new URLSearchParams({
           action: 'query',
@@ -125,7 +133,7 @@ export async function POST(request: NextRequest) {
       const pages = pageInfoData.query?.pages || {};
       const pageId = Object.keys(pages)[0]; // Get the first (and only) page ID
 
-      console.log('📄 Retrieved pageId:', pageId, 'for file:', filename);
+      logger.debug('commons/upload', 'Retrieved pageId', { pageId, filename });
 
       return NextResponse.json({
         success: true,
@@ -149,7 +157,7 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Image upload error:', error);
+    logger.error('commons/upload', 'Image upload failed', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to upload image' },
       { status: 500 }

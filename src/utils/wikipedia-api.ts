@@ -1,6 +1,8 @@
 // import { getToken } from 'next-auth/jwt';
 
-const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
+
+const USER_AGENT = 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)';
 
 async function getWikipediaCsrfToken(accessToken: string, lang: string): Promise<string> {
   const token = accessToken || process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN;
@@ -15,11 +17,12 @@ async function getWikipediaCsrfToken(accessToken: string, lang: string): Promise
     type: 'csrf',
   });
 
-  const response = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params.toString()}`, {
+  const response = await fetchWithTimeout(`https://${lang}.wikipedia.org/w/api.php?${params.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       'User-Agent': USER_AGENT,
     },
+    timeoutMs: TOKEN_TIMEOUT_MS,
   });
 
   if (!response.ok) {
@@ -45,7 +48,7 @@ export async function updateInfoboxImage(
   
   const csrfToken = await getWikipediaCsrfToken(token, lang);
 
-  const response = await fetch(`https://${lang}.wikipedia.org/w/api.php`, {
+  const response = await fetchWithTimeout(`https://${lang}.wikipedia.org/w/api.php`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',

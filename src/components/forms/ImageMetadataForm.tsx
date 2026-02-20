@@ -13,6 +13,7 @@ import CaptionEditor from './CaptionEditor';
 import CommonsPreview from '../image/CommonsPreview';
 import CategoryForm from './CategoryForm';
 import CompactPerformerSelector from '../image/CompactPerformerSelector';
+import { logger } from '@/utils/logger';
 
 const metadataSchema = z.object({
   description: z.string().optional(),
@@ -129,7 +130,7 @@ export default function ImageMetadataForm({
       // Regenerate wikitext after a short delay to allow all updates to settle
       setTimeout(() => {
         const currentValues = getValues();
-        const updatedImage = { ...image, metadata: { ...image.metadata, ...currentValues, [field]: value } };
+        const updatedImage = { ...image, metadata: { ...image.metadata, ...currentValues, [field]: value } } as ImageFile;
         const regenerated = regenerateImageWikitext(updatedImage);
         setValue('wikitext', regenerated.metadata.wikitext || '');
         onUpdate(image.id, { wikitext: regenerated.metadata.wikitext, wikitextModified: false });
@@ -181,7 +182,7 @@ export default function ImageMetadataForm({
     if (!watchedData.wikitextModified) {
       setTimeout(() => {
         const currentValues = getValues();
-        const updatedImage = { ...image, metadata: { ...image.metadata, ...currentValues, template, templateModified: true } };
+        const updatedImage = { ...image, metadata: { ...image.metadata, ...currentValues, template, templateModified: true } } as ImageFile;
         const newWikitext = regenerateImageWikitext(updatedImage);
         setValue('wikitext', newWikitext.metadata.wikitext || '');
         onUpdate(image.id, { wikitext: newWikitext.metadata.wikitext, wikitextModified: false });
@@ -250,13 +251,13 @@ export default function ImageMetadataForm({
       };
 
       // Only regenerate filename for NEW images (not existing Commons images)
-      if (!image.isExisting && image.file) {
+      if (!(image as any).isExisting && image.file) {
         const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
         updates.suggestedFilename = newFilename;
       }
 
       // Update form values
-      setValue('selectedBandMembers', memberIds);
+      (setValue as any)('selectedBandMembers', memberIds);
       setValue('description', newDescription);
 
       // Update metadata in parent - this will trigger category update in ImagesPane
@@ -283,7 +284,7 @@ export default function ImageMetadataForm({
       }
 
     } catch (error) {
-      console.error('Failed to regenerate metadata:', error);
+      logger.error('ImageMetadataForm', 'Failed to regenerate metadata', error);
     }
   };
 
@@ -461,7 +462,7 @@ export default function ImageMetadataForm({
 
                   // Mark as override if changed
                   handleMetadataChange('permission', permissionValue);
-                  handleMetadataChange('permissionOverride', permissionValue);
+                  handleMetadataChange('permissionOverride' as any, permissionValue);
 
                   // Update wikitext
                   const currentWikitext = getValues('wikitext') || '';

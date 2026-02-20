@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '@/utils/logger';
 import { BandMember, PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
 import { searchWikidataEntities, getWikidataEntity } from '@/utils/wikidata';
 import { 
@@ -120,7 +121,7 @@ export function useWikidataPersons(
             break;
           }
         } catch (entityError) {
-          console.warn(`Failed to get entity ${searchResult.id}:`, entityError);
+          logger.warn('useWikidataPersons', `Failed to get entity ${searchResult.id}`, entityError);
         }
       }
       
@@ -173,7 +174,7 @@ export function useWikidataPersons(
                 bandQID: bandId || `pending-band-${bandName}`
               };
             } catch (memberError) {
-              console.warn(`Failed to get member ${memberId}:`, memberError);
+              logger.warn('useWikidataPersons', `Failed to get member ${memberId}`, memberError);
               return null;
             }
           });
@@ -186,7 +187,7 @@ export function useWikidataPersons(
       setPerformers(fetchedMembers);
       
     } catch (err) {
-      console.error('Error fetching band members:', err);
+      logger.error('useWikidataPersons', 'Error fetching band members', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch band members');
       
       // Fallback: return empty array for now
@@ -285,13 +286,13 @@ export function useWikidataPersons(
             birthDate: undefined, // Could be extracted from P569 if needed
           });
         } catch (entityError) {
-          console.warn(`Failed to process entity ${entity.id}:`, entityError);
+          logger.warn('useWikidataPersons', `Failed to process entity ${entity.id}`, entityError);
         }
       }
 
       setSearchResults(artistPerformers.slice(0, 10));
     } catch (err) {
-      console.error('Error searching for artists:', err);
+      logger.error('useWikidataPersons', 'Error searching for artists', err);
       setError(err instanceof Error ? err.message : 'Failed to search artists');
       
       // Fallback to basic search results
@@ -308,7 +309,7 @@ export function useWikidataPersons(
         }));
         setSearchResults(fallbackResults);
       } catch (fallbackError) {
-        console.error('Fallback search also failed:', fallbackError);
+        logger.error('useWikidataPersons', 'Fallback search also failed', fallbackError);
         setSearchResults([]);
       }
     } finally {

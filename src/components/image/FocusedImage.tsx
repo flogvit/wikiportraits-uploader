@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useState } from 'react';
+import { logger } from '@/utils/logger';
 
 interface FocusedImageProps {
   src: string;
@@ -25,7 +26,7 @@ export default function FocusedImage({
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setImageLoaded(false);
-    console.log(`❌ Image failed to load: ${src}`);
+    logger.debug('FocusedImage', `Image failed to load: ${src}`);
     onError?.(e);
   };
 

@@ -320,7 +320,7 @@ export default function WorkflowStepper() {
       title: stepConfig.title,
       description: stepConfig.getDescription(formData),
       icon: stepConfig.icon,
-      status: stepStatuses[stepConfig.id] || 'pending',
+      status: stepStatuses[stepConfig.id as keyof typeof stepStatuses] || 'pending',
       dependencies: stepConfig.getDependencies(),
       itemCount: stepConfig.id === 'images' ? (formData.files?.queue?.length || 0) : undefined
     }));

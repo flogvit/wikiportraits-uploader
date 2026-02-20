@@ -1,6 +1,7 @@
 /**
  * Check for important EXIF metadata that should be preserved for Commons uploads
  */
+import { logger } from '@/utils/logger';
 
 export interface ExifCheckResult {
   hasDate: boolean;
@@ -31,9 +32,9 @@ export async function checkImageMetadata(file: File): Promise<ExifCheckResult> {
         const hasDate = Boolean(exifData?.dateTime);
         const hasCamera = Boolean(exifData?.make || exifData?.model);
         const hasLocation = Boolean(exifData?.gps?.latitude && exifData?.gps?.longitude);
-        const hasAuthor = Boolean(exifData?.artist || exifData?.copyright);
+        const hasAuthor = Boolean((exifData as any)?.artist || (exifData as any)?.copyright);
 
-        console.log('📸 EXIF data check:', {
+        logger.debug('exif-checker', 'EXIF data check', {
           filename: file.name,
           hasDate,
           hasCamera,
@@ -60,7 +61,7 @@ export async function checkImageMetadata(file: File): Promise<ExifCheckResult> {
                 hasExifMarker = true;
                 // Get EXIF segment size (2 bytes after marker, big-endian)
                 exifSegmentSize = (uint8Array[i + 2] << 8) | uint8Array[i + 3];
-                console.log('📸 EXIF segment found, size:', exifSegmentSize, 'bytes');
+                logger.debug('exif-checker', `EXIF segment found, size: ${exifSegmentSize} bytes`);
                 break;
               }
             }
@@ -86,7 +87,7 @@ export async function checkImageMetadata(file: File): Promise<ExifCheckResult> {
 
         const isStripped = warnings.length > 0;
 
-        console.log('📸 Final check result:', {
+        logger.debug('exif-checker', 'Final check result', {
           filename: file.name,
           isStripped,
           warningCount: warnings.length,
@@ -102,7 +103,7 @@ export async function checkImageMetadata(file: File): Promise<ExifCheckResult> {
           isStripped
         });
       } catch (error) {
-        console.error('Error checking image metadata:', error);
+        logger.error('exif-checker', 'Error checking image metadata', error);
         resolve({
           hasDate: false,
           hasCamera: false,

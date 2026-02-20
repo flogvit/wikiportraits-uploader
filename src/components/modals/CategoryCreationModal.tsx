@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, Plus, Check, AlertTriangle, Loader } from 'lucide-react';
 import { CategoryCreationInfo } from '@/types/categories';
+import { logger } from '@/utils/logger';
 
 interface CategoryCreationModalProps {
   isOpen: boolean;
@@ -113,7 +114,7 @@ export default function CategoryCreationModal({
     try {
       await onCreateCategories(categoriesToCreate);
     } catch (error) {
-      console.error('Error in parent callback:', error);
+      logger.error('CategoryCreationModal', 'Error in parent callback', error);
     }
   };
 

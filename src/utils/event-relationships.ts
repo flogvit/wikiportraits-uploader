@@ -1,4 +1,5 @@
 import { WikidataEntity } from '../types/wikidata';
+import { logger } from '@/utils/logger';
 
 /**
  * Event Relationship Mapping and Suggestion System
@@ -80,7 +81,7 @@ export class EventRelationshipMapper {
 
       return this.filterRelationships(relationships, query);
     } catch (error) {
-      console.error('Error finding relationships:', error);
+      logger.error('event-relationships', 'Error finding relationships', error);
       return [];
     }
   }
@@ -142,7 +143,7 @@ export class EventRelationshipMapper {
 
       return sortedSuggestions;
     } catch (error) {
-      console.error('Error generating suggestions:', error);
+      logger.error('event-relationships', 'Error generating suggestions', error);
       return [];
     }
   }
@@ -387,21 +388,21 @@ export class EventRelationshipMapper {
     }, {} as Record<string, number>);
     
     return Object.entries(genreCounts)
-      .filter(([_, count]) => count > 1)
+      .filter(([_, count]) => (count as number) > 1)
       .map(([genre, _]) => genre);
   }
 
   private extractCommonLocations(entities: WikidataEntity[]): string[] {
-    const allLocations = entities.flatMap(entity => 
+    const allLocations = entities.flatMap(entity =>
       entity.claims?.['P276']?.map(l => l.mainsnak?.datavalue?.value?.id) || []
     );
     const locationCounts = allLocations.reduce((acc, location) => {
       acc[location] = (acc[location] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
+
     return Object.entries(locationCounts)
-      .filter(([_, count]) => count > 1)
+      .filter(([_, count]) => (count as number) > 1)
       .map(([location, _]) => location);
   }
 

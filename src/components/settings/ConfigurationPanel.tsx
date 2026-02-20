@@ -10,6 +10,7 @@ import {
   exportConfiguration,
   importConfiguration
 } from '@/utils/configuration-storage';
+import { logger } from '@/utils/logger';
 
 interface ConfigurationPanelProps {
   onClose?: () => void;
@@ -31,7 +32,7 @@ export default function ConfigurationPanel({ onClose }: ConfigurationPanelProps)
       const loaded = await loadConfiguration();
       setConfig(loaded);
     } catch (error) {
-      console.error('Failed to load configuration:', error);
+      logger.error('ConfigurationPanel', 'Failed to load configuration', error);
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +46,7 @@ export default function ConfigurationPanel({ onClose }: ConfigurationPanelProps)
       await saveConfiguration(config);
       alert('Configuration saved successfully!');
     } catch (error) {
-      console.error('Failed to save configuration:', error);
+      logger.error('ConfigurationPanel', 'Failed to save configuration', error);
       alert('Failed to save configuration');
     } finally {
       setIsSaving(false);
@@ -62,7 +63,7 @@ export default function ConfigurationPanel({ onClose }: ConfigurationPanelProps)
       await loadConfig();
       alert('Configuration reset to defaults');
     } catch (error) {
-      console.error('Failed to reset configuration:', error);
+      logger.error('ConfigurationPanel', 'Failed to reset configuration', error);
       alert('Failed to reset configuration');
     }
   };
@@ -78,7 +79,7 @@ export default function ConfigurationPanel({ onClose }: ConfigurationPanelProps)
       a.click();
       URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Failed to export configuration:', error);
+      logger.error('ConfigurationPanel', 'Failed to export configuration', error);
       alert('Failed to export configuration');
     }
   };
@@ -93,7 +94,7 @@ export default function ConfigurationPanel({ onClose }: ConfigurationPanelProps)
       await loadConfig();
       alert('Configuration imported successfully!');
     } catch (error) {
-      console.error('Failed to import configuration:', error);
+      logger.error('ConfigurationPanel', 'Failed to import configuration', error);
       alert('Failed to import configuration: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };

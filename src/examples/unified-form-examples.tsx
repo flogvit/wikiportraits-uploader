@@ -1,8 +1,14 @@
 /**
  * Examples showing how different panes interact with the Unified Form Structure
  * No event bus needed - everything reactive through form watch/setValue
+ *
+ * NOTE: These are illustrative examples showing the intended API patterns.
+ * Types may not match the current implementation exactly.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { UniversalFormData, PersonRole, OrganizationRole } from '../types/unified-form';
 import { WikidataEntity } from '../types/wikidata';
@@ -17,9 +23,9 @@ export function BandPerformersPane() {
   const computed = watch('computed');
   
   const addMainBand = (band: WikidataEntity) => {
-    // Add to organizations
+    // Add to organizations (runtime uses EntityWithRole wrapper)
     const currentOrgs = entities.organizations || [];
-    setValue('entities.organizations', [
+    (setValue as any)('entities.organizations', [
       ...currentOrgs,
       {
         entity: band,
@@ -28,16 +34,16 @@ export function BandPerformersPane() {
         isNew: band.id.startsWith('temp-')
       }
     ]);
-    
+
     // Set in event details
-    setValue('eventDetails.musicEvent.mainBand', band);
+    (setValue as any)('eventDetails.mainBand', band);
     
     // Form automatically recomputes categories, file naming, etc.!
   };
   
   const addPerformer = (person: WikidataEntity) => {
     const currentPeople = entities.people || [];
-    setValue('entities.people', [
+    (setValue as any)('entities.people', [
       ...currentPeople,
       {
         entity: person,
@@ -75,22 +81,22 @@ export function EventDetailsPane() {
   const computed = watch('computed');
   
   const setEventName = (name: string) => {
-    setValue('eventDetails.common.title', name);
+    setValue('eventDetails.title' as any, name);
     // This automatically updates:
     // - File naming preview
-    // - Category suggestions 
+    // - Category suggestions
     // - Commons templates
   };
-  
+
   const setEventDate = (date: Date) => {
-    setValue('eventDetails.common.date', date);
+    setValue('eventDetails.date' as any, date);
     // Automatically adds year categories, updates file naming
   };
   
   const setVenue = (venue: WikidataEntity) => {
     // Add to locations
     const currentLocations = watch('entities.locations') || [];
-    setValue('entities.locations', [
+    (setValue as any)('entities.locations', [
       ...currentLocations,
       {
         entity: venue,
@@ -98,9 +104,9 @@ export function EventDetailsPane() {
         source: 'event-details'
       }
     ]);
-    
+
     if (workflowType === 'music-event') {
-      setValue('eventDetails.musicEvent.venue', venue);
+      (setValue as any)('eventDetails.venue', venue);
     }
     
     // Automatically adds location-based categories
@@ -130,13 +136,13 @@ export function ImagesPane() {
   const files = watch('files');
   
   // Get all people who should be in image tags (from ANY source)
-  const imagePeople = entities.people?.filter(p => 
-    p.roles.some(role => ['performer', 'player', 'portrait-subject'].includes(role))
+  const imagePeople = entities.people?.filter((p: any) =>
+    p.roles?.some((role: string) => ['performer', 'player', 'portrait-subject'].includes(role))
   ) || [];
-  
+
   // Get all organizations for tagging
-  const imageOrganizations = entities.organizations?.filter(o =>
-    o.roles.some(role => ['main-band', 'home-team', 'away-team'].includes(role))
+  const imageOrganizations = entities.organizations?.filter((o: any) =>
+    o.roles?.some((role: string) => ['main-band', 'home-team', 'away-team'].includes(role))
   ) || [];
   
   const addFile = (file: File) => {
@@ -160,12 +166,12 @@ export function ImagesPane() {
   return (
     <div>
       <h2>Images & Media</h2>
-      
+
       {/* Show linked entities (from ANY pane) */}
       <div className="bg-yellow-50 p-4">
         <h3>Linked Entities:</h3>
-        <p><strong>People:</strong> {imagePeople.map(p => p.entity.labels?.en?.value).join(', ')}</p>
-        <p><strong>Organizations:</strong> {imageOrganizations.map(o => o.entity.labels?.en?.value).join(', ')}</p>
+        <p><strong>People:</strong> {imagePeople.map((p: any) => p.entity?.labels?.en?.value || p.labels?.en?.value).join(', ')}</p>
+        <p><strong>Organizations:</strong> {imageOrganizations.map((o: any) => o.entity?.labels?.en?.value || o.labels?.en?.value).join(', ')}</p>
       </div>
       
       {/* File upload with auto-naming */}
@@ -185,7 +191,7 @@ export function SoccerTeamPane() {
   
   const setHomeTeam = (team: WikidataEntity) => {
     const currentOrgs = entities.organizations || [];
-    setValue('entities.organizations', [
+    (setValue as any)('entities.organizations', [
       ...currentOrgs,
       {
         entity: team,
@@ -193,8 +199,8 @@ export function SoccerTeamPane() {
         source: 'soccer-teams'
       }
     ]);
-    
-    setValue('eventDetails.soccerMatch.homeTeam', team);
+
+    (setValue as any)('eventDetails.homeTeam', team);
     
     // ImagesPane automatically sees this team for tagging!
     // Categories automatically include "Manchester United players" etc.
@@ -202,7 +208,7 @@ export function SoccerTeamPane() {
   
   const addPlayer = (player: WikidataEntity) => {
     const currentPeople = entities.people || [];
-    setValue('entities.people', [
+    (setValue as any)('entities.people', [
       ...currentPeople,
       {
         entity: player,
@@ -262,7 +268,7 @@ export function CategoriesPane() {
       <div className="bg-gray-50 p-4">
         <h4>Based on:</h4>
         <ul>
-          <li>Event: {eventDetails.common.title}</li>
+          <li>Event: {eventDetails.title}</li>
           <li>People: {entities.people?.length || 0}</li>
           <li>Organizations: {entities.organizations?.length || 0}</li>
           <li>Locations: {entities.locations?.length || 0}</li>
@@ -289,7 +295,7 @@ export function useComputedUpdates() {
     
     // Update categories
     const autoCategories = generateAutoCategories(entities, eventDetails, workflowType);
-    setValue('computed.categories.auto', autoCategories);
+    setValue('computed.categories.auto', autoCategories as any);
     
     // Update summary
     const summary = generateSummary(entities, eventDetails);
@@ -306,7 +312,7 @@ function generateFileNamingComponents(entities: any, eventDetails: any, workflow
     const mainBand = entities.organizations?.find((o: any) => o.roles.includes('main-band'));
     if (mainBand) components.band = sanitizeForFilename(mainBand.entity.labels?.en?.value);
     
-    if (eventDetails.common.title) components.event = sanitizeForFilename(eventDetails.common.title);
+    if (eventDetails.title) components.event = sanitizeForFilename(eventDetails.title);
   }
   
   if (workflowType === 'soccer-match') {
@@ -317,8 +323,8 @@ function generateFileNamingComponents(entities: any, eventDetails: any, workflow
     }
   }
   
-  if (eventDetails.common.date) {
-    components.date = eventDetails.common.date.toISOString().split('T')[0];
+  if (eventDetails.date) {
+    components.date = eventDetails.date.toISOString().split('T')[0];
   }
   
   return components;
@@ -352,8 +358,8 @@ function generateAutoCategories(entities: any, eventDetails: any, workflowType: 
   });
   
   // Add date-based categories
-  if (eventDetails.common.date) {
-    const year = eventDetails.common.date.getFullYear();
+  if (eventDetails.date) {
+    const year = eventDetails.date.getFullYear();
     categories.push({
       name: `${year} concerts`,
       source: 'date', 
@@ -376,7 +382,7 @@ function generateFileNamePreview(components: Record<string, string>): string {
 
 function generateSummary(entities: any, eventDetails: any) {
   return {
-    title: eventDetails.common.title || 'Untitled Event',
+    title: eventDetails.title || 'Untitled Event',
     peopleCount: entities.people?.length || 0,
     organizationCount: entities.organizations?.length || 0,
     locationCount: entities.locations?.length || 0,

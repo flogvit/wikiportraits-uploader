@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { logger } from '@/utils/logger';
 import { WikidataEntity, WorkflowItem } from '../types/wikidata';
 import { 
   PublishAction, 
@@ -111,9 +112,9 @@ export function usePublishActions(
       );
       
       setPlan(newPlan);
-      console.log('📋 Built publish plan:', newPlan.totalActions, 'actions');
+      logger.info('usePublishActions', 'Built publish plan', newPlan.totalActions, 'actions');
     } catch (error) {
-      console.error('Failed to build publish plan:', error);
+      logger.error('usePublishActions', 'Failed to build publish plan', error);
     } finally {
       setIsBuilding(false);
     }
@@ -123,7 +124,7 @@ export function usePublishActions(
   const clearPlan = useCallback(() => {
     setPlan(null);
     setIsExecuting(false);
-    console.log('🧹 Cleared publish plan');
+    logger.info('usePublishActions', 'Cleared publish plan');
   }, []);
 
   // Execute single action
@@ -165,7 +166,7 @@ export function usePublishActions(
       setPlan(completedPlan);
       
       onActionComplete?.(action);
-      console.log('✅ Action completed:', action.title);
+      logger.info('usePublishActions', 'Action completed', action.title);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
@@ -186,7 +187,7 @@ export function usePublishActions(
       setPlan(failedPlan);
       
       onActionFailed?.(action, errorMessage);
-      console.error('❌ Action failed:', action.title, error);
+      logger.error('usePublishActions', 'Action failed', action.title, error);
     }
   }, [plan, actions, onActionComplete, onActionFailed]);
 
@@ -204,7 +205,7 @@ export function usePublishActions(
     };
     setPlan(updatedPlan);
     
-    console.log('🚫 Action cancelled:', actionId);
+    logger.info('usePublishActions', 'Action cancelled', actionId);
   }, [plan]);
 
   // Retry action
@@ -253,7 +254,7 @@ export function usePublishActions(
         onPlanFailed?.(finalPlan, 'Some actions failed');
       }
     } catch (error) {
-      console.error('Failed to execute all actions:', error);
+      logger.error('usePublishActions', 'Failed to execute all actions', error);
       onPlanFailed?.(plan, error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsExecuting(false);
@@ -296,7 +297,7 @@ export function usePublishActions(
       
       onPlanComplete?.(plan);
     } catch (error) {
-      console.error('Failed to execute plan:', error);
+      logger.error('usePublishActions', 'Failed to execute plan', error);
       onPlanFailed?.(plan, error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setIsExecuting(false);
@@ -318,7 +319,7 @@ export function usePublishActions(
     setPlan(updatedPlan);
     setIsExecuting(false);
     
-    console.log('🚫 All actions cancelled');
+    logger.info('usePublishActions', 'All actions cancelled');
   }, [plan]);
 
   // Filter actions by status
@@ -375,9 +376,9 @@ export function usePublishActions(
     try {
       const key = `publish-plan-${plan.id}`;
       localStorage.setItem(key, JSON.stringify(plan));
-      console.log('💾 Saved publish plan:', plan.id);
+      logger.debug('usePublishActions', 'Saved publish plan', plan.id);
     } catch (error) {
-      console.warn('Failed to save plan:', error);
+      logger.warn('usePublishActions', 'Failed to save plan', error);
     }
   }, [plan]);
 
@@ -389,11 +390,11 @@ export function usePublishActions(
       if (data) {
         const loadedPlan = JSON.parse(data) as PublishPlan;
         setPlan(loadedPlan);
-        console.log('📂 Loaded publish plan:', planId);
+        logger.info('usePublishActions', 'Loaded publish plan', planId);
         return true;
       }
     } catch (error) {
-      console.warn('Failed to load plan:', error);
+      logger.warn('usePublishActions', 'Failed to load plan', error);
     }
     return false;
   }, []);
@@ -405,7 +406,7 @@ export function usePublishActions(
     try {
       return JSON.stringify(plan, null, 2);
     } catch (error) {
-      console.error('Failed to export plan:', error);
+      logger.error('usePublishActions', 'Failed to export plan', error);
       return '';
     }
   }, [plan]);
@@ -415,10 +416,10 @@ export function usePublishActions(
     try {
       const importedPlan = JSON.parse(data) as PublishPlan;
       setPlan(importedPlan);
-      console.log('📥 Imported publish plan:', importedPlan.id);
+      logger.info('usePublishActions', 'Imported publish plan', importedPlan.id);
       return true;
     } catch (error) {
-      console.error('Failed to import plan:', error);
+      logger.error('usePublishActions', 'Failed to import plan', error);
       return false;
     }
   }, []);
@@ -485,7 +486,7 @@ async function simulateActionExecution(action: PublishAction): Promise<void> {
     throw new Error(`Simulated failure for action: ${action.title}`);
   }
   
-  console.log(`🔄 Executed action: ${action.title}`);
+  logger.debug('usePublishActions', 'Executed action', action.title);
 }
 
 export default usePublishActions;

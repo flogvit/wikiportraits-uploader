@@ -1,5 +1,6 @@
 import { WikidataEntity } from '../types/wikidata';
 import { CategoryRule, WorkflowConfig } from './pane-configuration';
+import { logger } from '@/utils/logger';
 
 export interface CategoryGenerationContext {
   eventData?: Record<string, any>;
@@ -424,7 +425,7 @@ export class CategoryGenerator {
             });
           }
         } catch (error) {
-          console.warn(`Could not generate performer category for ${entity.id}:`, error);
+          logger.warn('category-generation', `Could not generate performer category for ${entity.id}`, error);
         }
         continue; // Skip the generic entity type handling for performers
       }
@@ -465,7 +466,7 @@ export class CategoryGenerator {
       case 'Q5': // Person - should be handled by generateFromEntities, but keep as fallback
         // Performers are now handled specially in generateFromEntities
         // This is just a fallback for any persons that slip through
-        console.warn('Person entity reached generic type handler - should have been handled by performer logic:', entityName);
+        logger.warn('category-generation', 'Person entity reached generic type handler - should have been handled by performer logic', entityName);
         break;
 
       case 'Q215627': // Musical group (band)

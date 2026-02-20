@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WikidataClient, WikidataHelpers } from '@/lib/api/WikidataClient';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 export async function GET(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'wikidata-get-entity'), { limit: 60 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -42,7 +47,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('Wikidata get-entity error:', error);
+    logger.error('wikidata/get-entity', 'Failed to fetch entity', error);
     return NextResponse.json({
       error: 'Failed to fetch entity',
       message: error instanceof Error ? error.message : 'Unknown error'

@@ -7,6 +7,7 @@ import { WikidataEntity } from '@/types/wikidata';
 import { searchWikidataEntities, getWikidataEntity } from '@/utils/wikidata';
 import ArtistSearchInput from './ArtistSearchInput';
 import ArtistResultsList from './ArtistResultsList';
+import { logger } from '@/utils/logger';
 
 interface UnifiedArtistResult {
   id: string;
@@ -136,7 +137,7 @@ export default function ArtistSelector({
       setSearchResults(convertedResults);
       setShowResults(true);
     } catch (error) {
-      console.error('Error searching for artists:', error);
+      logger.error('ArtistSelector', 'Error searching for artists', error);
       // Fallback to basic search results without filtering
       try {
         const basicResults = await searchWikidataEntities(query, 8, 'en', 'item');
@@ -153,7 +154,7 @@ export default function ArtistSelector({
         setSearchResults(fallbackResults);
         setShowResults(true);
       } catch (fallbackError) {
-        console.error('Fallback search also failed:', fallbackError);
+        logger.error('ArtistSelector', 'Fallback search also failed', fallbackError);
         setSearchResults([]);
       }
     } finally {
@@ -192,7 +193,7 @@ export default function ArtistSelector({
           onWikidataEntitySelect(wikidataEntity);
         }
       } catch (error) {
-        console.error('Failed to fetch WikidataEntity:', error);
+        logger.error('ArtistSelector', 'Failed to fetch WikidataEntity', error);
         // Fallback to MusicArtist format
       }
     } else {

@@ -35,7 +35,7 @@ export default function CompactPerformerSelector({
     // Primary source: bandPerformers.performers from the new form structure
     if (bandPerformers?.performers && Array.isArray(bandPerformers.performers)) {
       // Convert PendingWikidataEntity objects to BandMember objects with variants
-      return bandPerformers.performers.map(performer => ({
+      return bandPerformers.performers.map((performer: any) => ({
         member: flattenPerformer(performer),
         variant: getPerformerVariant(performer)
       }));

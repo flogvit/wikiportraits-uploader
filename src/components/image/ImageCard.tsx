@@ -8,6 +8,7 @@ import { generateFilename } from '@/utils/commons-template';
 import ImagePreview from './ImagePreview';
 import ImageMetadataForm from '../forms/ImageMetadataForm';
 import CompactPerformerSelector from './CompactPerformerSelector';
+import { logger } from '@/utils/logger';
 
 interface ImageCardProps {
   image: ImageFile;
@@ -42,10 +43,10 @@ export default function ImageCard({
 
   // Get current filename - ensure it's not a Promise
   const suggestedFilename = image.metadata?.suggestedFilename;
-  if (suggestedFilename && typeof suggestedFilename === 'object' && 'then' in suggestedFilename) {
-    console.error('❌ ERROR: suggestedFilename is a Promise!', suggestedFilename);
+  if (suggestedFilename && typeof suggestedFilename === 'object' && 'then' in (suggestedFilename as any)) {
+    logger.error('ImageCard', 'suggestedFilename is a Promise!', suggestedFilename);
   }
-  const currentFilename = (typeof suggestedFilename === 'string' ? suggestedFilename : null) || generateFilename(image, index, musicEventData);
+  const currentFilename = (typeof suggestedFilename === 'string' ? suggestedFilename : '') || generateFilename(image, index, musicEventData);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function ImageCard({
       // Always append the original extension
       newFilename = newFilename + originalExt;
 
-      console.log('💾 Saving filename:', {
+      logger.debug('ImageCard', 'Saving filename', {
         imageId: image.id,
         oldFilename: currentFilename,
         userInput: editedFilename.trim(),
@@ -109,15 +110,15 @@ export default function ImageCard({
 
   // Handle performer changes and regenerate filename/description
   const handlePerformerChange = async (imageId: string, memberIds: string[]) => {
-    console.log('🎭 Performer change triggered:', { imageId, memberIds, bandPerformers });
+    logger.debug('ImageCard', 'Performer change triggered', { imageId, memberIds, bandPerformers });
 
     // Regenerate filename and description
     try {
       const { generateCommonsFilename } = await import('@/utils/commons-filename');
       const { generateMusicEventDescription } = await import('@/utils/commons-description');
 
-      console.log('🎭 Available performers:', bandPerformers?.performers);
-      console.log('🎭 Looking for memberIds:', memberIds);
+      logger.debug('ImageCard', 'Available performers', bandPerformers?.performers);
+      logger.debug('ImageCard', 'Looking for memberIds', memberIds);
 
       // Get selected performers - bandPerformers.performers contains UniversalFormEntity objects
       const selectedPerformersRaw = bandPerformers?.performers?.filter((p: any) => {
@@ -138,7 +139,7 @@ export default function ImageCard({
           p.id ||                         // Last resort
           'Unknown';
 
-        console.log('🎭 Getting name for performer:', p.entity?.id || p.id, '→', performerName, 'from:', p);
+        logger.debug('ImageCard', 'Getting name for performer', { id: p.entity?.id || p.id, name: performerName });
 
         return {
           entity: {
@@ -156,7 +157,7 @@ export default function ImageCard({
         };
       });
 
-      console.log('🎭 Selected performers:', selectedPerformers.map((p: any) => ({
+      logger.debug('ImageCard', 'Selected performers', selectedPerformers.map((p: any) => ({
         id: p.entity.id,
         name: p.entity.labels.en.value
       })));
@@ -203,12 +204,12 @@ export default function ImageCard({
         updates.suggestedFilename = newFilename;
       }
 
-      console.log('📝 Updating image:', isExisting ? 'existing' : 'new', 'with:', Object.keys(updates));
+      logger.debug('ImageCard', `Updating ${isExisting ? 'existing' : 'new'} image`, Object.keys(updates));
 
       // Central data in ImagesPane will handle categories and wikitext regeneration
       onUpdate(image.id, updates);
     } catch (error) {
-      console.error('Failed to regenerate filename/description:', error);
+      logger.error('ImageCard', 'Failed to regenerate filename/description', error);
     }
   };
 

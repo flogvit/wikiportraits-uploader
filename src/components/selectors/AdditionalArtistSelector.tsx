@@ -5,6 +5,8 @@ import { Search, User, Music, Globe, Calendar } from 'lucide-react';
 import { useWikidataPersons } from '@/hooks/useWikidataPersons';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { WDPerson } from '@/classes';
+import { WikidataEntity } from '@/types/wikidata';
+import { logger } from '@/utils/logger';
 
 interface AdditionalArtistSelectorProps {
   bandName?: string;
@@ -107,8 +109,8 @@ export default function AdditionalArtistSelector({
         };
 
         // Use WDPerson class to add properties cleanly
-        const wdPerson = new WDPerson(baseEntity);
-        
+        const wdPerson = new WDPerson(baseEntity as WikidataEntity);
+
         // Add instruments
         if (searchResult.instruments && searchResult.instruments.length > 0) {
           searchResult.instruments.forEach(instrument => {
@@ -140,7 +142,7 @@ export default function AdditionalArtistSelector({
       const response = await fetch(`/api/music/artist-image?artistId=${encodeURIComponent(artistId)}`);
       
       if (!response.ok) {
-        console.error(`Failed to fetch image for artist ${artistName}:`, response.status);
+        logger.error('AdditionalArtistSelector', `Failed to fetch image for artist ${artistName}`, response.status);
         return;
       }
 
@@ -160,13 +162,13 @@ export default function AdditionalArtistSelector({
           removePerson(personIndex);
           addPerson(wdPerson.rawEntity);
           
-          console.log(`✅ Updated image for ${artistName}: ${data.imageUrl}`);
+          logger.info('AdditionalArtistSelector', `Updated image for ${artistName}`, data.imageUrl);
         }
       } else {
-        console.log(`ℹ️ No image found for ${artistName} (${artistId})`);
+        logger.info('AdditionalArtistSelector', `No image found for ${artistName}`, artistId);
       }
     } catch (error) {
-      console.error(`Error fetching image for artist ${artistName}:`, error);
+      logger.error('AdditionalArtistSelector', `Error fetching image for artist ${artistName}`, error);
     }
   };
 

@@ -1,6 +1,8 @@
 import NextAuth from 'next-auth'
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils'
+import { logger } from '@/utils/logger'
 
 const authOptions: NextAuthOptions = {
   providers: [
@@ -13,11 +15,12 @@ const authOptions: NextAuthOptions = {
         if (process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN) {
           // Verify the token by making a simple API call
           try {
-            const response = await fetch('https://meta.wikimedia.org/w/api.php?action=query&meta=userinfo&uiprop=*&format=json', {
+            const response = await fetchWithTimeout('https://meta.wikimedia.org/w/api.php?action=query&meta=userinfo&uiprop=*&format=json', {
               headers: {
                 'Authorization': `Bearer ${process.env.WIKIMEDIA_PERSONAL_ACCESS_TOKEN}`,
                 'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)',
               },
+              timeoutMs: TOKEN_TIMEOUT_MS,
             });
             
             if (response.ok) {
@@ -30,7 +33,7 @@ const authOptions: NextAuthOptions = {
               };
             }
           } catch (error) {
-            console.error('Failed to verify personal access token:', error);
+            logger.error('auth', 'Failed to verify personal access token', error);
           }
         }
         return null;

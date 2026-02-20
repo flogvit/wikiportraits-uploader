@@ -6,6 +6,7 @@ import WDOrganizationCard, { WDOrganizationCardCompact } from '@/components/comm
 import WDOrganizationSelector from '@/components/selectors/WDOrganizationSelector';
 import WDPersonCard from '@/components/common/WDPersonCard';
 import WDEntitySelector from '@/components/selectors/WDEntitySelector';
+import { logger } from '@/utils/logger';
 
 // Mock organization data for demo
 const mockBand: WikidataEntity = {
@@ -117,8 +118,8 @@ export default function DemoPage() {
               <WDOrganizationCard 
                 entity={mockBand}
                 variant="main"
-                onRemove={(id) => console.log('Remove band:', id)}
-                onClick={(id) => console.log('Click band:', id)}
+                onRemove={(id) => logger.debug('demo', 'Remove band', id)}
+                onClick={(id) => logger.debug('demo', 'Click band', id)}
               />
               
               {/* Compact version */}
@@ -127,8 +128,8 @@ export default function DemoPage() {
                 <WDOrganizationCardCompact 
                   entity={mockBand}
                   selected={false}
-                  onRemove={(id) => console.log('Remove band compact:', id)}
-                  onClick={(id) => console.log('Click band compact:', id)}
+                  onRemove={(id) => logger.debug('demo', 'Remove band compact', id)}
+                  onClick={(id) => logger.debug('demo', 'Click band compact', id)}
                 />
               </div>
             </div>
@@ -139,8 +140,8 @@ export default function DemoPage() {
               <WDOrganizationCard 
                 entity={mockSoccerClub}
                 variant="additional"
-                onRemove={(id) => console.log('Remove club:', id)}
-                onClick={(id) => console.log('Click club:', id)}
+                onRemove={(id) => logger.debug('demo', 'Remove club', id)}
+                onClick={(id) => logger.debug('demo', 'Click club', id)}
               />
               
               {/* Compact version */}
@@ -149,8 +150,8 @@ export default function DemoPage() {
                 <WDOrganizationCardCompact 
                   entity={mockSoccerClub}
                   selected={true}
-                  onRemove={(id) => console.log('Remove club compact:', id)}
-                  onClick={(id) => console.log('Click club compact:', id)}
+                  onRemove={(id) => logger.debug('demo', 'Remove club compact', id)}
+                  onClick={(id) => logger.debug('demo', 'Click club compact', id)}
                 />
               </div>
             </div>
@@ -212,8 +213,8 @@ export default function DemoPage() {
               <WDPersonCard 
                 entity={mockPerson}
                 variant="main"
-                onRemove={(id) => console.log('Remove person:', id)}
-                onClick={(id) => console.log('Click person:', id)}
+                onRemove={(id) => logger.debug('demo', 'Remove person', id)}
+                onClick={(id) => logger.debug('demo', 'Click person', id)}
               />
             </div>
             
@@ -222,8 +223,8 @@ export default function DemoPage() {
               <WDOrganizationCard 
                 entity={mockBand}
                 variant="main"
-                onRemove={(id) => console.log('Remove organization:', id)}
-                onClick={(id) => console.log('Click organization:', id)}
+                onRemove={(id) => logger.debug('demo', 'Remove organization', id)}
+                onClick={(id) => logger.debug('demo', 'Click organization', id)}
               />
             </div>
           </div>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Calendar, MapPin, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
 import { CommonsClient } from '@/lib/api/CommonsClient';
 import { searchWikidataEntities, getWikidataEntity } from '@/utils/wikidata';
+import { logger } from '@/utils/logger';
 
 interface EventParticipant {
   id: string;
@@ -17,9 +18,13 @@ interface EventParticipant {
 interface EventResult {
   id: string;
   name: string;
+  date?: string;
+  endDate?: string;
   year?: string;
   location?: string;
+  locationQid?: string;
   country?: string;
+  countryQid?: string;
   wikidataId?: string;
   wikidataUrl?: string;
   commonsCategory?: string;
@@ -152,7 +157,7 @@ export default function EventSelector({
             const nameYearMatch = name.match(/\b(19\d{2}|20\d{2})\b/);
             if (nameYearMatch) {
               year = nameYearMatch[1];
-              console.log(`📅 Extracted year ${year} from event name: ${name}`);
+              logger.debug('EventSelector', `Extracted year ${year} from event name: ${name}`);
             }
           }
 
@@ -261,7 +266,7 @@ export default function EventSelector({
                   });
                 }
               } catch (error) {
-                console.error('Error fetching participant:', error);
+                logger.error('EventSelector', 'Error fetching participant', error);
               }
             }
           }
@@ -289,7 +294,7 @@ export default function EventSelector({
           processedIds.add(commonsCategory.replace(/ /g, '_'));
           results.push(eventResult);
         } catch (error) {
-          console.error('Error processing Wikidata entity:', error);
+          logger.error('EventSelector', 'Error processing Wikidata entity', error);
         }
       }
 
@@ -342,7 +347,7 @@ export default function EventSelector({
           });
         }
       } catch (error) {
-        console.error('Error searching Commons categories:', error);
+        logger.error('EventSelector', 'Error searching Commons categories', error);
       }
 
       // 3. Check if Commons categories exist for Wikidata results
@@ -358,7 +363,7 @@ export default function EventSelector({
                 result.fileCount = categoryInfo.categoryinfo?.files || 0;
               }
             } catch (error) {
-              console.error('Error checking Commons category:', error);
+              logger.error('EventSelector', 'Error checking Commons category', error);
             }
           }
         })
@@ -366,7 +371,7 @@ export default function EventSelector({
 
       setSearchResults(results);
     } catch (error) {
-      console.error('Event search error:', error);
+      logger.error('EventSelector', 'Event search error', error);
       setSearchResults([]);
     } finally {
       setLoading(false);

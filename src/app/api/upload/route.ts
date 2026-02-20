@@ -3,9 +3,14 @@ import { getServerSession } from 'next-auth';
 import { fetchCSRFToken, uploadFileInChunks } from '@/utils/commons-api';
 import { generateCommonsTemplate, generateFilename } from '@/utils/commons-template';
 import type { ImageFile } from '@/types';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'upload'), { limit: 10 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession();
     
     if (!session?.accessToken) {
@@ -101,7 +106,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('upload', 'Upload error', error);
     
     return NextResponse.json(
       { 

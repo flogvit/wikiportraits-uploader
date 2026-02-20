@@ -1,4 +1,5 @@
 import { checkEntityExists } from './wikidata';
+import { logger } from '@/utils/logger';
 
 export interface WikidataEntityCreationInfo {
   entityName: string;
@@ -65,7 +66,7 @@ export async function getWikidataEntitiesToCreate(eventData: any): Promise<Wikid
         );
       }
     } catch (error) {
-      console.error('Error fetching parent entity:', error);
+      logger.error('wikidata-entities', 'Error fetching parent entity', error);
       baseFestivalCheck = await checkEntityExists(
         baseEventName,
         ['Q868557', 'Q1656682', 'Q27020041'],
@@ -181,14 +182,14 @@ export async function getWikidataEntitiesToCreate(eventData: any): Promise<Wikid
           const endDateFormatted = formatDate(endDate);
           yearlyEditionInfo.claims.P580 = startDate;
           yearlyEditionInfo.claims.P582 = endDateFormatted;
-          console.log('📅 Multi-day event - P580:', startDate, 'P582:', endDateFormatted);
+          logger.debug('wikidata-entities', `Multi-day event - P580: ${startDate}, P582: ${endDateFormatted}`);
         } else {
           // Single-day event: use P585 (point in time)
           yearlyEditionInfo.claims.P585 = startDate;
-          console.log('📅 Single-day event - P585:', startDate);
+          logger.debug('wikidata-entities', `Single-day event - P585: ${startDate}`);
         }
       } else {
-        console.log('📅 No date provided - skipping date claims');
+        logger.debug('wikidata-entities', 'No date provided - skipping date claims');
       }
     } else {
       // If exists, check for missing claims
@@ -270,7 +271,7 @@ export async function getWikidataEntitiesToCreate(eventData: any): Promise<Wikid
 
       // Check for P710 (participant) - add bands that performed
       // We'll need to pass this from the context - for now mark as TODO
-      // TODO: Add P710 claims for participating bands
+      // See GitHub issue #7
     }
 
     entitiesToCreate.push(yearlyEditionInfo);

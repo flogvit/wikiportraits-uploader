@@ -5,6 +5,7 @@ import { Search, X, Loader2 } from 'lucide-react';
 import { WikidataEntity, WD_PROPERTIES } from '@/types/wikidata';
 import { WDEntityUtils } from '@/utils/wd-utils';
 import WikidataClient from '@/lib/api/WikidataClient';
+import { logger } from '@/utils/logger';
 
 interface WDEntitySelectorProps {
   entityType?: string; // Q-ID like 'Q215627' for musical group
@@ -70,7 +71,7 @@ export default function WDEntitySelector({
       
       return results;
     } catch (error) {
-      console.error('Error searching entities:', error);
+      logger.error('WDEntitySelector', 'Error searching entities', error);
       // Fall back to mock data on error
       return generateMockResults(query, entityType);
     } finally {

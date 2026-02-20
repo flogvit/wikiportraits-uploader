@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WikidataClient, WikidataHelpers } from '@/lib/api/WikidataClient';
 import { WikidataEntity } from '@/types/wikidata';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 interface SearchResult {
   id: string;
@@ -15,6 +17,9 @@ interface SearchResult {
 
 export async function GET(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'wikidata-search'), { limit: 60 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Wikidata search error:', error);
+    logger.error('wikidata/search', 'Search failed', error);
     return NextResponse.json({ 
       error: 'Search failed', 
       message: error instanceof Error ? error.message : 'Unknown error'

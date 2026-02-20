@@ -131,7 +131,7 @@ export class PaneConfigurationFactory {
           type: 'conditional',
           property: 'P175',
           message: 'At least one performer is required for concerts',
-          condition: (entity) => entity.claims?.['P31']?.some(c => c.mainsnak.datavalue.value.id === 'Q182832')
+          condition: (entity) => entity.claims?.['P31']?.some(c => c.mainsnak?.datavalue?.value.id === 'Q182832') ?? false
         }
       ],
       
@@ -330,17 +330,17 @@ export class PaneConfigurationFactory {
           type: 'conditional',
           property: 'P1303',
           message: 'Musicians should have at least one instrument',
-          condition: (entity) => entity.claims?.['P106']?.some(c => 
-            ['Q639669', 'Q177220', 'Q36834'].includes(c.mainsnak.datavalue.value.id) // Musician, Singer, Composer
-          )
+          condition: (entity) => entity.claims?.['P106']?.some(c =>
+            ['Q639669', 'Q177220', 'Q36834'].includes(c.mainsnak?.datavalue?.value.id) // Musician, Singer, Composer
+          ) ?? false
         },
         {
           type: 'conditional',
           property: 'P413',
           message: 'Athletes should have a position',
-          condition: (entity) => entity.claims?.['P106']?.some(c => 
-            ['Q937857', 'Q10833314'].includes(c.mainsnak.datavalue.value.id) // Athlete, Soccer player
-          )
+          condition: (entity) => entity.claims?.['P106']?.some(c =>
+            ['Q937857', 'Q10833314'].includes(c.mainsnak?.datavalue?.value.id) // Athlete, Soccer player
+          ) ?? false
         }
       ],
       

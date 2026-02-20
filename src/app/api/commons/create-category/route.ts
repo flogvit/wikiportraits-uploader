@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'commons-create-category'), { limit: 30 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession(authOptions);
     if (!session?.accessToken) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -21,10 +27,10 @@ export async function POST(request: NextRequest) {
     checkUrl.searchParams.set('titles', `Category:${categoryName}`);
     checkUrl.searchParams.set('format', 'json');
 
-    const checkResponse = await fetch(checkUrl.toString(), {
+    const checkResponse = await fetchWithTimeout(checkUrl.toString(), {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
-        'User-Agent': 'WikiPortraits-Uploader/1.0'
+        'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
       }
     });
 
@@ -46,11 +52,12 @@ export async function POST(request: NextRequest) {
     tokenUrl.searchParams.set('meta', 'tokens');
     tokenUrl.searchParams.set('format', 'json');
 
-    const tokenResponse = await fetch(tokenUrl.toString(), {
+    const tokenResponse = await fetchWithTimeout(tokenUrl.toString(), {
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
-        'User-Agent': 'WikiPortraits-Uploader/1.0'
-      }
+        'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
+      },
+      timeoutMs: TOKEN_TIMEOUT_MS
     });
 
     const tokenData = await tokenResponse.json();
@@ -98,11 +105,11 @@ export async function POST(request: NextRequest) {
       token: csrfToken
     });
 
-    const editResponse = await fetch(editUrl, {
+    const editResponse = await fetchWithTimeout(editUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
-        'User-Agent': 'WikiPortraits-Uploader/1.0',
+        'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)',
         'Content-Type': 'application/x-www-form-urlencoded'
       },
       body: editParams.toString()
@@ -127,7 +134,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Category creation error:', error);
+    logger.error('commons/create-category', 'Category creation failed', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to create category' },
       { status: 500 }

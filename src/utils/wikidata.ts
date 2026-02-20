@@ -3,6 +3,7 @@
  */
 
 import { lookupCache, CacheType } from '@/utils/lookup-cache';
+import { logger } from '@/utils/logger';
 
 const WIKIDATA_API_URL = 'https://www.wikidata.org/w/api.php';
 const TEST_WIKIDATA_API_URL = 'https://test.wikidata.org/w/api.php';
@@ -48,7 +49,6 @@ export const wikidataGet = async (
     url.searchParams.append(key, value);
   });
 
-//  console.log('Wikidata GET:', url.toString());
 
   const response = await fetch(url.toString(), {
     method: 'GET',
@@ -57,14 +57,14 @@ export const wikidataGet = async (
 
   if (!response.ok) {
     const text = await response.text();
-    console.error('Wikidata API error response:', text.substring(0, 500));
+    logger.error('wikidata', 'Wikidata API error response', text.substring(0, 500));
     throw new Error(`Wikidata API error: ${response.status} ${response.statusText}`);
   }
 
   const contentType = response.headers.get('content-type');
   if (!contentType?.includes('application/json')) {
     const text = await response.text();
-    console.error('Non-JSON response from Wikidata:', text.substring(0, 500));
+    logger.error('wikidata', 'Non-JSON response from Wikidata', text.substring(0, 500));
     throw new Error(`Wikidata returned non-JSON response (${contentType}). This usually means authentication failed.`);
   }
 
@@ -96,8 +96,8 @@ export const wikidataPost = async (
     formData.append(key, value);
   });
 
-  console.log('Wikidata POST:', url);
-  console.log('Form data:', Object.fromEntries(formData.entries()));
+  logger.debug('wikidata', 'Wikidata POST', url);
+  logger.debug('wikidata', 'Form data', Object.fromEntries(formData.entries()));
 
   // Set proper headers for URL-encoded form data
   const headers = getHeaders(accessToken);
@@ -111,14 +111,14 @@ export const wikidataPost = async (
 
   if (!response.ok) {
     const text = await response.text();
-    console.error('Wikidata POST error response:', text.substring(0, 500));
+    logger.error('wikidata', 'Wikidata POST error response', text.substring(0, 500));
     throw new Error(`Wikidata API error: ${response.status} ${response.statusText}`);
   }
 
   const contentType = response.headers.get('content-type');
   if (!contentType?.includes('application/json')) {
     const text = await response.text();
-    console.error('Non-JSON response from Wikidata POST:', text.substring(0, 500));
+    logger.error('wikidata', 'Non-JSON response from Wikidata POST', text.substring(0, 500));
     throw new Error(`Wikidata returned non-JSON response (${contentType}). Check server logs for details.`);
   }
 
@@ -145,11 +145,11 @@ export const getEditToken = async (
     true // isServerSide = true (don't add origin parameter)
   );
 
-  console.log('Edit token response:', data);
+  logger.debug('wikidata', 'Edit token response', data);
 
   const token = data.query?.tokens?.csrftoken;
   if (!token) {
-    console.error('Failed to get edit token. Full response:', JSON.stringify(data, null, 2));
+    logger.error('wikidata', 'Failed to get edit token. Full response', JSON.stringify(data, null, 2));
     throw new Error(`Could not obtain edit token. Response: ${JSON.stringify(data.query?.tokens || data)}`);
   }
 
@@ -310,7 +310,7 @@ export const searchMusicFestival = async (
         festivals.push(entity);
       }
     } catch (error) {
-      console.error('Error checking entity:', error);
+      logger.error('wikidata', 'Error checking entity', error);
     }
   }
 
@@ -342,7 +342,7 @@ export const searchBand = async (
         bands.push(entity);
       }
     } catch (error) {
-      console.error('Error checking entity:', error);
+      logger.error('wikidata', 'Error checking entity', error);
     }
   }
 
@@ -392,7 +392,7 @@ export const checkEntityExists = async (
         return result;
       }
     } catch (error) {
-      console.error('Error checking entity:', error);
+      logger.error('wikidata', 'Error checking entity', error);
     }
   }
 

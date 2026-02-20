@@ -1,4 +1,5 @@
 import { WikidataEntity } from '../types/wikidata';
+import { logger } from '@/utils/logger';
 
 /**
  * Universal Event Bus System for type-safe inter-pane communication
@@ -113,7 +114,7 @@ export class UniversalEventBus {
     this.subscriptions.get(event)!.push(subscription);
 
     if (this.isLogging) {
-      console.log(`📡 Subscribed to event: ${event}${options.source ? ` (source: ${options.source})` : ''}`);
+      logger.debug('event-bus', `Subscribed to event: ${event}${options.source ? ` (source: ${options.source})` : ''}`);
     }
 
     // Return unsubscribe function
@@ -124,7 +125,7 @@ export class UniversalEventBus {
         if (index !== -1) {
           subs.splice(index, 1);
           if (this.isLogging) {
-            console.log(`📡 Unsubscribed from event: ${event}`);
+            logger.debug('event-bus', `Unsubscribed from event: ${event}`);
           }
         }
       }
@@ -150,7 +151,7 @@ export class UniversalEventBus {
     this.addToHistory(event, payload);
 
     if (this.isLogging) {
-      console.log(`📡 Emitting event: ${event}`, payload);
+      logger.debug('event-bus', `Emitting event: ${event}`, payload);
     }
 
     // Run before middleware
@@ -160,12 +161,12 @@ export class UniversalEventBus {
           const shouldContinue = await middleware.before(event, payload);
           if (shouldContinue === false) {
             if (this.isLogging) {
-              console.log(`📡 Event cancelled by middleware: ${middleware.name}`);
+              logger.debug('event-bus', `Event cancelled by middleware: ${middleware.name}`);
             }
             return;
           }
         } catch (error) {
-          console.error(`Event middleware error (${middleware.name}):`, error);
+          logger.error('event-bus', `Event middleware error (${middleware.name})`, error);
           if (middleware.error) {
             await middleware.error(event, payload, error as Error);
           }
@@ -196,7 +197,7 @@ export class UniversalEventBus {
           }
         }
       } catch (error) {
-        console.error(`Event handler error for ${event}:`, error);
+        logger.error('event-bus', `Event handler error for ${event}`, error);
         
         // Run error middleware
         for (const middleware of this.middleware) {
@@ -204,7 +205,7 @@ export class UniversalEventBus {
             try {
               await middleware.error(event, payload, error as Error);
             } catch (middlewareError) {
-              console.error(`Middleware error handler failed:`, middlewareError);
+              logger.error('event-bus', 'Middleware error handler failed', middlewareError);
             }
           }
         }
@@ -217,7 +218,7 @@ export class UniversalEventBus {
         try {
           await middleware.after(event, payload, results);
         } catch (error) {
-          console.error(`Event middleware after error (${middleware.name}):`, error);
+          logger.error('event-bus', `Event middleware after error (${middleware.name})`, error);
         }
       }
     }
@@ -229,7 +230,7 @@ export class UniversalEventBus {
   addMiddleware(middleware: EventMiddleware): void {
     this.middleware.push(middleware);
     if (this.isLogging) {
-      console.log(`📡 Added middleware: ${middleware.name}`);
+      logger.debug('event-bus', `Added middleware: ${middleware.name}`);
     }
   }
 
@@ -241,7 +242,7 @@ export class UniversalEventBus {
     if (index !== -1) {
       this.middleware.splice(index, 1);
       if (this.isLogging) {
-        console.log(`📡 Removed middleware: ${name}`);
+        logger.debug('event-bus', `Removed middleware: ${name}`);
       }
     }
   }
@@ -252,7 +253,7 @@ export class UniversalEventBus {
   clear(): void {
     this.subscriptions.clear();
     if (this.isLogging) {
-      console.log(`📡 Cleared all subscriptions`);
+      logger.debug('event-bus', 'Cleared all subscriptions');
     }
   }
 
@@ -385,11 +386,11 @@ export const globalEventBus = new UniversalEventBus();
 export const loggingMiddleware: EventMiddleware = {
   name: 'logging',
   before: (event, payload) => {
-    console.log(`🚀 Event: ${event}`, payload);
+    logger.debug('event-bus', `Event: ${event}`, payload);
     return true;
   },
   error: (event, payload, error) => {
-    console.error(`💥 Event error: ${event}`, { payload, error });
+    logger.error('event-bus', `Event error: ${event}`, { payload, error });
   }
 };
 
@@ -398,13 +399,13 @@ export const validationMiddleware: EventMiddleware = {
   before: (event, payload) => {
     // Basic payload validation
     if (!payload || typeof payload !== 'object') {
-      console.error(`Invalid payload for event: ${event}`);
+      logger.error('event-bus', `Invalid payload for event: ${event}`);
       return false;
     }
     
     // Check required source field for most events
     if (!payload.source && !['workflow:start', 'workflow:complete'].includes(event)) {
-      console.warn(`Event ${event} missing source field`);
+      logger.warn('event-bus', `Event ${event} missing source field`);
     }
     
     return true;

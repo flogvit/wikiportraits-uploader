@@ -1,4 +1,5 @@
 // Performance monitoring utilities for the new architecture
+import { logger } from '@/utils/logger';
 
 interface PerformanceMetric {
   name: string;
@@ -27,7 +28,7 @@ class PerformanceMonitor {
 
     const metric = this.metrics.get(name);
     if (!metric) {
-      console.warn(`Performance metric "${name}" not found`);
+      logger.warn('performance', `Performance metric "${name}" not found`);
       return null;
     }
 
@@ -86,18 +87,17 @@ class PerformanceMonitor {
     const metrics = pattern ? this.getMetricsByPattern(pattern) : this.getAllMetrics();
     
     if (metrics.length === 0) {
-      console.log('No performance metrics found');
+      logger.debug('performance', 'No performance metrics found');
       return;
     }
 
-    console.group('Performance Metrics');
+    logger.debug('performance', 'Performance Metrics:');
     metrics
       .filter(metric => metric.duration !== undefined)
       .sort((a, b) => (b.duration || 0) - (a.duration || 0))
       .forEach(metric => {
-        console.log(`${metric.name}: ${metric.duration?.toFixed(2)}ms`, metric.metadata);
+        logger.debug('performance', `${metric.name}: ${metric.duration?.toFixed(2)}ms`, metric.metadata);
       });
-    console.groupEnd();
   }
 
   clear(): void {
@@ -170,7 +170,7 @@ export const trackArchitectureMetrics = () => {
     }
     
     const totalTime = performance.now() - start;
-    console.log(`${componentName} rendered ${renderCount} times in ${totalTime.toFixed(2)}ms`);
+    logger.debug('performance', `${componentName} rendered ${renderCount} times in ${totalTime.toFixed(2)}ms`);
   };
 
   return {
@@ -228,7 +228,7 @@ export const compareArchitectures = {
 
     if (newDuration && oldDuration) {
       const improvement = ((oldDuration - newDuration) / oldDuration) * 100;
-      console.log(`${operation} performance improvement: ${improvement.toFixed(2)}%`);
+      logger.debug('performance', `${operation} performance improvement: ${improvement.toFixed(2)}%`);
     }
 
     return results;
@@ -272,10 +272,10 @@ export const compareArchitectures = {
     const avgNew = newTimes.reduce((a, b) => a + b, 0) / newTimes.length;
     const improvement = ((avgOld - avgNew) / avgOld) * 100;
 
-    console.log(`Component performance comparison:`);
-    console.log(`Old ${oldComponentName}: ${avgOld.toFixed(2)}ms average`);
-    console.log(`New ${newComponentName}: ${avgNew.toFixed(2)}ms average`);
-    console.log(`Improvement: ${improvement.toFixed(2)}%`);
+    logger.debug('performance', 'Component performance comparison:');
+    logger.debug('performance', `Old ${oldComponentName}: ${avgOld.toFixed(2)}ms average`);
+    logger.debug('performance', `New ${newComponentName}: ${avgNew.toFixed(2)}ms average`);
+    logger.debug('performance', `Improvement: ${improvement.toFixed(2)}%`);
 
     return { avgOld, avgNew, improvement };
   }

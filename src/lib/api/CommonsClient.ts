@@ -2,6 +2,8 @@
 // Replaces backend proxy routes for read operations
 
 import { lookupCache, CacheType } from '@/utils/lookup-cache';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
+import { logger } from '@/utils/logger';
 
 interface CommonsSearchParams {
   query: string;
@@ -80,10 +82,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -107,7 +109,7 @@ export class CommonsClient {
 
       return [];
     } catch (error) {
-      console.error('Commons search error:', error);
+      logger.error('CommonsClient', 'Commons search error', error);
       throw error;
     }
   }
@@ -125,10 +127,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -172,7 +174,7 @@ export class CommonsClient {
 
       return files;
     } catch (error) {
-      console.error('Commons file details fetch error:', error);
+      logger.error('CommonsClient', 'Commons file details fetch error', error);
       throw error;
     }
   }
@@ -194,10 +196,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -221,7 +223,7 @@ export class CommonsClient {
         continue: data.continue?.cmcontinue
       };
     } catch (error) {
-      console.error('Commons category files fetch error:', error);
+      logger.error('CommonsClient', 'Commons category files fetch error', error);
       throw error;
     }
   }
@@ -246,10 +248,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -274,7 +276,7 @@ export class CommonsClient {
       lookupCache.set(CacheType.COMMONS_CATEGORY_EXISTS, fullCategoryName, exists);
       return exists;
     } catch (error) {
-      console.error('Commons category exists check error:', error);
+      logger.error('CommonsClient', 'Commons category exists check error', error);
       return false;
     }
   }
@@ -293,10 +295,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -323,7 +325,7 @@ export class CommonsClient {
 
       return null;
     } catch (error) {
-      console.error('Commons category info fetch error:', error);
+      logger.error('CommonsClient', 'Commons category info fetch error', error);
       return null;
     }
   }
@@ -338,12 +340,13 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
-        credentials: 'include', // Include cookies for authentication
+        credentials: 'include',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
-        }
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
+        },
+        timeoutMs: TOKEN_TIMEOUT_MS
       });
 
       if (!response.ok) {
@@ -358,7 +361,7 @@ export class CommonsClient {
 
       return data.query?.tokens?.csrftoken || null;
     } catch (error) {
-      console.error('Commons upload token fetch error:', error);
+      logger.error('CommonsClient', 'Commons upload token fetch error', error);
       return null;
     }
   }
@@ -378,10 +381,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -404,7 +407,7 @@ export class CommonsClient {
 
       return [];
     } catch (error) {
-      console.error('Commons parent categories fetch error:', error);
+      logger.error('CommonsClient', 'Commons parent categories fetch error', error);
       return [];
     }
   }
@@ -425,10 +428,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -445,7 +448,7 @@ export class CommonsClient {
       const members = data.query?.categorymembers || [];
       return members.map((member: any) => member.title.replace(/^Category:/, ''));
     } catch (error) {
-      console.error('Commons subcategories fetch error:', error);
+      logger.error('CommonsClient', 'Commons subcategories fetch error', error);
       return [];
     }
   }
@@ -466,10 +469,10 @@ export class CommonsClient {
     });
 
     try {
-      const response = await fetch(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${CommonsClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -501,7 +504,7 @@ export class CommonsClient {
 
       return [];
     } catch (error) {
-      console.error('Commons category search error:', error);
+      logger.error('CommonsClient', 'Commons category search error', error);
       throw error;
     }
   }

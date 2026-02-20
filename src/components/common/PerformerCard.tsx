@@ -3,20 +3,21 @@
 import { X, User, Music, Calendar, Globe, UserPlus } from 'lucide-react';
 import { BandMember } from '@/types/music';
 import FocusedImage from '@/components/image/FocusedImage';
+import { logger } from '@/utils/logger';
 
 // Helper function to convert image URLs to thumbnail size
 const getThumbnailUrl = (imageUrl: string, size: number = 64): string => {
   if (!imageUrl) return '';
   
-  console.log('🔗 getThumbnailUrl - original:', imageUrl);
-  
+  logger.debug('PerformerCard', 'getThumbnailUrl - original', imageUrl);
+
   // Handle Wikimedia Commons Special:FilePath URLs - these support width parameters
   if (imageUrl.includes('commons.wikimedia.org/wiki/Special:FilePath/')) {
     const thumbnailUrl = `${imageUrl}?width=${size}`;
-    console.log('🔗 getThumbnailUrl - Special:FilePath with width:', thumbnailUrl);
+    logger.debug('PerformerCard', 'getThumbnailUrl - Special:FilePath with width', thumbnailUrl);
     return thumbnailUrl;
   }
-  
+
   // Handle direct Wikimedia Commons URLs
   if (imageUrl.includes('commons.wikimedia.org') || imageUrl.includes('upload.wikimedia.org')) {
     // Convert to thumbnail format: replace /commons/... with /commons/thumb/.../64px-filename
@@ -24,13 +25,13 @@ const getThumbnailUrl = (imageUrl: string, size: number = 64): string => {
     if (match) {
       const [, level1, level2, filename] = match;
       const thumbnailUrl = `https://upload.wikimedia.org/wikipedia/commons/thumb/${level1}/${level2}/${filename}/${size}px-${filename}`;
-      console.log('🔗 getThumbnailUrl - direct commons converted:', thumbnailUrl);
+      logger.debug('PerformerCard', 'getThumbnailUrl - direct commons converted', thumbnailUrl);
       return thumbnailUrl;
     }
   }
-  
+
   // For other URLs, return as-is (could be extended for other services)
-  console.log('🔗 getThumbnailUrl - returning as-is:', imageUrl);
+  logger.debug('PerformerCard', 'getThumbnailUrl - returning as-is', imageUrl);
   return imageUrl;
 };
 
@@ -102,8 +103,8 @@ export default function PerformerCard({
             className="mb-1"
             size={32}
             onError={(e) => {
-              console.log('🖼️ Image failed to load:', performer.imageUrl);
-              console.log('🖼️ Thumbnail URL:', getThumbnailUrl(performer.imageUrl, 128));
+              logger.debug('PerformerCard', 'Image failed to load', performer.imageUrl);
+              logger.debug('PerformerCard', 'Thumbnail URL', getThumbnailUrl(performer.imageUrl ?? '', 128));
               e.currentTarget.style.display = 'none';
             }}
           />

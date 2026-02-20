@@ -5,6 +5,7 @@
 
 import { WikidataEntity } from '@/types/wikidata';
 import { Caption } from '@/types/upload';
+import { logger } from '@/utils/logger';
 
 export interface DepictsStatement {
   entityId: string;
@@ -479,7 +480,7 @@ export async function getExistingDepicts(pageId: number): Promise<DepictsStateme
       };
     });
   } catch (error) {
-    console.error('Error fetching existing depicts:', error);
+    logger.error('commons-structured-data', 'Error fetching existing depicts', error);
     return [];
   }
 }
@@ -520,7 +521,7 @@ export async function getExistingCaptions(pageId: number): Promise<Caption[]> {
 
     return captions;
   } catch (error) {
-    console.error('Error fetching existing captions:', error);
+    logger.error('commons-structured-data', 'Error fetching existing captions', error);
     return [];
   }
 }

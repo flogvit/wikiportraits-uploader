@@ -95,8 +95,8 @@ export default function EventDetailsForm({
       // Clear all event-related fields when deselecting
       form.setValue('eventDetails.title', '');
       form.setValue('eventDetails.date' as any, undefined);
-      form.setValue('eventDetails.location', '');
-      form.setValue('eventDetails.country', '');
+      form.setValue('eventDetails.location' as any, '');
+      form.setValue('eventDetails.country' as any, '');
       form.setValue('eventDetails.commonsCategory' as any, undefined, { shouldDirty: false });
       form.setValue('eventDetails.wikidataId' as any, undefined, { shouldDirty: false });
       form.setValue('eventDetails.eventWikidataId' as any, undefined, { shouldDirty: false });
@@ -244,7 +244,7 @@ export default function EventDetailsForm({
             render={({ field }) => (
               <input
                 type="date"
-                value={field.value ? (typeof field.value === 'string' ? field.value.split('T')[0] : new Date(field.value).toISOString().split('T')[0]) : ''}
+                value={field.value ? (typeof field.value === 'string' ? (field.value as string).split('T')[0] : new Date(field.value as any).toISOString().split('T')[0]) : ''}
                 onChange={(e) => {
                   const dateValue = e.target.value;
                   field.onChange(dateValue);
@@ -256,9 +256,9 @@ export default function EventDetailsForm({
                   }
 
                   // Auto-populate end date if not set
-                  const endDate = form.getValues('eventDetails.endDate' as any);
+                  const endDate = (form.getValues as any)('eventDetails.endDate');
                   if (!endDate && dateValue) {
-                    form.setValue('eventDetails.endDate' as any, dateValue);
+                    (form.setValue as any)('eventDetails.endDate', dateValue);
                   }
                 }}
                 className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary text-card-foreground bg-card"
@@ -272,12 +272,12 @@ export default function EventDetailsForm({
             End Date
           </label>
           <Controller
-            name="eventDetails.endDate"
+            name={"eventDetails.endDate" as any}
             control={form.control}
             render={({ field }) => (
               <input
                 type="date"
-                value={field.value ? (typeof field.value === 'string' ? field.value.split('T')[0] : new Date(field.value).toISOString().split('T')[0]) : ''}
+                value={field.value ? (typeof field.value === 'string' ? (field.value as string).split('T')[0] : new Date(field.value as any).toISOString().split('T')[0]) : ''}
                 onChange={(e) => {
                   field.onChange(e.target.value);
                 }}
@@ -297,15 +297,15 @@ export default function EventDetailsForm({
           onLocationSelect={(location) => {
             setSelectedLocation(location);
             if (location) {
-              form.setValue('eventDetails.location', location.name);
+              form.setValue('eventDetails.location' as any, location.name);
               form.setValue('eventDetails.locationQid' as any, location.wikidataId);
               // Auto-fill country if location has it
               if (location.country && location.countryQid) {
-                form.setValue('eventDetails.country', location.country);
+                form.setValue('eventDetails.country' as any, location.country);
                 form.setValue('eventDetails.countryQid' as any, location.countryQid);
               }
             } else {
-              form.setValue('eventDetails.location', '');
+              form.setValue('eventDetails.location' as any, '');
               form.setValue('eventDetails.locationQid' as any, undefined);
             }
           }}

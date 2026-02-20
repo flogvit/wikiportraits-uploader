@@ -4,6 +4,7 @@
  */
 
 import { UniversalFormData } from '@/types/unified-form';
+import { logger } from '@/utils/logger';
 
 /**
  * Sanitize a string for use in Commons filenames
@@ -58,22 +59,22 @@ async function checkFileExistsOnCommons(filename: string): Promise<boolean> {
     );
 
     const data = await response.json();
-    console.log('🌐 Commons API response for', filename, ':', data);
+    logger.debug('commons-filename', `Commons API response for ${filename}`, data);
 
     const pages = data.query?.pages || {};
     const page = Object.values(pages)[0] as any;
 
-    console.log('📄 Page data:', page);
-    console.log('❓ Has missing property:', 'missing' in page);
-    console.log('❓ Missing value:', page.missing);
+    logger.debug('commons-filename', 'Page data', page);
+    logger.debug('commons-filename', 'Has missing property', 'missing' in page);
+    logger.debug('commons-filename', 'Missing value', page.missing);
 
     // If page.missing property exists, file doesn't exist
     // The property is present (even if undefined) for non-existent files
     const exists = !('missing' in page);
-    console.log(`✅ File ${filename} exists on Commons: ${exists}`);
+    logger.debug('commons-filename', `File ${filename} exists on Commons: ${exists}`);
     return exists;
   } catch (error) {
-    console.error('❌ Error checking file existence:', error);
+    logger.error('commons-filename', 'Error checking file existence', error);
     return false; // Assume doesn't exist if check fails
   }
 }
@@ -100,11 +101,13 @@ export async function generateCommonsFilename(
   const organizations = formData.entities?.organizations || [];
 
   // Try to get main band/organization first, then fall back to individual performers
-  let mainPerformer = null;
+  let mainPerformer: string | null = null;
   if (organizations.length > 0) {
-    mainPerformer = organizations[0].entity?.labels?.en?.value || organizations[0].labels?.en?.value || organizations[0].entity?.id;
+    const org = organizations[0] as any;
+    mainPerformer = org.entity?.labels?.en?.value || org.labels?.en?.value || org.entity?.id || org.id;
   } else if (performers.length > 0) {
-    mainPerformer = performers[0].entity?.labels?.en?.value || performers[0].entity?.id;
+    const perf = performers[0] as any;
+    mainPerformer = perf.entity?.labels?.en?.value || perf.labels?.en?.value || perf.entity?.id || perf.id;
   }
 
   // Build filename parts
@@ -130,21 +133,24 @@ export async function generateCommonsFilename(
 
   // 3. Location (if available)
   if (location) {
-    parts.push(sanitizeForFilename(location));
+    const locationStr = typeof location === 'string' ? location : location?.labels?.en?.value || '';
+    if (locationStr) {
+      parts.push(sanitizeForFilename(locationStr));
+    }
   }
 
   // 4. Date in YYYY-MM-DD format
   if (eventDate) {
-    console.log('📅 Date input:', eventDate, 'Type:', typeof eventDate);
+    logger.debug('commons-filename', `Date input: ${eventDate}, Type: ${typeof eventDate}`);
     const date = typeof eventDate === 'string' ? new Date(eventDate) : eventDate;
-    console.log('📅 Parsed date:', date, 'UTC:', date.toISOString());
+    logger.debug('commons-filename', `Parsed date: ${date}, UTC: ${date.toISOString()}`);
 
     // Use UTC methods to avoid timezone issues
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
     const day = String(date.getUTCDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
-    console.log('📅 Formatted date:', dateStr);
+    logger.debug('commons-filename', `Formatted date: ${dateStr}`);
     parts.push(dateStr);
   }
 
@@ -160,7 +166,7 @@ export async function generateCommonsFilename(
     if (existingFilenames.includes(filename)) {
       counter++;
       filename = `${baseFilename}_${String(counter).padStart(2, '0')}.${ext}`;
-      console.log('⚠️  Local filename collision detected, incrementing to:', filename);
+      logger.debug('commons-filename', `Local filename collision detected, incrementing to: ${filename}`);
       continue;
     }
 
@@ -169,7 +175,7 @@ export async function generateCommonsFilename(
     if (existsOnCommons) {
       counter++;
       filename = `${baseFilename}_${String(counter).padStart(2, '0')}.${ext}`;
-      console.log('⚠️  Commons filename collision detected, incrementing to:', filename);
+      logger.debug('commons-filename', `Commons filename collision detected, incrementing to: ${filename}`);
       continue;
     }
 

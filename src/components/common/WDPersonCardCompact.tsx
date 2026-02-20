@@ -4,6 +4,7 @@ import { User, Music, MapPin } from 'lucide-react';
 import { WikidataEntity } from '@/types/wikidata';
 import { WDPersonUtils, WDMusicianUtils, WDSoccerPlayerUtils, getThumbnailUrl } from '@/utils/wd-utils';
 import FocusedImage from '@/components/image/FocusedImage';
+import { logger } from '@/utils/logger';
 
 interface WDPersonCardCompactProps {
   entity: WikidataEntity;
@@ -57,10 +58,10 @@ export default function WDPersonCardCompact({
   // Format domain-specific info for display
   const domainInfo = () => {
     if (isMusician && instruments.length > 0) {
-      return instruments.map(id => id).join(', '); // TODO: Resolve Q-IDs to names
+      return instruments.map(id => id).join(', '); // See GitHub issue #8
     }
     if (isSoccerPlayer && positions.length > 0) {
-      return positions.map(id => id).join(', '); // TODO: Resolve Q-IDs to names
+      return positions.map(id => id).join(', '); // See GitHub issue #8
     }
     return null;
   };
@@ -85,7 +86,7 @@ export default function WDPersonCardCompact({
           className="mb-1"
           size={32}
           onError={(e) => {
-            console.log('🖼️ WD image failed to load:', imageUrl);
+            logger.debug('WDPersonCardCompact', 'WD image failed to load', imageUrl);
             e.currentTarget.style.display = 'none';
           }}
         />

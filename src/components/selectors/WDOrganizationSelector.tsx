@@ -6,6 +6,7 @@ import { WikidataEntity, WD_PROPERTIES } from '@/types/wikidata';
 import { WDOrganizationUtils } from '@/utils/wd-utils';
 import WDOrganizationCard, { WDOrganizationCardCompact } from '@/components/common/WDOrganizationCard';
 import WikidataClient from '@/lib/api/WikidataClient';
+import { logger } from '@/utils/logger';
 
 interface WDOrganizationSelectorProps {
   organizationType?: string; // Q215627 for bands, Q476028 for football clubs, etc.
@@ -82,7 +83,7 @@ export default function WDOrganizationSelector({
       
       return results;
     } catch (error) {
-      console.error('Error searching organizations:', error);
+      logger.error('WDOrganizationSelector', 'Error searching organizations', error);
       // Fall back to mock data
       return generateMockOrganizations(query, organizationType);
     } finally {

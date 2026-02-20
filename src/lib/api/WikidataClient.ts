@@ -2,6 +2,8 @@
 // Replaces backend proxy routes for read operations
 
 import { WikidataEntity, WikidataSearchResponse } from '@/types/wikidata';
+import { fetchWithTimeout } from '@/utils/fetch-utils';
+import { logger } from '@/utils/logger';
 
 interface WikidataSearchParams {
   query: string;
@@ -38,10 +40,10 @@ export class WikidataClient {
     });
 
     try {
-      const response = await fetch(`${WikidataClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${WikidataClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -57,7 +59,7 @@ export class WikidataClient {
 
       return data;
     } catch (error) {
-      console.error('Wikidata search error:', error);
+      logger.error('WikidataClient', 'Wikidata search error', error);
       throw error;
     }
   }
@@ -75,10 +77,10 @@ export class WikidataClient {
     });
 
     try {
-      const response = await fetch(`${WikidataClient.BASE_URL}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${WikidataClient.BASE_URL}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -94,7 +96,7 @@ export class WikidataClient {
 
       return data;
     } catch (error) {
-      console.error('Wikidata entity fetch error:', error);
+      logger.error('WikidataClient', 'Wikidata entity fetch error', error);
       throw error;
     }
   }
@@ -146,7 +148,7 @@ export class WikidataClient {
       // Check required properties
       if (requiredProperties.length > 0) {
         return requiredProperties.every(prop => 
-          entity.claims?.[prop]?.length > 0
+          (entity.claims?.[prop]?.length ?? 0) > 0
         );
       }
 

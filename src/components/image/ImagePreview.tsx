@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { ImageFile } from '@/types';
 // import { generateFilename } from '@/utils/commons-template';
 import { MusicEventMetadata } from '@/types/music';
+import { logger } from '@/utils/logger';
 
 interface ImagePreviewProps {
   image: ImageFile;
@@ -49,7 +50,7 @@ export default function ImagePreview({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            console.log('🗑️ Delete button clicked, image.id:', image.id);
+            logger.debug('ImagePreview', 'Delete button clicked', image.id);
             onRemove(image.id);
           }}
           className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90 transition-colors"

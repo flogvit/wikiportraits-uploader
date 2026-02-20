@@ -1,6 +1,9 @@
 // Direct frontend client for Wikipedia API calls
 // Replaces backend proxy routes for read operations
 
+import { fetchWithTimeout } from '@/utils/fetch-utils';
+import { logger } from '@/utils/logger';
+
 interface WikipediaSearchParams {
   query: string;
   language?: string;
@@ -59,10 +62,10 @@ export class WikipediaClient {
     });
 
     try {
-      const response = await fetch(`${baseUrl}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${baseUrl}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -78,7 +81,7 @@ export class WikipediaClient {
 
       return data.query?.search || [];
     } catch (error) {
-      console.error('Wikipedia search error:', error);
+      logger.error('WikipediaClient', 'Wikipedia search error', error);
       throw error;
     }
   }
@@ -105,10 +108,10 @@ export class WikipediaClient {
     });
 
     try {
-      const response = await fetch(`${baseUrl}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${baseUrl}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -144,7 +147,7 @@ export class WikipediaClient {
 
       return articles;
     } catch (error) {
-      console.error('Wikipedia articles fetch error:', error);
+      logger.error('WikipediaClient', 'Wikipedia articles fetch error', error);
       throw error;
     }
   }
@@ -202,10 +205,10 @@ export class WikipediaClient {
     });
 
     try {
-      const response = await fetch(`${baseUrl}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${baseUrl}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -221,7 +224,7 @@ export class WikipediaClient {
 
       return data.parse?.sections || [];
     } catch (error) {
-      console.error('Wikipedia sections fetch error:', error);
+      logger.error('WikipediaClient', 'Wikipedia sections fetch error', error);
       throw error;
     }
   }
@@ -244,10 +247,10 @@ export class WikipediaClient {
     });
 
     try {
-      const response = await fetch(`${baseUrl}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${baseUrl}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -281,8 +284,8 @@ export class WikipediaClient {
       const paramMatches = infoboxText.match(/\|\s*([^=]+?)\s*=\s*([^|]+?)(?=\||\}\})/g);
       
       if (paramMatches) {
-        paramMatches.forEach(param => {
-          const [key, value] = param.substring(1).split('=').map(s => s.trim());
+        paramMatches.forEach((param: string) => {
+          const [key, value] = param.substring(1).split('=').map((s: string) => s.trim());
           if (key && value) {
             infoboxData[key] = value;
           }
@@ -291,7 +294,7 @@ export class WikipediaClient {
 
       return infoboxData;
     } catch (error) {
-      console.error('Wikipedia infobox fetch error:', error);
+      logger.error('WikipediaClient', 'Wikipedia infobox fetch error', error);
       return null;
     }
   }
@@ -314,10 +317,10 @@ export class WikipediaClient {
     });
 
     try {
-      const response = await fetch(`${baseUrl}?${searchParams.toString()}`, {
+      const response = await fetchWithTimeout(`${baseUrl}?${searchParams.toString()}`, {
         method: 'GET',
         headers: {
-          'User-Agent': 'WikiPortraits/1.0 (https://github.com/your-username/wikiportraits)'
+          'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
         }
       });
 
@@ -337,7 +340,7 @@ export class WikipediaClient {
       const shuffled = members.sort(() => 0.5 - Math.random());
       return shuffled.slice(0, limit);
     } catch (error) {
-      console.error('Wikipedia category fetch error:', error);
+      logger.error('WikipediaClient', 'Wikipedia category fetch error', error);
       return [];
     }
   }

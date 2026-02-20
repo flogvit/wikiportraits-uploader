@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Eye, Code, Copy, Check } from 'lucide-react';
 import { ImageFile } from '@/types';
 import { generateCommonsWikitext, generateFilename } from '@/utils/commons-template';
+import { logger } from '@/utils/logger';
 
 interface CommonsPreviewProps {
   image: ImageFile;
@@ -24,7 +25,7 @@ export default function CommonsPreview({ image, index, musicEventData }: Commons
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text: ', err);
+      logger.error('CommonsPreview', 'Failed to copy text', err);
     }
   };
 

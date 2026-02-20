@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 interface Caption {
   language: string;
@@ -12,6 +15,9 @@ interface Caption {
  */
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'commons-update-captions'), { limit: 30 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession(authOptions);
 
     if (!session?.accessToken) {
@@ -40,12 +46,13 @@ export async function POST(request: NextRequest) {
     tokenUrl.searchParams.set('meta', 'tokens');
     tokenUrl.searchParams.set('format', 'json');
 
-    const tokenResponse = await fetch(tokenUrl.toString(), {
+    const tokenResponse = await fetchWithTimeout(tokenUrl.toString(), {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
-        'User-Agent': 'WikiPortraits/1.0'
-      }
+        'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
+      },
+      timeoutMs: TOKEN_TIMEOUT_MS
     });
 
     if (!tokenResponse.ok) {
@@ -77,11 +84,11 @@ export async function POST(request: NextRequest) {
     formData.append('token', csrfToken);
     formData.append('summary', `Updated captions via WikiPortraits (${captions.length} languages)`);
 
-    const editResponse = await fetch('https://commons.wikimedia.org/w/api.php', {
+    const editResponse = await fetchWithTimeout('https://commons.wikimedia.org/w/api.php', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${session.accessToken}`,
-        'User-Agent': 'WikiPortraits/1.0'
+        'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)'
       },
       body: formData
     });
@@ -108,7 +115,7 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
 
   } catch (error) {
-    console.error('Commons captions update error:', error);
+    logger.error('commons/update-captions', 'Captions update failed', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update captions'

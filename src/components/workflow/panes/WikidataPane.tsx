@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Database, User, Users, Edit3, Trash2, CheckCircle, AlertCircle, ExternalLink, Calendar, RefreshCw } from 'lucide-react';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { usePublishData } from '@/providers/PublishDataProvider';
+import type { PendingWikidataEntity, PendingBandData, PendingBandMemberData } from '@/types/music';
 
 interface WikidataPaneProps {
   onComplete?: () => void;
@@ -31,8 +32,9 @@ export default function WikidataPane({
     wikidataId: action.entityId.startsWith('new') ? undefined : action.entityId,
     wikidataUrl: action.entityId.startsWith('new') ? undefined : `https://www.wikidata.org/wiki/${action.entityId}`,
     description: '',
-    instanceOf: [],
-    claims: {},
+    instanceOf: [] as string[],
+    claims: {} as Record<string, string>,
+    parentEntity: undefined as string | undefined,
     missingClaims: action.changes?.map(c => ({
       property: c.property,
       value: c.newValue,
@@ -345,34 +347,28 @@ export default function WikidataPane({
   */
 
   // Convert UniversalForm entities to old format for compatibility
-  const pendingWikidataEntities = [
-    ...people.filter(p => p.isNew).map((person, index) => ({
-      id: person.entity.id || `person-${index}`,
-      name: person.entity.labels?.en?.value || 'Unknown',
+  // WikidataEntity objects are stored directly; "new" entities have IDs starting with 'pending-'
+  const isNewEntity = (entity: { id: string }) => entity.id?.startsWith('pending-');
+  const pendingWikidataEntities: PendingWikidataEntity[] = [
+    ...people.filter(p => isNewEntity(p)).map((person, index) => ({
+      id: person.id || `person-${index}`,
+      name: person.labels?.en?.value || 'Unknown',
       type: 'band_member' as const,
       status: 'created' as const,
       new: true,
       data: {
-        name: person.entity.labels?.en?.value || 'Unknown',
-        instruments: person.metadata?.instruments || [],
-        nationality: person.metadata?.nationality,
-        birthDate: person.metadata?.birthDate,
-        bandId: person.metadata?.bandId,
-        isBandMember: person.roles.includes('band-member'),
-        wikidataUrl: person.metadata?.wikidataUrl,
-        wikipediaUrl: person.metadata?.wikipediaUrl,
-        imageUrl: person.metadata?.imageUrl
-      }
+        name: person.labels?.en?.value || 'Unknown',
+      } as PendingBandMemberData
     })),
-    ...organizations.filter(o => o.isNew).map((org, index) => ({
-      id: org.entity.id || `org-${index}`,
-      name: org.entity.labels?.en?.value || 'Unknown',
+    ...organizations.filter(o => isNewEntity(o)).map((org, index) => ({
+      id: org.id || `org-${index}`,
+      name: org.labels?.en?.value || 'Unknown',
       type: 'band' as const,
       status: 'created' as const,
       new: true,
       data: {
-        name: org.entity.labels?.en?.value || 'Unknown'
-      }
+        name: org.labels?.en?.value || 'Unknown'
+      } as PendingBandData
     }))
   ];
   
@@ -381,74 +377,60 @@ export default function WikidataPane({
 
   const handleEntityUpdate = (entityId: string, updates: Partial<PendingWikidataEntity>) => {
     // Find and update the entity in people or organizations
-    const personIndex = people.findIndex(p => p.entity.id === entityId);
+    const personIndex = people.findIndex(p => p.id === entityId);
     if (personIndex >= 0) {
       const person = people[personIndex];
       const updatedPerson = {
         ...person,
-        entity: {
-          ...person.entity,
-          labels: {
-            ...person.entity.labels,
-            en: {
-              language: 'en' as const,
-              value: updates.name || person.entity.labels?.en?.value || 'Unknown'
-            }
+        labels: {
+          ...person.labels,
+          en: {
+            language: 'en',
+            value: updates.name || person.labels?.en?.value || 'Unknown'
           }
         },
-        metadata: {
-          ...person.metadata,
-          ...updates.data
-        }
       };
-      
+
       // Update directly through form setValue instead of using hooks
       const currentPeople = form.getValues('entities.people');
       const newPeople = [...currentPeople];
       newPeople[personIndex] = updatedPerson;
       form.setValue('entities.people', newPeople, { shouldDirty: true });
     }
-    
-    const orgIndex = organizations.findIndex(o => o.entity.id === entityId);
+
+    const orgIndex = organizations.findIndex(o => o.id === entityId);
     if (orgIndex >= 0) {
       const org = organizations[orgIndex];
       const updatedOrg = {
         ...org,
-        entity: {
-          ...org.entity,
-          labels: {
-            ...org.entity.labels,
-            en: {
-              language: 'en' as const,
-              value: updates.name || org.entity.labels?.en?.value || 'Unknown'
-            }
+        labels: {
+          ...org.labels,
+          en: {
+            language: 'en',
+            value: updates.name || org.labels?.en?.value || 'Unknown'
           }
         },
-        metadata: {
-          ...org.metadata,
-          ...updates.data
-        }
       };
-      
+
       // Update directly through form setValue instead of using hooks
       const currentOrgs = form.getValues('entities.organizations');
       const newOrgs = [...currentOrgs];
       newOrgs[orgIndex] = updatedOrg;
       form.setValue('entities.organizations', newOrgs, { shouldDirty: true });
     }
-    
+
     setEditingEntity(null);
   };
 
   const handleEntityDelete = (entityId: string) => {
     // Find and remove the entity from people or organizations
-    const personIndex = people.findIndex(p => p.entity.id === entityId);
+    const personIndex = people.findIndex(p => p.id === entityId);
     if (personIndex >= 0) {
       removePerson(personIndex);
       return;
     }
-    
-    const orgIndex = organizations.findIndex(o => o.entity.id === entityId);
+
+    const orgIndex = organizations.findIndex(o => o.id === entityId);
     if (orgIndex >= 0) {
       removeOrganization(orgIndex);
     }
@@ -458,10 +440,10 @@ export default function WikidataPane({
   const memberEntities = pendingWikidataEntities.filter((entity: PendingWikidataEntity) => entity.type === 'band_member');
 
   const eventEntities = wikidataEntitiesToCreate.filter(e =>
-    e.entityType === 'festival-base' || e.entityType === 'festival-edition' || e.entityType === 'event'
+    e.entityType === 'event' || e.entityType === 'location'
   );
   const performerEntities = wikidataEntitiesToCreate.filter(e =>
-    e.entityType === 'band' || e.entityType === 'performer'
+    e.entityType === 'person' || e.entityType === 'organization'
   );
 
   // Show all organizations and people (both new and existing)
@@ -725,10 +707,10 @@ export default function WikidataPane({
                           );
                         })}
                         {eventDetails?.location && (
-                          <p className="text-gray-500 italic">+ Location: {eventDetails.location}</p>
+                          <p className="text-gray-500 italic">+ Location: {eventDetails.location.labels?.en?.value || eventDetails.location.id}</p>
                         )}
                         {eventDetails?.country && (
-                          <p className="text-gray-500 italic">+ Country: {eventDetails.country}</p>
+                          <p className="text-gray-500 italic">+ Country: {eventDetails.country.labels?.en?.value || eventDetails.country.id}</p>
                         )}
                       </div>
                     </div>

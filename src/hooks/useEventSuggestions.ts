@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { logger } from '@/utils/logger';
 import { WikidataEntity } from '../types/wikidata';
 import { 
   eventRelationshipMapper, 
@@ -103,7 +104,7 @@ export function useEventSuggestions(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate suggestions';
       setSuggestionsError(errorMessage);
-      console.error('Error generating suggestions:', error);
+      logger.error('useEventSuggestions', 'Error generating suggestions', error);
     } finally {
       setIsLoadingSuggestions(false);
     }
@@ -122,7 +123,7 @@ export function useEventSuggestions(
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to find relationships';
       setRelationshipsError(errorMessage);
-      console.error('Error finding relationships:', error);
+      logger.error('useEventSuggestions', 'Error finding relationships', error);
     } finally {
       setIsLoadingRelationships(false);
     }

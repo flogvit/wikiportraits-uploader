@@ -418,19 +418,19 @@ export class PublishActionBuilder {
 
   // Helper methods
   private findLabelChanges(workflowItem: WorkflowItem<WikidataEntity>): PropertyChange[] {
-    return workflowItem.conflicts?.filter(c => c.property.startsWith('labels.')) || [];
+    return (workflowItem.conflicts?.filter(c => c.property.startsWith('labels.')) || []) as unknown as PropertyChange[];
   }
 
   private findDescriptionChanges(workflowItem: WorkflowItem<WikidataEntity>): PropertyChange[] {
-    return workflowItem.conflicts?.filter(c => c.property.startsWith('descriptions.')) || [];
+    return (workflowItem.conflicts?.filter(c => c.property.startsWith('descriptions.')) || []) as unknown as PropertyChange[];
   }
 
   private findClaimChanges(workflowItem: WorkflowItem<WikidataEntity>): PropertyChange[] {
-    return workflowItem.conflicts?.filter(c => c.property.startsWith('claims.')) || [];
+    return (workflowItem.conflicts?.filter(c => c.property.startsWith('claims.')) || []) as unknown as PropertyChange[];
   }
 
   private findSitelinkChanges(workflowItem: WorkflowItem<WikidataEntity>): PropertyChange[] {
-    return workflowItem.conflicts?.filter(c => c.property.startsWith('sitelinks.')) || [];
+    return (workflowItem.conflicts?.filter(c => c.property.startsWith('sitelinks.')) || []) as unknown as PropertyChange[];
   }
 
   private generateFileWikiText(fileName: string, description: string, categories: string[]): string {

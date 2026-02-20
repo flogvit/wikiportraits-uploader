@@ -3,6 +3,7 @@
  */
 
 import { CSRFTokenResponse, UploadResponse } from '@/types/common';
+import { fetchWithTimeout, TOKEN_TIMEOUT_MS, UPLOAD_TIMEOUT_MS } from '@/utils/fetch-utils';
 
 export type { CSRFTokenResponse, UploadResponse } from '@/types/common';
 
@@ -23,13 +24,14 @@ export async function fetchCSRFToken(accessToken?: string): Promise<string> {
   url.searchParams.set('origin', '*');
 
   const headers: Record<string, string> = {
-    'User-Agent': 'WikiPortraits Bulk Uploader/1.0 (https://github.com/flogvit/wikiportraits)',
+    'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)',
     'Authorization': `Bearer ${token}`,
   };
 
-  const response = await fetch(url.toString(), {
+  const response = await fetchWithTimeout(url.toString(), {
     method: 'GET',
     headers,
+    timeoutMs: TOKEN_TIMEOUT_MS,
   });
 
   if (!response.ok) {
@@ -98,9 +100,14 @@ export async function uploadToCommons(
     });
 
     xhr.open('POST', process.env.COMMONS_API_URL || 'https://commons.wikimedia.org/w/api.php');
+    xhr.timeout = 120_000; // 2 minutes
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.setRequestHeader('User-Agent', 'WikiPortraits Bulk Uploader/1.0 (https://github.com/flogvit/wikiportraits)');
-    
+    xhr.setRequestHeader('User-Agent', 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)');
+
+    xhr.addEventListener('timeout', () => {
+      reject(new Error('Upload request timed out'));
+    });
+
     xhr.send(formData);
   });
 }
@@ -154,13 +161,14 @@ export async function uploadFileInChunks(
       formData.append('ignorewarnings', '0');
     }
 
-    const response = await fetch(process.env.COMMONS_API_URL || 'https://commons.wikimedia.org/w/api.php', {
+    const response = await fetchWithTimeout(process.env.COMMONS_API_URL || 'https://commons.wikimedia.org/w/api.php', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'User-Agent': 'WikiPortraits Bulk Uploader/1.0 (https://github.com/flogvit/wikiportraits)',
+        'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits-uploader)',
       },
       body: formData,
+      timeoutMs: UPLOAD_TIMEOUT_MS,
     });
 
     if (!response.ok) {

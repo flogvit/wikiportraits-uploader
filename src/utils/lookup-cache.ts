@@ -2,6 +2,7 @@
  * Caching utility for Wikidata and Commons API lookups
  * Helps reduce API calls and improve performance
  */
+import { logger } from '@/utils/logger';
 
 interface CacheEntry<T> {
   data: T;
@@ -55,7 +56,7 @@ class LookupCache {
         this.cleanupExpired();
       }
     } catch (error) {
-      console.error('Error loading cache from storage:', error);
+      logger.error('lookup-cache', 'Error loading cache from storage', error);
       this.cache = {};
     }
   }
@@ -69,7 +70,7 @@ class LookupCache {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.cache));
     } catch (error) {
-      console.error('Error saving cache to storage:', error);
+      logger.error('lookup-cache', 'Error saving cache to storage', error);
     }
   }
 

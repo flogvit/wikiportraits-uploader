@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { FileText, CheckCircle, AlertCircle, ExternalLink, RefreshCw } from 'lucide-react';
+import { logger } from '@/utils/logger';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import {
   generateStandardWikiPortraitsTemplate,
@@ -10,6 +11,7 @@ import {
   getYearFromDate,
   getStandardTemplateName
 } from '@/utils/wikiportraits-templates';
+import { generateTemplateName, generateTemplate } from '@/utils/template-generator';
 
 
 interface TemplatesPaneProps {
@@ -68,9 +70,9 @@ export default function TemplatesPane({
           isStandard: true
         });
 
-        console.log('📋 WikiPortraits standard template check:', { templateName, exists });
+        logger.debug('TemplatesPane', 'WikiPortraits standard template check', { templateName, exists });
       } catch (error) {
-        console.error('Error checking template:', error);
+        logger.error('TemplatesPane', 'Error checking template', error);
       } finally {
         setCheckingTemplate(false);
       }

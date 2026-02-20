@@ -222,7 +222,7 @@ export class UniversalValidator {
     const value = rule.property ? data[rule.property] : data;
     
     if (rule.validator) {
-      const isValid = rule.validator(value, context.entity);
+      const isValid = rule.validator(value, context.entity!);
       if (!isValid) {
         return {
           valid: false,
@@ -337,7 +337,7 @@ export class UniversalValidator {
 
     try {
       const value = rule.property ? data[rule.property] : data;
-      const isValid = rule.validator(value, context.entity);
+      const isValid = rule.validator(value, context.entity!);
       
       if (!isValid) {
         return {
@@ -576,18 +576,27 @@ export class UniversalValidator {
     }
   }
 
+  private makeValidationResult(valid: boolean, name: string): ValidationResult {
+    return {
+      valid,
+      errors: valid ? [] : [{ field: name, message: `${name} validation failed`, code: name, severity: 'error', rule: name }],
+      warnings: [],
+      score: valid ? 100 : 0
+    };
+  }
+
   private registerBuiltinValidators(): void {
     // Wikidata entity ID validator
     this.registerCustomValidator({
       name: 'wikidata-entity-id',
       validator: (value) => {
+        let valid = false;
         if (typeof value === 'string') {
-          return /^Q\d+$/.test(value);
+          valid = /^Q\d+$/.test(value);
+        } else if (typeof value === 'object' && value.id) {
+          valid = /^Q\d+$/.test(value.id);
         }
-        if (typeof value === 'object' && value.id) {
-          return /^Q\d+$/.test(value.id);
-        }
-        return false;
+        return this.makeValidationResult(valid, 'wikidata-entity-id');
       },
       description: 'Validates Wikidata entity IDs (Q-numbers)',
       applicableTypes: ['Q5', 'Q215627'] // Person, Band
@@ -597,7 +606,8 @@ export class UniversalValidator {
     this.registerCustomValidator({
       name: 'wikidata-property-id',
       validator: (value) => {
-        return typeof value === 'string' && /^P\d+$/.test(value);
+        const valid = typeof value === 'string' && /^P\d+$/.test(value);
+        return this.makeValidationResult(valid, 'wikidata-property-id');
       },
       description: 'Validates Wikidata property IDs (P-numbers)'
     });
@@ -606,12 +616,14 @@ export class UniversalValidator {
     this.registerCustomValidator({
       name: 'commons-category',
       validator: (value) => {
-        if (typeof value !== 'string') return false;
-        // Basic Commons category validation
-        return value.length > 0 && 
-               !value.includes('[') && 
-               !value.includes(']') &&
-               !value.includes('|');
+        let valid = false;
+        if (typeof value === 'string') {
+          valid = value.length > 0 &&
+                 !value.includes('[') &&
+                 !value.includes(']') &&
+                 !value.includes('|');
+        }
+        return this.makeValidationResult(valid, 'commons-category');
       },
       description: 'Validates Commons category names'
     });
@@ -620,9 +632,12 @@ export class UniversalValidator {
     this.registerCustomValidator({
       name: 'image-file-type',
       validator: (value) => {
-        if (!value || !value.type) return false;
-        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
-        return allowedTypes.includes(value.type);
+        let valid = false;
+        if (value && value.type) {
+          const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
+          valid = allowedTypes.includes(value.type);
+        }
+        return this.makeValidationResult(valid, 'image-file-type');
       },
       description: 'Validates image file types for Commons upload'
     });

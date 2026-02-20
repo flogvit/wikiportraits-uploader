@@ -5,6 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { logger } from '@/utils/logger';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import { generateMusicCategories, getCategoriesToCreate as getMusicCategoriesToCreate } from '@/utils/music-categories';
 import { getAllCategoriesFromImages } from '@/utils/category-extractor';
@@ -36,10 +37,10 @@ export function useCategoryGeneration() {
 
   // Get the main band
   const selectedBand = organizations.length > 0 ? organizations[0] : null;
-  const selectedBandName = selectedBand?.entity?.labels?.en?.value ||
+  const selectedBandName = (selectedBand as any)?.entity?.labels?.en?.value ||
                           selectedBand?.labels?.en?.value ||
-                          selectedBand?.labels?.en ||
-                          selectedBand?.entity?.labels?.en ||
+                          (selectedBand?.labels?.en as any) ||
+                          (selectedBand as any)?.entity?.labels?.en ||
                           null;
 
   // Current categories from form
@@ -48,7 +49,7 @@ export function useCategoryGeneration() {
   // Generate categories whenever dependencies change
   useEffect(() => {
     const generateCategories = async () => {
-      console.log('🔄 Starting category generation...');
+      logger.debug('useCategoryGeneration', 'Starting category generation');
       setIsGenerating(true);
 
       try {
@@ -90,7 +91,7 @@ export function useCategoryGeneration() {
           if (selectedBandName && eventName) {
             const bandCategory = `${selectedBandName} at ${eventName}`;
             eventCategories.push(bandCategory);
-            console.log('📁 Adding band category:', bandCategory);
+            logger.debug('useCategoryGeneration', 'Adding band category', bandCategory);
           }
         }
 
@@ -117,7 +118,7 @@ export function useCategoryGeneration() {
           );
 
           const bandCategories = flattenBandCategories(bandStructures);
-          console.log('📁 Generated band category structure:', bandStructures);
+          logger.debug('useCategoryGeneration', 'Generated band category structure', bandStructures);
 
           toCreate = [...toCreate, ...bandCategories];
           bandCategories.forEach(cat => combinedCategories.add(cat.categoryName));
@@ -125,14 +126,14 @@ export function useCategoryGeneration() {
 
         // Generate performer categories
         if (people && people.length > 0) {
-          console.log('🎤 Generating categories for', people.length, 'performers');
+          logger.debug('useCategoryGeneration', 'Generating categories for performers', people.length);
 
           try {
             const { getPerformerCategories } = await import('@/utils/performer-categories');
             const performerCategoryInfos = await getPerformerCategories(people);
 
             performerCategoryInfos.forEach(info => {
-              console.log('🎤 Adding performer category:', info.commonsCategory);
+              logger.debug('useCategoryGeneration', 'Adding performer category', info.commonsCategory);
               combinedCategories.add(info.commonsCategory);
 
               if (info.needsCreation) {
@@ -145,7 +146,7 @@ export function useCategoryGeneration() {
               }
             });
           } catch (error) {
-            console.error('Error generating performer categories:', error);
+            logger.error('useCategoryGeneration', 'Error generating performer categories', error);
           }
         }
 
@@ -154,12 +155,12 @@ export function useCategoryGeneration() {
 
         // Update state ONCE after all async operations complete
         const finalCategories = Array.from(combinedCategories).sort();
-        console.log('✅ Category generation complete:', finalCategories.length, 'categories');
+        logger.info('useCategoryGeneration', 'Category generation complete', finalCategories.length, 'categories');
 
         setValue('computed.categories.all' as any, finalCategories);
         setCategoriesToCreate(toCreate);
       } catch (error) {
-        console.error('❌ Error generating categories:', error);
+        logger.error('useCategoryGeneration', 'Error generating categories', error);
       } finally {
         setIsGenerating(false);
       }

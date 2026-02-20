@@ -2,6 +2,7 @@ import { WikidataClient } from '@/lib/api/WikidataClient';
 import { WikipediaClient } from '@/lib/api/WikipediaClient';
 import { WikidataEntity, WorkflowItem } from '@/types/wikidata';
 import { createWorkflowItem } from './conflict-resolution';
+import { logger } from '@/utils/logger';
 
 export interface EventSearchFilters {
   eventType?: string[];
@@ -81,8 +82,8 @@ export class EventLoader {
 
     try {
       // Search for events using Wikidata client
-      const searchResults = await this.wikidataClient.searchEntities({
-        search: query,
+      const searchResults = await WikidataClient.searchEntities({
+        query,
         type: 'item',
         limit,
         language: filters.language || 'en'
@@ -97,7 +98,7 @@ export class EventLoader {
             events.push(loadedEvent);
           }
         } catch (error) {
-          console.warn(`Failed to load event details for ${result.id}:`, error);
+          logger.warn('event-loading', `Failed to load event details for ${result.id}`, error);
         }
       }
 
@@ -105,10 +106,10 @@ export class EventLoader {
         events,
         total: events.length,
         hasMore: searchResults.search.length === limit,
-        nextOffset: searchResults.searchinfo?.totalhits ? limit : undefined
+        nextOffset: (searchResults as any).searchinfo?.totalhits ? limit : undefined
       };
     } catch (error) {
-      console.error('Failed to search events:', error);
+      logger.error('event-loading', 'Failed to search events', error);
       throw new Error(`Event search failed: ${error}`);
     }
   }
@@ -119,7 +120,7 @@ export class EventLoader {
   async loadEventDetails(eventId: string): Promise<LoadedEvent | null> {
     try {
       // Load main event entity
-      const entity = await this.wikidataClient.getEntity(eventId);
+      const entity = await WikidataClient.getEntity(eventId);
       if (!entity) return null;
 
       // Load participants (performers, speakers, etc.)
@@ -150,7 +151,7 @@ export class EventLoader {
         relatedEvents
       };
     } catch (error) {
-      console.error(`Failed to load event details for ${eventId}:`, error);
+      logger.error('event-loading', `Failed to load event details for ${eventId}`, error);
       return null;
     }
   }
@@ -176,12 +177,12 @@ export class EventLoader {
           if (claim.mainsnak.datatype === 'wikibase-item' && claim.mainsnak.datavalue) {
             const participantId = claim.mainsnak.datavalue.value.id;
             try {
-              const participant = await this.wikidataClient.getEntity(participantId);
+              const participant = await WikidataClient.getEntity(participantId);
               if (participant) {
                 participants.push(participant);
               }
             } catch (error) {
-              console.warn(`Failed to load participant ${participantId}:`, error);
+              logger.warn('event-loading', `Failed to load participant ${participantId}`, error);
             }
           }
         }
@@ -203,9 +204,9 @@ export class EventLoader {
 
     if (venueId) {
       try {
-        return await this.wikidataClient.getEntity(venueId);
+        return await WikidataClient.getEntity(venueId) ?? undefined;
       } catch (error) {
-        console.warn(`Failed to load venue ${venueId}:`, error);
+        logger.warn('event-loading', `Failed to load venue ${venueId}`, error);
       }
     }
 
@@ -221,9 +222,9 @@ export class EventLoader {
     if (countryClaim?.mainsnak?.datavalue) {
       const locationId = countryClaim.mainsnak.datavalue.value.id;
       try {
-        return await this.wikidataClient.getEntity(locationId);
+        return await WikidataClient.getEntity(locationId) ?? undefined;
       } catch (error) {
-        console.warn(`Failed to load location ${locationId}:`, error);
+        logger.warn('event-loading', `Failed to load location ${locationId}`, error);
       }
     }
 
@@ -238,7 +239,7 @@ export class EventLoader {
     if (!sitelinks) return undefined;
 
     try {
-      const article = await this.wikipediaClient.getArticle(sitelinks.title);
+      const article = await WikipediaClient.getArticle(sitelinks.title);
       if (article) {
         return {
           title: article.title,
@@ -247,7 +248,7 @@ export class EventLoader {
         };
       }
     } catch (error) {
-      console.warn(`Failed to load Wikipedia article for ${event.id}:`, error);
+      logger.warn('event-loading', `Failed to load Wikipedia article for ${event.id}`, error);
     }
 
     return undefined;
@@ -329,22 +330,22 @@ export class EventLoader {
     if (partOfSeries) {
       try {
         // Search for other events in the same series
-        const seriesEvents = await this.wikidataClient.searchEntitiesOfType('Q1656682', {
-          search: '',
-          claims: [{ property: 'P179', value: partOfSeries }],
-          limit: 10
-        });
+        const seriesEvents = await WikidataClient.searchEntitiesOfType(
+          partOfSeries,
+          'Q1656682',
+          10
+        );
         
         for (const result of seriesEvents) {
           if (result.id !== event.id) {
-            const relatedEvent = await this.wikidataClient.getEntity(result.id);
+            const relatedEvent = await WikidataClient.getEntity(result.id);
             if (relatedEvent) {
               relatedEvents.push(relatedEvent);
             }
           }
         }
       } catch (error) {
-        console.warn(`Failed to load related events for series ${partOfSeries}:`, error);
+        logger.warn('event-loading', `Failed to load related events for series ${partOfSeries}`, error);
       }
     }
 

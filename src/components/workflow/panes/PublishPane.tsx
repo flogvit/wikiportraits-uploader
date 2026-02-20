@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertCircle, Clock, Loader2, FolderPlus, FileText, Database, ImagePlus } from 'lucide-react';
+import { logger } from '@/utils/logger';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import { usePublishData, PublishAction as CentralizedPublishAction, ActionStatus } from '@/providers/PublishDataProvider';
+import { lookupCache, CacheType } from '@/utils/lookup-cache';
+import { getCategoriesToCreate } from '@/utils/music-categories';
+import { getAllBandCategoryStructures, flattenBandCategories } from '@/utils/band-categories';
+import { getWikidataEntitiesToCreate } from '@/utils/wikidata-entities';
 
 interface PublishPaneProps {
   onComplete?: () => void;
@@ -47,6 +52,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
   const people = form.watch('entities.people') || [];
   const organizations = form.watch('entities.organizations') || [];
+  const eventDetails = form.watch('eventDetails');
 
   // Convert centralized actions to legacy format for display
   useEffect(() => {
@@ -138,7 +144,8 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           }
         });
 
-        const filename = image?.filename || image?.metadata?.suggestedFilename || image?.file?.name || 'Unknown';
+        const imageAny = image as any;
+        const filename = imageAny?.filename || imageAny?.metadata?.suggestedFilename || imageAny?.file?.name || 'Unknown';
 
         publishActions.push({
           id: `sdc-${sd.imageId}`,
@@ -148,7 +155,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           status: sd.status,
           error: sd.error,
           canPublish: true,
-          preview: image?.preview || image?.url
+          preview: imageAny?.preview || imageAny?.url
         });
       }
     });
@@ -189,7 +196,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       if (action.type === 'wikidata' && action.id.startsWith('wikidata-person-')) {
         // Extract QID from result if person was created
         // For now, we'll need to get this from the createPersonEntity response
-        // TODO: Return the QID from createPersonEntity
+        // See GitHub issue #5
       }
 
       // Update centralized action status (this also updates the original state ref)
@@ -303,7 +310,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
     // Invalidate cache for this category
     lookupCache.invalidate(CacheType.COMMONS_CATEGORY_EXISTS, `Category:${categoryInfo.categoryName}`);
-    console.log('🗑️ Invalidated cache for category:', categoryInfo.categoryName);
+    logger.debug('PublishPane', 'Invalidated cache for category', categoryInfo.categoryName);
   };
 
   const publishWikidata = async (action: PublishAction) => {
@@ -414,8 +421,8 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
     // Find image in either new images or existing images
     const newImages = form.watch('files.queue') || [];
-    const existingImages = form.watch('files.existing') || [];
-    const imageData = [...newImages, ...existingImages].find((img: any) => img.id === imageId);
+    const existingImagesArr = form.watch('files.existing') || [];
+    const imageData = [...newImages, ...existingImagesArr].find((img: any) => img.id === imageId) as any;
 
     if (!imageData) {
       throw new Error('Image not found');
@@ -485,7 +492,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       // Get the page ID from the upload result
       const pageId = result.pageId || result.data?.imageinfo?.pageid;
 
-      console.log('📤 Upload completed. PageId:', pageId, 'Full result:', result);
+      logger.info('PublishPane', 'Upload completed', { pageId, result });
 
       return { pageId, isUpdate: false };
     }
@@ -496,9 +503,9 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
     // Extract image ID from action ID
     const imageId = action.id.replace('image-', '');
-    const newImages = form.watch('files.queue') || [];
-    const existingImages = form.watch('files.existing') || [];
-    const imageData = [...newImages, ...existingImages].find((img: any) => img.id === imageId);
+    const newImagesForAction = form.watch('files.queue') || [];
+    const existingImagesForAction = form.watch('files.existing') || [];
+    const imageData = [...newImagesForAction, ...existingImagesForAction].find((img: any) => img.id === imageId) as any;
 
     // If this was a new upload, update any structured data actions with the pageId
     if (!isUpdate && pageId) {
@@ -508,8 +515,8 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       const sdActionsForImage = structuredDataActions.filter(sd => sd.imageId === imageId);
 
       if (sdActionsForImage.length > 0) {
-        console.log(`🔄 Updating structured data actions for image ${imageId} with pageId:`, pageId);
-        console.log('📊 Current structured data actions:', sdActionsForImage);
+        logger.debug('PublishPane', `Updating structured data actions for image ${imageId} with pageId`, pageId);
+        logger.debug('PublishPane', 'Current structured data actions', sdActionsForImage);
 
         // Update the pageId in the centralized state
         updateStructuredDataPageId(imageId, pageId);
@@ -519,9 +526,9 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           a.id === `sdc-${imageId}` ? { ...a, canPublish: true } : a
         ));
 
-        console.log(`✅ Updated ${sdActionsForImage.length} structured data actions with pageId:`, pageId);
+        logger.debug('PublishPane', `Updated ${sdActionsForImage.length} structured data actions with pageId`, pageId);
       } else {
-        console.log(`⚠️ No structured data actions found for image ${imageId}`);
+        logger.warn('PublishPane', `No structured data actions found for image ${imageId}`);
       }
     }
 
@@ -529,10 +536,12 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     // No need to update them here separately
 
     // If image should be set as main image (P18), add that claim
-    if (imageData.metadata?.setAsMainImage) {
+    if (imageData?.metadata?.setAsMainImage) {
       const org = organizations.find((o: any) => o.id);
       if (org?.id) {
         try {
+          // Determine the Commons filename (without "File:" prefix)
+          const commonsFilename = imageData?.filename || imageData?.metadata?.suggestedFilename || imageData?.file?.name || '';
           // Add P18 claim to the band's Wikidata entry
           const p18Response = await fetch('/api/wikidata/create-claim', {
             method: 'POST',
@@ -540,18 +549,18 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
             body: JSON.stringify({
               entityId: org.id,
               propertyId: 'P18',
-              value: filename // Commons filename (without "File:" prefix)
+              value: commonsFilename // Commons filename (without "File:" prefix)
             })
           });
 
           if (!p18Response.ok) {
-            console.error('Failed to add P18 claim:', await p18Response.text());
+            logger.error('PublishPane', 'Failed to add P18 claim', await p18Response.text());
             // Don't fail the upload if P18 addition fails
           } else {
-            console.log(`✅ Added P18 (main image) to ${org.id}`);
+            logger.info('PublishPane', `Added P18 (main image) to ${org.id}`);
           }
         } catch (error) {
-          console.error('Error adding P18 claim:', error);
+          logger.error('PublishPane', 'Error adding P18 claim', error);
           // Don't fail the upload
         }
       }
@@ -561,13 +570,15 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
   const publishMetadataUpdate = async (action: PublishAction) => {
     // Extract image ID from action
     const imageId = action.id.replace('metadata-', '');
-    const img = existingImages.find((i: any) => i.id === imageId);
+    const existingImagesForMeta = form.watch('files.existing') || [];
+    // Cast to any because metadata may have additional runtime properties (wikitext, etc.)
+    const img = existingImagesForMeta.find((i: any) => i.id === imageId) as any;
 
     if (!img) {
       throw new Error('Image not found for metadata update');
     }
 
-    console.log('📝 Updating metadata for:', img.filename);
+    logger.debug('PublishPane', 'Updating metadata for', img.filename);
 
     // Get updated wikitext from image metadata
     const updatedWikitext = img.metadata?.wikitext;
@@ -593,12 +604,12 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       throw new Error(result.error || 'Failed to update page');
     }
 
-    console.log('✅ Page content updated for:', img.filename);
+    logger.info('PublishPane', 'Page content updated for', img.filename);
 
     // Depicts are now handled by the structured data action
     // No need to update them here separately
 
-    console.log('✅ Metadata update completed for:', img.filename);
+    logger.info('PublishPane', 'Metadata update completed for', img.filename);
 
     // Reload image from Commons to update originalState
     await reloadImageFromCommons(img.id);
@@ -622,10 +633,10 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       status: 'pending',
       new: true,
       description: person.descriptions?.en?.value || 'musician',
-      data: person.metadata || {}
+      data: (person as any).metadata || {}
     };
 
-    console.log('Creating person entity:', personEntity);
+    logger.info('PublishPane', 'Creating person entity', personEntity);
 
     const response = await fetch('/api/wikidata/create-entity', {
       method: 'POST',
@@ -638,7 +649,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Person creation error:', errorText);
+      logger.error('PublishPane', 'Person creation error', errorText);
       let errorJson;
       try {
         errorJson = JSON.parse(errorText);
@@ -734,7 +745,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         const { getPerformerCategory } = await import('@/utils/performer-categories');
         const performerInfo = await getPerformerCategory(person);
         claimValue = performerInfo.commonsCategory;
-        console.log('📋 Publishing P373 for performer:', person.labels?.en?.value, '->', claimValue);
+        logger.info('PublishPane', 'Publishing P373 for performer', { name: person.labels?.en?.value, value: claimValue });
       } else {
         throw new Error('Entity not found for P373 claim');
       }
@@ -817,7 +828,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     // Invalidate Wikidata cache for this entity so next check gets fresh data
     lookupCache.invalidate(CacheType.WIKIDATA_ENTITY, `${entityId}:en:claims|labels`);
     lookupCache.invalidate(CacheType.WIKIDATA_ENTITY, `${entityId}:en:labels|descriptions|claims`);
-    console.log('🗑️ Invalidated Wikidata cache for entity:', entityId);
+    logger.debug('PublishPane', 'Invalidated Wikidata cache for entity', entityId);
   };
 
   const publishStructuredData = async (action: PublishAction) => {
@@ -825,27 +836,27 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     const sdActionId = action.id.replace('sdc-', '');
     const sdAction = structuredDataActions.find(sd => sd.imageId === sdActionId);
 
-    console.log('🔍 Looking for structured data action with imageId:', sdActionId);
-    console.log('📋 All structured data actions:', structuredDataActions.map(sd => ({ imageId: sd.imageId, pageId: sd.commonsPageId })));
-    console.log('🎯 Found action:', sdAction);
+    logger.debug('PublishPane', 'Looking for structured data action with imageId', sdActionId);
+    logger.debug('PublishPane', 'All structured data actions', structuredDataActions.map(sd => ({ imageId: sd.imageId, pageId: sd.commonsPageId })));
+    logger.debug('PublishPane', 'Found action', sdAction);
 
     if (!sdAction) {
       throw new Error('Structured data action not found');
     }
 
     if (!sdAction.commonsPageId || sdAction.commonsPageId === 0) {
-      console.error('❌ PageId is missing or 0. Action details:', sdAction);
+      logger.error('PublishPane', 'PageId is missing or 0. Action details', sdAction);
       throw new Error('Image must be uploaded before adding structured data. pageId is missing.');
     }
 
-    console.log('📝 Publishing structured data for image:', sdAction.imageId, 'pageId:', sdAction.commonsPageId);
+    logger.info('PublishPane', 'Publishing structured data for image', { imageId: sdAction.imageId, pageId: sdAction.commonsPageId });
 
     // Process each property that needs updating
     for (const prop of sdAction.properties.filter(p => p.needsUpdate)) {
       if (prop.property === 'labels') {
         // Update captions
         const captions = Array.isArray(prop.value) ? prop.value : [];
-        console.log('🏷️ Updating captions:', captions);
+        logger.debug('PublishPane', 'Updating captions', captions);
 
         const response = await fetch('/api/commons/update-captions', {
           method: 'POST',
@@ -866,11 +877,11 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           throw new Error(result.message || 'Failed to update captions');
         }
 
-        console.log('✅ Updated captions for page ID:', sdAction.commonsPageId);
+        logger.info('PublishPane', 'Updated captions for page ID', sdAction.commonsPageId);
       } else if (prop.property === 'P180') {
         // Update depicts
         const depicts = Array.isArray(prop.value) ? prop.value : [];
-        console.log('🏷️ Updating depicts:', depicts);
+        logger.debug('PublishPane', 'Updating depicts', depicts);
 
         const depictsList = depicts.map(qid => ({
           qid,
@@ -896,11 +907,11 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           throw new Error(result.message || 'Failed to update depicts');
         }
 
-        console.log('✅ Updated depicts for page ID:', sdAction.commonsPageId);
+        logger.info('PublishPane', 'Updated depicts for page ID', sdAction.commonsPageId);
       }
     }
 
-    console.log('✅ Structured data publish completed for:', sdAction.imageId);
+    logger.info('PublishPane', 'Structured data publish completed for', sdAction.imageId);
 
     // Reload image from Commons to update originalState
     await reloadImageFromCommons(sdAction.imageId);

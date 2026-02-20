@@ -3,24 +3,28 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '../../auth/[...nextauth]/route';
 import { PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
 import { createWikidataEntity, getUserPermissions } from '@/utils/wikidata';
+import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { logger } from '@/utils/logger';
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = checkRateLimit(getRateLimitKey(request, 'wikidata-create-entity'), { limit: 30 });
+    if (!rl.success) return rateLimitResponse(rl);
+
     const session = await getServerSession(authOptions);
     if (!session?.accessToken) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
     const body = await request.json();
-    console.log('Received body:', JSON.stringify(body, null, 2));
+    logger.debug('wikidata/create-entity', 'Received body', body);
     const { entity, entityData, accessToken } = body;
 
     // Support both old format (entity + accessToken) and new format (entityData only)
     const finalEntity = entity || entityData;
     const finalAccessToken = accessToken || session.accessToken;
 
-    console.log('finalEntity:', finalEntity);
-    console.log('Has entity:', !!entity, 'Has entityData:', !!entityData);
+    logger.debug('wikidata/create-entity', 'Resolved entity', { finalEntity, hasEntity: !!entity, hasEntityData: !!entityData });
 
     if (!finalEntity) {
       return NextResponse.json({ error: 'Entity data is required' }, { status: 400 });
@@ -28,11 +32,11 @@ export async function POST(request: NextRequest) {
 
     // If using new format (entityData), call createWikidataEntity directly
     if (entityData && !entity) {
-      console.log('Creating entity with entityData:', JSON.stringify(entityData, null, 2));
+      logger.debug('wikidata/create-entity', 'Creating entity with entityData', entityData);
       const result = await createWikidataEntity(entityData, finalAccessToken as string);
 
       if (result.error) {
-        console.error('Wikidata creation error:', result.error);
+        logger.error('wikidata/create-entity', 'Wikidata creation error', result.error);
         throw new Error(`Wikidata API error: ${result.error.info || result.error.code}`);
       }
 
@@ -54,14 +58,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: validatedEntity.error }, { status: 400 });
     }
 
-    console.log('Creating entity with old format:', JSON.stringify(finalEntity, null, 2));
+    logger.debug('wikidata/create-entity', 'Creating entity with old format', finalEntity);
 
     // Create the entity in Wikidata using the old path (createBandMemberEntity)
     const result = await createWikidataEntityRequest(finalEntity, finalAccessToken as string);
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error creating Wikidata entity:', error);
+    logger.error('wikidata/create-entity', 'Error creating Wikidata entity', error);
     return NextResponse.json({
       error: error instanceof Error ? error.message : 'Failed to create entity'
     }, { status: 500 });
@@ -81,7 +85,7 @@ function validateEntity(entity: PendingWikidataEntity): { valid: boolean; error?
 }
 
 async function createWikidataEntityRequest(entity: PendingWikidataEntity, accessToken: string) {
-  console.log('Creating Wikidata entity on test.wikidata.org:', entity);
+  logger.info('wikidata/create-entity', 'Creating Wikidata entity on wikidata.org', entity);
   
   // Build the entity data based on type
   let entityData;
@@ -94,15 +98,15 @@ async function createWikidataEntityRequest(entity: PendingWikidataEntity, access
   }
 
   try {
-    console.log('Entity data to be sent:', JSON.stringify(entityData, null, 2));
+    logger.debug('wikidata/create-entity', 'Entity data to be sent', entityData);
     
     // Check user permissions
     const permissions = await getUserPermissions(accessToken);
-    console.log('User permissions:', permissions);
+    logger.debug('wikidata/create-entity', 'User permissions', permissions);
     
     // Create the entity using utility
     const result = await createWikidataEntity(entityData, accessToken);
-    console.log('Wikidata API response:', result);
+    logger.debug('wikidata/create-entity', 'Wikidata API response', result);
     
     if (result.success && result.entity) {
       return {
@@ -116,7 +120,7 @@ async function createWikidataEntityRequest(entity: PendingWikidataEntity, access
       throw new Error('Unexpected response format from Wikidata API');
     }
   } catch (error) {
-    console.error('Error creating Wikidata entity:', error);
+    logger.error('wikidata/create-entity', 'Error creating Wikidata entity', error);
     throw error;
   }
 }
@@ -147,7 +151,7 @@ async function createBandEntity(entity: PendingWikidataEntity) {
     }
   };
   
-  console.log('Band entity structure:', entityStructure);
+  logger.debug('wikidata/create-entity', 'Band entity structure', entityStructure);
   
   // Here you would make the actual API call to Wikidata
   // const response = await fetch('https://www.wikidata.org/w/api.php', {
@@ -307,7 +311,7 @@ async function createBandMemberEntity(entity: PendingWikidataEntity) {
     }
   };
   
-  console.log('Band member entity structure:', entityStructure);
+  logger.debug('wikidata/create-entity', 'Band member entity structure', entityStructure);
   
   return entityStructure;
 }
@@ -477,7 +481,7 @@ async function createPhotographerEntity(entity: PendingWikidataEntity) {
     }
   };
   
-  console.log('Photographer entity structure (minimal):', entityStructure);
+  logger.debug('wikidata/create-entity', 'Photographer entity structure (minimal)', entityStructure);
   
   return entityStructure;
 }
@@ -528,8 +532,8 @@ export async function PATCH(request: NextRequest) {
         const result = await createWikidataEntityRequest(entity, accessToken);
         results.push({
           entityId: entity.id,
+          ...result,
           success: true,
-          ...result
         });
       } catch (error) {
         results.push({
@@ -548,7 +552,7 @@ export async function PATCH(request: NextRequest) {
       failed: results.filter(r => !r.success).length
     });
   } catch (error) {
-    console.error('Error in batch entity creation:', error);
+    logger.error('wikidata/create-entity', 'Error in batch entity creation', error);
     return NextResponse.json({ error: 'Failed to create entities' }, { status: 500 });
   }
 }

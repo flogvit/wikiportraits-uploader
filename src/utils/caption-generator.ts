@@ -55,12 +55,12 @@ export function generateMultilingualCaptions(
   // Get performers and band ONCE outside the loop
   const performers = formData.entities?.people || [];
   const performerNames = performers
-    .map(p => p.entity?.labels?.en?.value || p.entity?.id)
+    .map(p => (p as any).entity?.labels?.en?.value || (p as any).entity?.id || p.labels?.en?.value || p.id)
     .filter(Boolean);
 
   const organizations = formData.entities?.organizations || [];
   const bandName = organizations.length > 0
-    ? organizations[0].entity?.labels?.en?.value || organizations[0].entity?.id
+    ? (organizations[0] as any).entity?.labels?.en?.value || (organizations[0] as any).entity?.id || organizations[0].labels?.en?.value || organizations[0].id
     : null;
 
   const eventTitle = formData.eventDetails?.title;

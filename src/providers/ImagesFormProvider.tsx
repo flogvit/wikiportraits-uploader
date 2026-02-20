@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { logger } from '@/utils/logger';
 
 interface ImageMetadata {
   id: string;
@@ -90,8 +91,8 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
       };
     } else {
       newImage = {
-        id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         ...image,
+        id: image.id || `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         uploadStatus: image.uploadStatus || 'pending'
       };
     }
@@ -99,20 +100,20 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
     // Validate the image
     const validationError = validateImage(newImage, config);
     if (validationError) {
-      console.warn('⚠️ Image validation failed:', validationError);
+      logger.warn('ImagesFormProvider', 'Image validation failed', validationError);
       newImage.error = validationError;
       newImage.uploadStatus = 'failed';
     }
 
     // Check file limits
     if (config?.maxFiles && images.length >= config.maxFiles) {
-      console.warn('⚠️ Maximum file limit reached');
+      logger.warn('ImagesFormProvider', 'Maximum file limit reached');
       return;
     }
 
     const updatedImages = [...images, newImage];
     form.setValue(FORM_KEY, updatedImages);
-    console.log('📸 Added image:', newImage.filename);
+    logger.debug('ImagesFormProvider', 'Added image', newImage.filename);
   }, [form, getImages, config]);
 
   const remove = useCallback((imageId: string) => {
@@ -126,7 +127,7 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
 
     const updatedImages = images.filter(img => img.id !== imageId);
     form.setValue(FORM_KEY, updatedImages);
-    console.log('🗑️ Removed image:', imageId);
+    logger.debug('ImagesFormProvider', 'Removed image', imageId);
   }, [form, getImages]);
 
   const updateMetadata = useCallback((imageId: string, metadata: Partial<ImageMetadata>) => {
@@ -135,7 +136,7 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
       img.id === imageId ? { ...img, ...metadata } : img
     );
     form.setValue(FORM_KEY, updatedImages);
-    console.log('📝 Updated image metadata:', imageId, metadata);
+    logger.debug('ImagesFormProvider', 'Updated image metadata', imageId, metadata);
   }, [form, getImages]);
 
   const validate = useCallback((): boolean => {
@@ -143,14 +144,14 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
     
     // Check if any images are required
     if (images.length === 0) {
-      console.warn('⚠️ No images added');
+      logger.warn('ImagesFormProvider', 'No images added');
       return false;
     }
 
     // Check for failed images
     const failedImages = images.filter(img => img.uploadStatus === 'failed');
     if (failedImages.length > 0) {
-      console.warn('⚠️ Some images failed validation or upload:', failedImages);
+      logger.warn('ImagesFormProvider', 'Some images failed validation or upload', failedImages);
       return false;
     }
 
@@ -159,7 +160,7 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
       !img.description || !img.author || !img.license
     );
     if (imagesWithoutMetadata.length > 0) {
-      console.warn('⚠️ Some images missing required metadata:', imagesWithoutMetadata);
+      logger.warn('ImagesFormProvider', 'Some images missing required metadata', imagesWithoutMetadata);
       return false;
     }
 
@@ -186,7 +187,7 @@ export function ImagesFormProvider({ children, config }: ImagesFormProviderProps
     });
 
     form.setValue(FORM_KEY, []);
-    console.log('🧹 Cleared all images');
+    logger.debug('ImagesFormProvider', 'Cleared all images');
   }, [form, getImages]);
 
   // Clean up object URLs on unmount

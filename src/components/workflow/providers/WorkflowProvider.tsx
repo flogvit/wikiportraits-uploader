@@ -84,7 +84,7 @@ export function WorkflowProvider({
       // Watch event details and auto-complete when required fields are filled
       if (name?.startsWith('eventDetails.') || name === 'eventDetails') {
         const eventDetails = value.eventDetails;
-        if (eventDetails?.common?.title && eventDetails?.common?.date) {
+        if (eventDetails?.title && eventDetails?.date) {
           updateStepStatus('event-details', 'completed');
         } else {
           updateStepStatus('event-details', 'pending');
@@ -120,7 +120,7 @@ export function WorkflowProvider({
     }
     
     const eventDetails = getValues('eventDetails');
-    if (eventDetails?.common?.title && eventDetails?.common?.date) {
+    if (eventDetails?.title && eventDetails?.date) {
       updateStepStatus('event-details', 'completed');
     }
     

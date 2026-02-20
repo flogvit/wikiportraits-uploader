@@ -4,6 +4,7 @@
  */
 
 import { UserConfiguration, DEFAULT_CONFIGURATION } from '@/types/configuration';
+import { logger } from '@/utils/logger';
 
 const DB_NAME = 'wikiportraits-config';
 const DB_VERSION = 1;
@@ -52,7 +53,7 @@ async function saveToIndexedDB(config: UserConfiguration): Promise<void> {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    console.error('IndexedDB save failed, falling back to localStorage:', error);
+    logger.error('configuration-storage', 'IndexedDB save failed, falling back to localStorage', error);
     saveToLocalStorage(config);
   }
 }
@@ -81,7 +82,7 @@ async function loadFromIndexedDB(): Promise<UserConfiguration | null> {
       request.onerror = () => reject(request.error);
     });
   } catch (error) {
-    console.error('IndexedDB load failed, falling back to localStorage:', error);
+    logger.error('configuration-storage', 'IndexedDB load failed, falling back to localStorage', error);
     return loadFromLocalStorage();
   }
 }
@@ -97,7 +98,7 @@ function saveToLocalStorage(config: UserConfiguration): void {
     };
     localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(configWithDate));
   } catch (error) {
-    console.error('Failed to save configuration to localStorage:', error);
+    logger.error('configuration-storage', 'Failed to save configuration to localStorage', error);
   }
 }
 
@@ -116,7 +117,7 @@ function loadFromLocalStorage(): UserConfiguration | null {
     }
     return config;
   } catch (error) {
-    console.error('Failed to load configuration from localStorage:', error);
+    logger.error('configuration-storage', 'Failed to load configuration from localStorage', error);
     return null;
   }
 }

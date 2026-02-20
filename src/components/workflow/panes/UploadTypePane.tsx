@@ -172,18 +172,18 @@ export default function UploadTypePane({ onComplete }: UploadTypePaneProps) {
   const { watch, setValue } = useUniversalForm();
   
   const workflowType = watch('workflowType');
-  const selectedUploadType = workflowType === 'music-event' ? 'music' : 
-                            workflowType === 'soccer-match' ? 'soccer' : 
-                            workflowType === 'portrait-session' ? 'portraits' : 
+  const selectedUploadType = workflowType === 'music-event' ? 'music' :
+                            workflowType === 'soccer-match' ? 'sports' :
+                            workflowType === 'portraits' ? 'portraits' :
                             workflowType === 'general-upload' ? 'general' : undefined;
 
   const handleUploadTypeSelect = (uploadType: UploadType) => {
     if (uploadType === 'music') {
       setValue('workflowType', 'music-event');
-    } else if (uploadType === 'soccer') {
-      setValue('workflowType', 'soccer-match');
+    } else if (uploadType === 'sports') {
+      setValue('workflowType', 'soccer-match' as any);
     } else if (uploadType === 'portraits') {
-      setValue('workflowType', 'portrait-session');
+      setValue('workflowType', 'portraits');
     } else {
       setValue('workflowType', 'general-upload');
     }

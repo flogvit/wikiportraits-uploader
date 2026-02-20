@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { logger } from '@/utils/logger';
 
 interface Template {
   id: string;
@@ -78,14 +79,14 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
     if ('content' in template) {
       // It's a complete template
       newTemplate = {
-        id: `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        ...template
+        ...template,
+        id: template.id || `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       };
     } else {
       // It's a generation request
       const generated = generate(template.type, template.data);
       if (!generated) {
-        console.warn('⚠️ Failed to generate template for type:', template.type);
+        logger.warn('TemplatesFormProvider', 'Failed to generate template for type', template.type);
         return;
       }
       newTemplate = generated;
@@ -104,7 +105,7 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
   const generate = useCallback((type: string, data: any): Template | null => {
     const generator = config?.generators?.find(g => g.type === type);
     if (!generator) {
-      console.warn('⚠️ No generator found for template type:', type);
+      logger.warn('TemplatesFormProvider', 'No generator found for template type', type);
       return null;
     }
 
@@ -120,7 +121,7 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
       
       return template;
     } catch (error) {
-      console.error('❌ Error generating template:', error);
+      logger.error('TemplatesFormProvider', 'Error generating template', error);
       return null;
     }
   }, [config]);
@@ -130,7 +131,7 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
     
     // Check if templates are present
     if (templates.length === 0) {
-      console.warn('⚠️ No templates generated');
+      logger.warn('TemplatesFormProvider', 'No templates generated');
       return false;
     }
 
@@ -140,7 +141,7 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
     );
 
     if (invalidTemplates.length > 0) {
-      console.warn('⚠️ Templates with invalid content:', invalidTemplates);
+      logger.warn('TemplatesFormProvider', 'Templates with invalid content', invalidTemplates);
       return false;
     }
 

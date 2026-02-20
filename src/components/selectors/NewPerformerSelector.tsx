@@ -8,6 +8,8 @@ import CountrySelector from './CountrySelector';
 import PerformerCard from '@/components/common/PerformerCard';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
 import { WDPerson } from '@/classes';
+import { WikidataEntity } from '@/types/wikidata';
+import { logger } from '@/utils/logger';
 
 interface NewPerformerSelectorProps {
   bandName?: string;
@@ -109,7 +111,7 @@ export default function NewPerformerSelector({
     };
 
     // Use WDPerson class to add properties
-    const wdPerson = new WDPerson(baseEntity);
+    const wdPerson = new WDPerson(baseEntity as WikidataEntity);
 
     // Add instruments
     if (artist.instruments && artist.instruments.length > 0) {
@@ -140,7 +142,7 @@ export default function NewPerformerSelector({
       const response = await fetch(`/api/music/artist-image?artistId=${encodeURIComponent(artistId)}`);
 
       if (!response.ok) {
-        console.error(`Failed to fetch image for artist ${artistName}:`, response.status);
+        logger.error('NewPerformerSelector', `Failed to fetch image for artist ${artistName}`, response.status);
         return;
       }
 
@@ -157,7 +159,7 @@ export default function NewPerformerSelector({
         }
       }
     } catch (error) {
-      console.error(`Error fetching image for artist ${artistName}:`, error);
+      logger.error('NewPerformerSelector', `Error fetching image for artist ${artistName}`, error);
     }
   };
 

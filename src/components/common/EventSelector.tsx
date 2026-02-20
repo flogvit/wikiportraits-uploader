@@ -3,6 +3,7 @@ import { LoadedEvent, EventSearchFilters } from '../../utils/event-loading';
 import { useEventLoader } from '../../hooks/useEventLoader';
 import { WikidataEntity } from '../../types/wikidata';
 import { WDPersonCardCompact, ConflictIndicator } from '../common';
+import { logger } from '@/utils/logger';
 
 interface EventSelectorProps {
   onEventSelect: (event: LoadedEvent) => void;
@@ -256,7 +257,7 @@ export function EventSelector({
   const eventLoader = useEventLoader({
     defaultFilters: initialFilters,
     onEventLoaded: onEventLoad,
-    onError: (error) => console.error('Event loading error:', error)
+    onError: (error) => logger.error('EventSelector', 'Event loading error', error)
   });
 
   const {

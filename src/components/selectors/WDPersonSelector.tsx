@@ -6,6 +6,7 @@ import { WikidataEntity, WD_PROPERTIES } from '@/types/wikidata';
 import { WDPersonUtils } from '@/utils/wd-utils';
 import WDPersonCardCompact from '@/components/common/WDPersonCardCompact';
 import WikidataClient from '@/lib/api/WikidataClient';
+import { logger } from '@/utils/logger';
 
 interface WDPersonSelectorProps {
   entityType?: string; // Usually 'Q5' for human, but could be more specific
@@ -40,10 +41,10 @@ export default function WDPersonSelector({
   const [showResults, setShowResults] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
 
-  // Normalize value to always be an array for easier handling
-  const selectedEntities = multiple 
-    ? (Array.isArray(value) ? value : (value ? [value] : []))
-    : (value ? [value] : []);
+  // Normalize value to always be a flat array for easier handling
+  const selectedEntities: WikidataEntity[] = multiple
+    ? (Array.isArray(value) ? value : (value ? [value as WikidataEntity] : []))
+    : (value && !Array.isArray(value) ? [value] : []);
 
   // Search people using Wikidata API
   const searchPeople = useCallback(async (query: string): Promise<WikidataEntity[]> => {
@@ -61,12 +62,12 @@ export default function WDPersonSelector({
       
       return newResults;
     } catch (error) {
-      console.error('Error searching people:', error);
+      logger.error('WDPersonSelector', 'Error searching people', error);
       // Fall back to mock data on error
       const mockResults = generateMockPeople(query, entityType);
       const filteredResults = requiredProperties.length > 0 
         ? mockResults.filter(entity => 
-            requiredProperties.every(prop => entity.claims?.[prop]?.length > 0)
+            requiredProperties.every(prop => (entity.claims?.[prop]?.length ?? 0) > 0)
           )
         : mockResults;
       
@@ -99,7 +100,7 @@ export default function WDPersonSelector({
     if (multiple) {
       // Check max selections
       if (maxSelections && selectedEntities.length >= maxSelections) {
-        console.warn('Maximum selections reached');
+        logger.warn('WDPersonSelector', 'Maximum selections reached');
         return;
       }
       

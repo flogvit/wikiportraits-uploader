@@ -5,6 +5,7 @@ import { useForm, UseFormReturn, FormProvider } from 'react-hook-form';
 import { UniversalFormData } from '../types/unified-form';
 import { WikidataEntity } from '../types/wikidata';
 import { imageCache } from '@/utils/image-cache';
+import { logger } from '@/utils/logger';
 
 interface UniversalFormContextType extends UseFormReturn<UniversalFormData> {
   // Additional helper methods
@@ -57,7 +58,7 @@ export function UniversalFormProvider({
         return parsed;
       }
     } catch (error) {
-      console.warn('Failed to load from localStorage:', error);
+      logger.warn('UniversalFormProvider', 'Failed to load from localStorage', error);
     }
     return null;
   };
@@ -161,7 +162,7 @@ export function UniversalFormProvider({
       };
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     } catch (error) {
-      console.warn('Failed to save to localStorage:', error);
+      logger.warn('UniversalFormProvider', 'Failed to save to localStorage', error);
     }
   };
   
@@ -179,7 +180,7 @@ export function UniversalFormProvider({
     try {
       localStorage.removeItem(storageKey);
     } catch (error) {
-      console.warn('Failed to clear localStorage:', error);
+      logger.warn('UniversalFormProvider', 'Failed to clear localStorage', error);
     }
   };
   
@@ -215,7 +216,7 @@ export function UniversalFormProvider({
             await imageCache.clearImages();
           }
         } catch (error) {
-          console.warn('Failed to save images to IndexedDB:', error);
+          logger.warn('UniversalFormProvider', 'Failed to save images to IndexedDB', error);
         }
       }, 1000); // Save 1 second after last change
     });
@@ -248,11 +249,11 @@ export function UniversalFormProvider({
               };
             });
 
-            form.setValue('files.queue', restoredFiles);
+            form.setValue('files.queue', restoredFiles as any);
           }
         }
       } catch (error) {
-        console.warn('Failed to restore images from IndexedDB:', error);
+        logger.warn('UniversalFormProvider', 'Failed to restore images from IndexedDB', error);
       }
     };
 
@@ -302,11 +303,11 @@ export function UniversalFormProvider({
 
           // Skip if the performers for THIS specific image haven't changed
           if (currentPerformersKey === previousPerformersKey && previousPerformersKey !== '') {
-            console.log('⏭️  Skipping image (performers unchanged):', img.filename || img.id);
+            logger.debug('UniversalFormProvider', 'Skipping image (performers unchanged)', img.filename || img.id);
             return img;
           }
 
-          console.log('🔄 Updating image metadata:', img.filename || img.id, {
+          logger.debug('UniversalFormProvider', 'Updating image metadata', img.filename || img.id, {
             currentPerformersKey,
             previousPerformersKey,
             willUpdate: true
@@ -370,8 +371,8 @@ export function UniversalFormProvider({
             };
             const newCaptions = generateMultilingualCaptions(
               formData as any,
-              eventDetails?.location,
-              eventDetails?.date
+              eventDetails?.location as any,
+              eventDetails?.date as any
             );
 
             // Ensure WikiPortraits template if needed
@@ -407,7 +408,7 @@ export function UniversalFormProvider({
             };
 
           } catch (error) {
-            console.error('Failed to update image metadata:', error);
+            logger.error('UniversalFormProvider', 'Failed to update image metadata', error);
             return img;
           }
         }));
@@ -415,7 +416,7 @@ export function UniversalFormProvider({
         // Only update if there were actual changes
         if (hasChanges) {
           form.setValue(key as any, updatedFiles, { shouldDirty: true });
-          console.log('🔄 Auto-updated image metadata for:', key);
+          logger.debug('UniversalFormProvider', 'Auto-updated image metadata for', key);
         }
       }
     };

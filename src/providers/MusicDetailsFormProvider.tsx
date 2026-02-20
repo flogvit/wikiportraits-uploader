@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useCallback, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { WikidataEntity } from '@/types/wikidata';
+import { logger } from '@/utils/logger';
 
 interface MusicEvent {
   id: string;
@@ -105,7 +106,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setEvent = useCallback((event: MusicEvent) => {
     form.setValue(`${FORM_KEY}.event`, event);
-    console.log('🎵 Set music event:', event.name);
+    logger.debug('MusicDetailsFormProvider', 'Set music event', event.name);
   }, [form]);
 
   const getFestival = useCallback((): MusicEvent | null => {
@@ -114,7 +115,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setFestival = useCallback((festival: MusicEvent) => {
     form.setValue(`${FORM_KEY}.festival`, festival);
-    console.log('🎪 Set festival:', festival.name);
+    logger.debug('MusicDetailsFormProvider', 'Set festival', festival.name);
   }, [form]);
 
   const getBand = useCallback((): WikidataEntity | null => {
@@ -123,7 +124,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setBand = useCallback((band: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.band`, band);
-    console.log('🎸 Set band:', band.labels?.en?.value || band.id);
+    logger.debug('MusicDetailsFormProvider', 'Set band', band.labels?.en?.value || band.id);
   }, [form]);
 
   const getBands = useCallback((): WikidataEntity[] => {
@@ -132,7 +133,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setBands = useCallback((bands: WikidataEntity[]) => {
     form.setValue(`${FORM_KEY}.bands`, bands);
-    console.log('🎸 Set bands:', bands.length);
+    logger.debug('MusicDetailsFormProvider', 'Set bands', bands.length);
   }, [form]);
 
   const addBand = useCallback((band: WikidataEntity) => {
@@ -142,7 +143,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
     if (!exists) {
       const updatedBands = [...bands, band];
       setBands(updatedBands);
-      console.log('➕ Added band:', band.labels?.en?.value || band.id);
+      logger.debug('MusicDetailsFormProvider', 'Added band', band.labels?.en?.value || band.id);
     }
   }, [getBands, setBands]);
 
@@ -150,7 +151,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
     const bands = getBands();
     const updatedBands = bands.filter(b => b.id !== bandId);
     setBands(updatedBands);
-    console.log('➖ Removed band:', bandId);
+    logger.debug('MusicDetailsFormProvider', 'Removed band', bandId);
   }, [getBands, setBands]);
 
   const getMusicians = useCallback((): WikidataEntity[] => {
@@ -159,7 +160,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setMusicians = useCallback((musicians: WikidataEntity[]) => {
     form.setValue(`${FORM_KEY}.musicians`, musicians);
-    console.log('🎤 Set musicians:', musicians.length);
+    logger.debug('MusicDetailsFormProvider', 'Set musicians', musicians.length);
   }, [form]);
 
   const addMusician = useCallback((musician: WikidataEntity) => {
@@ -169,7 +170,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
     if (!exists) {
       const updatedMusicians = [...musicians, musician];
       setMusicians(updatedMusicians);
-      console.log('➕ Added musician:', musician.labels?.en?.value || musician.id);
+      logger.debug('MusicDetailsFormProvider', 'Added musician', musician.labels?.en?.value || musician.id);
     }
   }, [getMusicians, setMusicians]);
 
@@ -177,7 +178,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
     const musicians = getMusicians();
     const updatedMusicians = musicians.filter(m => m.id !== musicianId);
     setMusicians(updatedMusicians);
-    console.log('➖ Removed musician:', musicianId);
+    logger.debug('MusicDetailsFormProvider', 'Removed musician', musicianId);
   }, [getMusicians, setMusicians]);
 
   const getVenue = useCallback((): WikidataEntity | null => {
@@ -186,7 +187,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setVenue = useCallback((venue: WikidataEntity) => {
     form.setValue(`${FORM_KEY}.venue`, venue);
-    console.log('🏛️ Set venue:', venue.labels?.en?.value || venue.id);
+    logger.debug('MusicDetailsFormProvider', 'Set venue', venue.labels?.en?.value || venue.id);
   }, [form]);
 
   const getDate = useCallback((): string | null => {
@@ -195,7 +196,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setDate = useCallback((date: string) => {
     form.setValue(`${FORM_KEY}.date`, date);
-    console.log('📅 Set date:', date);
+    logger.debug('MusicDetailsFormProvider', 'Set date', date);
   }, [form]);
 
   const getStartTime = useCallback((): string | null => {
@@ -204,7 +205,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setStartTime = useCallback((time: string) => {
     form.setValue(`${FORM_KEY}.startTime`, time);
-    console.log('⏰ Set start time:', time);
+    logger.debug('MusicDetailsFormProvider', 'Set start time', time);
   }, [form]);
 
   const getEndTime = useCallback((): string | null => {
@@ -213,7 +214,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setEndTime = useCallback((time: string) => {
     form.setValue(`${FORM_KEY}.endTime`, time);
-    console.log('⏰ Set end time:', time);
+    logger.debug('MusicDetailsFormProvider', 'Set end time', time);
   }, [form]);
 
   const getGenres = useCallback((): string[] => {
@@ -222,7 +223,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
   const setGenres = useCallback((genres: string[]) => {
     form.setValue(`${FORM_KEY}.genres`, genres);
-    console.log('🎵 Set genres:', genres.length);
+    logger.debug('MusicDetailsFormProvider', 'Set genres', genres.length);
   }, [form]);
 
   const addGenre = useCallback((genre: string) => {
@@ -230,7 +231,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
     if (!genres.includes(genre)) {
       const updatedGenres = [...genres, genre];
       setGenres(updatedGenres);
-      console.log('➕ Added genre:', genre);
+      logger.debug('MusicDetailsFormProvider', 'Added genre', genre);
     }
   }, [getGenres, setGenres]);
 
@@ -238,7 +239,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
     const genres = getGenres();
     const updatedGenres = genres.filter(g => g !== genre);
     setGenres(updatedGenres);
-    console.log('➖ Removed genre:', genre);
+    logger.debug('MusicDetailsFormProvider', 'Removed genre', genre);
   }, [getGenres, setGenres]);
 
   const validate = useCallback((): boolean => {
@@ -251,25 +252,25 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
 
     // At least one event type must be defined
     if (!event && !festival) {
-      console.warn('⚠️ No music event or festival defined');
+      logger.warn('MusicDetailsFormProvider', 'No music event or festival defined');
       return false;
     }
 
     // At least one performer must be defined
     if (bands.length === 0 && musicians.length === 0) {
-      console.warn('⚠️ No bands or musicians defined');
+      logger.warn('MusicDetailsFormProvider', 'No bands or musicians defined');
       return false;
     }
 
     // Date is required
     if (!date) {
-      console.warn('⚠️ No date defined');
+      logger.warn('MusicDetailsFormProvider', 'No date defined');
       return false;
     }
 
     // Venue is recommended but not required
     if (!venue) {
-      console.warn('⚠️ No venue defined (recommended)');
+      logger.warn('MusicDetailsFormProvider', 'No venue defined (recommended)');
     }
 
     return true;
@@ -288,7 +289,7 @@ export function MusicDetailsFormProvider({ children }: MusicDetailsFormProviderP
       endTime: null,
       genres: []
     });
-    console.log('🧹 Cleared music details');
+    logger.debug('MusicDetailsFormProvider', 'Cleared music details');
   }, [form]);
 
   const value: MusicDetailsFormContextType = {

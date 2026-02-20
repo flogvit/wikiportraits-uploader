@@ -3,6 +3,7 @@
  */
 
 import { CommonsClient } from '@/lib/api/CommonsClient';
+import { logger } from '@/utils/logger';
 
 export interface WikiPortraitsTemplateConfig {
   eventName: string;
@@ -111,7 +112,7 @@ export async function checkTemplateExists(templateName: string): Promise<boolean
 
     return false;
   } catch (error) {
-    console.error('Error checking template existence:', error);
+    logger.error('wikiportraits-templates', 'Error checking template existence', error);
     return false;
   }
 }

@@ -3,6 +3,7 @@
 import { RotateCcw } from 'lucide-react';
 import { imageCache } from '@/utils/image-cache';
 import { lookupCache } from '@/utils/lookup-cache';
+import { logger } from '@/utils/logger';
 
 export default function StartFreshButton() {
   const handleStartFresh = async () => {
@@ -24,11 +25,11 @@ export default function StartFreshButton() {
     try {
       // Clear images from IndexedDB
       await imageCache.clearImages();
-      console.log('🗑️ Cleared images from IndexedDB');
+      logger.info('StartFreshButton', 'Cleared images from IndexedDB');
 
       // Clear API cache
       lookupCache.clear();
-      console.log('🗑️ Cleared API cache from localStorage');
+      logger.info('StartFreshButton', 'Cleared API cache from localStorage');
 
       // Clear form data from localStorage
       if (typeof window !== 'undefined') {
@@ -41,13 +42,13 @@ export default function StartFreshButton() {
           }
         }
         keysToRemove.forEach(key => localStorage.removeItem(key));
-        console.log('🗑️ Cleared form data from localStorage');
+        logger.info('StartFreshButton', 'Cleared form data from localStorage');
       }
 
       // Reload page to ensure clean state
       window.location.reload();
     } catch (error) {
-      console.error('Error starting fresh:', error);
+      logger.error('StartFreshButton', 'Error starting fresh', error);
       alert('Failed to clear data. Please try again or clear your browser cache manually.');
     }
   };
