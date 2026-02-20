@@ -1,7 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Camera, Music, Users, FileImage } from 'lucide-react';
+import {
+  Camera,
+  Music,
+  Users,
+  FileImage,
+  Award,
+  Film,
+  Mic2,
+  Briefcase,
+  Trophy,
+  Palette,
+  Building2,
+  Megaphone
+} from 'lucide-react';
 import { UploadType } from '@/types/upload';
 
 interface UploadTypeSelectorProps {
@@ -19,27 +32,83 @@ const uploadTypes = [
     disabled: true
   },
   {
-    id: 'soccer' as const,
-    title: 'Soccer Match',
-    description: 'Upload players from a soccer match with team tagging',
-    icon: Users,
-    color: 'bg-success/20 hover:bg-success/30 border-success/40',
-    disabled: true
-  },
-  {
     id: 'music' as UploadType,
     title: 'Music Event',
-    description: 'Upload musicians and performers from an event',
+    description: 'Festivals, concerts, and music performances',
     icon: Music,
     color: 'bg-accent hover:bg-accent/80 border-accent/40',
     disabled: false
   },
   {
+    id: 'awards' as const,
+    title: 'Awards & Ceremonies',
+    description: 'Nobel Prize, Oscars, Grammys, and other award events',
+    icon: Award,
+    color: 'bg-yellow-100 hover:bg-yellow-200 border-yellow-300',
+    disabled: true
+  },
+  {
+    id: 'red-carpet' as const,
+    title: 'Red Carpet Events',
+    description: 'Movie premieres, fashion shows, and galas',
+    icon: Film,
+    color: 'bg-red-100 hover:bg-red-200 border-red-300',
+    disabled: true
+  },
+  {
+    id: 'press' as const,
+    title: 'Press Conferences',
+    description: 'Political, movie, and product press conferences',
+    icon: Mic2,
+    color: 'bg-blue-100 hover:bg-blue-200 border-blue-300',
+    disabled: true
+  },
+  {
+    id: 'sports' as const,
+    title: 'Sports Events',
+    description: 'Soccer, Olympics, tennis, and other sporting events',
+    icon: Trophy,
+    color: 'bg-green-100 hover:bg-green-200 border-green-300',
+    disabled: true
+  },
+  {
+    id: 'production' as const,
+    title: 'Film & TV Production',
+    description: 'Movie shoots, TV filming, and behind-the-scenes',
+    icon: Film,
+    color: 'bg-purple-100 hover:bg-purple-200 border-purple-300',
+    disabled: true
+  },
+  {
+    id: 'political' as const,
+    title: 'Political Events',
+    description: 'Rallies, debates, summits, and campaigns',
+    icon: Megaphone,
+    color: 'bg-indigo-100 hover:bg-indigo-200 border-indigo-300',
+    disabled: true
+  },
+  {
+    id: 'cultural' as const,
+    title: 'Cultural Events',
+    description: 'Theatre, opera, art exhibitions, and performances',
+    icon: Palette,
+    color: 'bg-pink-100 hover:bg-pink-200 border-pink-300',
+    disabled: true
+  },
+  {
+    id: 'corporate' as const,
+    title: 'Corporate Events',
+    description: 'Tech conferences, product launches, business meetings',
+    icon: Briefcase,
+    color: 'bg-slate-100 hover:bg-slate-200 border-slate-300',
+    disabled: true
+  },
+  {
     id: 'portraits' as const,
     title: 'Portrait Session',
-    description: 'Upload portrait photos with enhanced metadata',
+    description: 'Professional portrait photography sessions',
     icon: Camera,
-    color: 'bg-primary/20 hover:bg-primary/30 border-primary/40',
+    color: 'bg-orange-100 hover:bg-orange-200 border-orange-300',
     disabled: true
   }
 ];
@@ -58,7 +127,7 @@ export default function UploadTypeSelector({ onTypeSelect, selectedType }: Uploa
   return (
     <div className="mb-8">
       <h2 className="text-2xl font-semibold text-foreground mb-4">Choose Upload Type</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {uploadTypes.map((type) => {
           const Icon = type.icon;
           const isSelected = selected === type.id;

@@ -14,18 +14,25 @@ describe('UploadTypeSelector', () => {
     )
 
     expect(screen.getByText('General Upload')).toBeInTheDocument()
-    expect(screen.getByText('Soccer Match')).toBeInTheDocument()
     expect(screen.getByText('Music Event')).toBeInTheDocument()
+    expect(screen.getByText('Awards & Ceremonies')).toBeInTheDocument()
+    expect(screen.getByText('Red Carpet Events')).toBeInTheDocument()
+    expect(screen.getByText('Press Conferences')).toBeInTheDocument()
+    expect(screen.getByText('Sports Events')).toBeInTheDocument()
+    expect(screen.getByText('Film & TV Production')).toBeInTheDocument()
+    expect(screen.getByText('Political Events')).toBeInTheDocument()
+    expect(screen.getByText('Cultural Events')).toBeInTheDocument()
+    expect(screen.getByText('Corporate Events')).toBeInTheDocument()
     expect(screen.getByText('Portrait Session')).toBeInTheDocument()
   })
 
   it('shows correct selected value', () => {
     render(
-      <UploadTypeSelector onTypeSelect={mockOnTypeSelect} selectedType="soccer" />
+      <UploadTypeSelector onTypeSelect={mockOnTypeSelect} selectedType="music" />
     )
 
-    const soccerButton = screen.getByText('Soccer Match').closest('button')
-    expect(soccerButton).toHaveClass('border-primary')
+    const musicButton = screen.getByText('Music Event').closest('button')
+    expect(musicButton).toHaveClass('border-primary')
   })
 
   it('calls onTypeSelect when option is selected', () => {
@@ -43,9 +50,9 @@ describe('UploadTypeSelector', () => {
     )
 
     expect(screen.getByText(/standard wikiportraits upload/i)).toBeInTheDocument()
-    expect(screen.getByText(/upload players from a soccer match/i)).toBeInTheDocument()
-    expect(screen.getByText(/upload musicians and performers/i)).toBeInTheDocument()
-    expect(screen.getByText(/upload portrait photos with enhanced/i)).toBeInTheDocument()
+    expect(screen.getByText(/festivals, concerts, and music performances/i)).toBeInTheDocument()
+    expect(screen.getByText(/nobel prize, oscars, grammys/i)).toBeInTheDocument()
+    expect(screen.getByText(/professional portrait photography/i)).toBeInTheDocument()
   })
 
   it('displays correct icons for each upload type', () => {
@@ -55,8 +62,8 @@ describe('UploadTypeSelector', () => {
 
     // Check that SVG icons are rendered (they should be in the DOM)
     const buttons = screen.getAllByRole('button')
-    expect(buttons).toHaveLength(4)
-    
+    expect(buttons).toHaveLength(11)
+
     // Check that each button has an icon (SVG element)
     buttons.forEach(button => {
       expect(button.querySelector('svg')).toBeInTheDocument()

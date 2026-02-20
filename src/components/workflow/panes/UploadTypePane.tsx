@@ -1,6 +1,20 @@
 'use client';
 
-import { Camera, Music, Users, FileImage, CheckCircle, ArrowRight } from 'lucide-react';
+import {
+  Camera,
+  Music,
+  Users,
+  FileImage,
+  CheckCircle,
+  ArrowRight,
+  Award,
+  Film,
+  Mic2,
+  Briefcase,
+  Trophy,
+  Palette,
+  Megaphone
+} from 'lucide-react';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import { UploadType } from '@/types/upload';
 
@@ -15,31 +29,142 @@ const uploadTypes = [
     description: 'Standard WikiPortraits upload with basic metadata',
     icon: FileImage,
     color: 'hover:border-gray-300 hover:bg-gray-25',
-    disabled: true
-  },
-  {
-    id: 'soccer' as const,
-    title: 'Soccer Match',
-    description: 'Upload players from a soccer match with team tagging',
-    icon: Users,
-    color: 'hover:border-emerald-300 hover:bg-emerald-25',
-    disabled: true
+    disabled: true,
+    features: [
+      'Basic metadata entry',
+      'Standard categorization',
+      'Simple upload workflow'
+    ]
   },
   {
     id: 'music' as UploadType,
     title: 'Music Event',
-    description: 'Upload musicians and performers from an event',
+    description: 'Festivals, concerts, and music performances',
     icon: Music,
     color: 'hover:border-blue-300 hover:bg-blue-25',
-    disabled: false
+    disabled: false,
+    features: [
+      'Festival and concert support',
+      'Band and performer categorization',
+      'Event-specific metadata'
+    ]
+  },
+  {
+    id: 'awards' as const,
+    title: 'Awards & Ceremonies',
+    description: 'Nobel Prize, Oscars, Grammys, and other award events',
+    icon: Award,
+    color: 'hover:border-yellow-300 hover:bg-yellow-25',
+    disabled: true,
+    features: [
+      'Award ceremony categorization',
+      'Winner and nominee tagging',
+      'Event-specific metadata'
+    ]
+  },
+  {
+    id: 'red-carpet' as const,
+    title: 'Red Carpet Events',
+    description: 'Movie premieres, fashion shows, and galas',
+    icon: Film,
+    color: 'hover:border-red-300 hover:bg-red-25',
+    disabled: true,
+    features: [
+      'Celebrity identification',
+      'Fashion and style metadata',
+      'Event location tracking'
+    ]
+  },
+  {
+    id: 'press' as const,
+    title: 'Press Conferences',
+    description: 'Political, movie, and product press conferences',
+    icon: Mic2,
+    color: 'hover:border-blue-300 hover:bg-blue-25',
+    disabled: true,
+    features: [
+      'Speaker identification',
+      'Topic and subject tagging',
+      'Organization categorization'
+    ]
+  },
+  {
+    id: 'sports' as const,
+    title: 'Sports Events',
+    description: 'Soccer, Olympics, tennis, and other sporting events',
+    icon: Trophy,
+    color: 'hover:border-green-300 hover:bg-green-25',
+    disabled: true,
+    features: [
+      'Team and player tagging',
+      'Match-specific categories',
+      'League and tournament support'
+    ]
+  },
+  {
+    id: 'production' as const,
+    title: 'Film & TV Production',
+    description: 'Movie shoots, TV filming, and behind-the-scenes',
+    icon: Film,
+    color: 'hover:border-purple-300 hover:bg-purple-25',
+    disabled: true,
+    features: [
+      'Production crew tagging',
+      'Scene and location metadata',
+      'Cast and character info'
+    ]
+  },
+  {
+    id: 'political' as const,
+    title: 'Political Events',
+    description: 'Rallies, debates, summits, and campaigns',
+    icon: Megaphone,
+    color: 'hover:border-indigo-300 hover:bg-indigo-25',
+    disabled: true,
+    features: [
+      'Politician identification',
+      'Party and organization tags',
+      'Event and topic categorization'
+    ]
+  },
+  {
+    id: 'cultural' as const,
+    title: 'Cultural Events',
+    description: 'Theatre, opera, art exhibitions, and performances',
+    icon: Palette,
+    color: 'hover:border-pink-300 hover:bg-pink-25',
+    disabled: true,
+    features: [
+      'Artist and performer tagging',
+      'Venue and production metadata',
+      'Cultural event categorization'
+    ]
+  },
+  {
+    id: 'corporate' as const,
+    title: 'Corporate Events',
+    description: 'Tech conferences, product launches, business meetings',
+    icon: Briefcase,
+    color: 'hover:border-slate-300 hover:bg-slate-25',
+    disabled: true,
+    features: [
+      'Company and speaker tagging',
+      'Product and technology metadata',
+      'Industry categorization'
+    ]
   },
   {
     id: 'portraits' as const,
     title: 'Portrait Session',
-    description: 'Upload portrait photos with enhanced metadata',
+    description: 'Professional portrait photography sessions',
     icon: Camera,
-    color: 'hover:border-purple-300 hover:bg-purple-25',
-    disabled: true
+    color: 'hover:border-orange-300 hover:bg-orange-25',
+    disabled: true,
+    features: [
+      'Enhanced portrait metadata',
+      'Person identification tools',
+      'Professional session support'
+    ]
   }
 ];
 
@@ -69,15 +194,7 @@ export default function UploadTypePane({ onComplete }: UploadTypePaneProps) {
 
   return (
     <div className="space-y-6">
-      <div className="text-center mb-8">
-        <FileImage className="w-12 h-12 text-primary mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-card-foreground mb-2">Choose Upload Type</h2>
-        <p className="text-muted-foreground">
-          Select the type of content you want to upload to Wikimedia Commons
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
         {uploadTypes.map((type) => {
           const Icon = type.icon;
           const isSelected = selectedUploadType === type.id;
@@ -96,34 +213,36 @@ export default function UploadTypePane({ onComplete }: UploadTypePaneProps) {
                     : `border-border ${type.color}`
               }`}
             >
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <Icon 
+                  <Icon
                     className={`w-12 h-12 ${
-                      isDisabled 
-                        ? 'text-gray-400' 
-                        : isSelected 
-                          ? 'text-primary' 
+                      isDisabled
+                        ? 'text-gray-400'
+                        : isSelected
+                          ? 'text-primary'
                           : 'text-muted-foreground'
-                    }`} 
+                    }`}
                   />
-                  <h3 className={`text-xl font-semibold ${
-                    isDisabled 
-                      ? 'text-gray-500' 
-                      : isSelected 
-                        ? 'text-primary' 
-                        : 'text-card-foreground'
-                  }`}>
-                    {type.title}
-                  </h3>
+                  <div>
+                    <h3 className={`text-xl font-semibold ${
+                      isDisabled
+                        ? 'text-gray-500'
+                        : isSelected
+                          ? 'text-primary'
+                          : 'text-card-foreground'
+                    }`}>
+                      {type.title}
+                    </h3>
+                    {isDisabled && (
+                      <div className="text-xs text-gray-500 font-medium mt-0.5">
+                        Coming Soon
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {isSelected && !isDisabled && (
                   <CheckCircle className="w-6 h-6 text-primary" />
-                )}
-                {isDisabled && (
-                  <div className="text-xs text-gray-500 font-medium">
-                    Coming Soon
-                  </div>
                 )}
               </div>
               
@@ -137,42 +256,17 @@ export default function UploadTypePane({ onComplete }: UploadTypePaneProps) {
                 {type.description}
               </p>
 
-              {/* Add feature list based on type */}
+              {/* Feature list */}
               <ul className={`text-xs space-y-1 ${
-                isDisabled 
-                  ? 'text-gray-400' 
-                  : isSelected 
-                    ? 'text-primary/70' 
+                isDisabled
+                  ? 'text-gray-400'
+                  : isSelected
+                    ? 'text-primary/70'
                     : 'text-muted-foreground'
               }`}>
-                {type.id === 'music' && (
-                  <>
-                    <li>• Festival and concert support</li>
-                    <li>• Band and performer categorization</li>
-                    <li>• Event-specific metadata</li>
-                  </>
-                )}
-                {type.id === 'soccer' && (
-                  <>
-                    <li>• Team and player tagging</li>
-                    <li>• Match-specific categories</li>
-                    <li>• League and tournament support</li>
-                  </>
-                )}
-                {type.id === 'portraits' && (
-                  <>
-                    <li>• Enhanced portrait metadata</li>
-                    <li>• Person identification tools</li>
-                    <li>• Professional session support</li>
-                  </>
-                )}
-                {type.id === 'general' && (
-                  <>
-                    <li>• Basic metadata entry</li>
-                    <li>• Standard categorization</li>
-                    <li>• Simple upload workflow</li>
-                  </>
-                )}
+                {type.features.map((feature, idx) => (
+                  <li key={idx}>• {feature}</li>
+                ))}
               </ul>
             </button>
           );
