@@ -12,11 +12,11 @@ describe('logger', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    process.env.NODE_ENV = originalEnv;
+    (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
   });
 
   it('logger.debug calls console.debug in development', () => {
-    process.env.NODE_ENV = 'development';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
     logger.debug('TestCtx', 'hello', { extra: 1 });
     expect(console.debug).toHaveBeenCalledWith(
       '[DEBUG] [TestCtx] hello',
@@ -25,7 +25,7 @@ describe('logger', () => {
   });
 
   it('logger.info calls console.info in development', () => {
-    process.env.NODE_ENV = 'development';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
     logger.info('Ctx', 'info msg');
     expect(console.info).toHaveBeenCalledWith('[INFO] [Ctx] info msg');
   });
@@ -42,7 +42,7 @@ describe('logger', () => {
   });
 
   it('suppresses debug/info in production', () => {
-    process.env.NODE_ENV = 'production';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     logger.debug('Ctx', 'should not appear');
     logger.info('Ctx', 'should not appear');
     expect(console.debug).not.toHaveBeenCalled();
@@ -50,7 +50,7 @@ describe('logger', () => {
   });
 
   it('still logs warn/error in production', () => {
-    process.env.NODE_ENV = 'production';
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
     logger.warn('Ctx', 'prod warning');
     logger.error('Ctx', 'prod error');
     expect(console.warn).toHaveBeenCalled();
