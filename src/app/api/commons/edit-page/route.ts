@@ -4,6 +4,7 @@ import { authOptions } from '../../auth/[...nextauth]/route';
 import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, editPageSchema } from '@/lib/api-validation';
 
 /**
  * Edit a Commons file page with new wikitext
@@ -23,15 +24,9 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { filename, wikitext, summary } = body;
-
-    if (!filename || !wikitext) {
-      return NextResponse.json({
-        success: false,
-        error: 'Filename and wikitext are required'
-      }, { status: 400 });
-    }
+    const parsed = parseBody(editPageSchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { filename, wikitext, summary } = parsed.data;
 
     // Step 1: Get CSRF token
     const tokenUrl = new URL('https://commons.wikimedia.org/w/api.php');

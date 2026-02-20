@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { createClaim } from '@/utils/wikidata-api';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { parseBody, createClaimSchema } from '@/lib/api-validation';
 
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(getRateLimitKey(request, 'wikidata-create-claim'), { limit: 30 });
@@ -13,11 +14,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { entityId, propertyId, value } = await request.json();
-
-  if (!entityId || !propertyId || !value) {
-    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
-  }
+  const parsed = parseBody(createClaimSchema, await request.json());
+  if (!parsed.success) return parsed.response;
+  const { entityId, propertyId, value } = parsed.data;
 
   try {
     const result = await createClaim(token.accessToken as string, entityId, propertyId, value);

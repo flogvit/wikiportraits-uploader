@@ -3,6 +3,7 @@ import { WikidataClient, WikidataHelpers } from '@/lib/api/WikidataClient';
 import { WikidataEntity } from '@/types/wikidata';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, wikidataSearchSchema } from '@/lib/api-validation';
 
 interface SearchResult {
   id: string;
@@ -21,14 +22,13 @@ export async function GET(request: NextRequest) {
     if (!rl.success) return rateLimitResponse(rl);
 
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get('q');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50);
-
-    if (!query || query.trim().length === 0) {
-      return NextResponse.json({ 
-        error: 'Query parameter is required' 
-      }, { status: 400 });
-    }
+    const parsed = parseBody(wikidataSearchSchema, {
+      q: searchParams.get('q') || '',
+      limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
+    });
+    if (!parsed.success) return parsed.response;
+    const query = parsed.data.q;
+    const limit = parsed.data.limit ?? 10;
 
     // Use WikidataClient to search for entities
     const searchResponse = await WikidataClient.searchEntities({

@@ -5,6 +5,7 @@ import { PendingWikidataEntity, PendingBandMemberData } from '@/types/music';
 import { createWikidataEntity, getUserPermissions } from '@/utils/wikidata';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, createEntitySchema, batchCreateEntitySchema } from '@/lib/api-validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,19 +17,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const body = await request.json();
-    logger.debug('wikidata/create-entity', 'Received body', body);
-    const { entity, entityData, accessToken } = body;
+    const parsed = parseBody(createEntitySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { entity, entityData, accessToken } = parsed.data;
+
+    logger.debug('wikidata/create-entity', 'Received body', parsed.data);
 
     // Support both old format (entity + accessToken) and new format (entityData only)
     const finalEntity = entity || entityData;
     const finalAccessToken = accessToken || session.accessToken;
 
     logger.debug('wikidata/create-entity', 'Resolved entity', { finalEntity, hasEntity: !!entity, hasEntityData: !!entityData });
-
-    if (!finalEntity) {
-      return NextResponse.json({ error: 'Entity data is required' }, { status: 400 });
-    }
 
     // If using new format (entityData), call createWikidataEntity directly
     if (entityData && !entity) {
@@ -518,11 +517,9 @@ function getLanguageId(language: string): string {
 // Batch creation endpoint
 export async function PATCH(request: NextRequest) {
   try {
-    const { entities, accessToken } = await request.json();
-    
-    if (!entities || !Array.isArray(entities) || !accessToken) {
-      return NextResponse.json({ error: 'Entities array and access token are required' }, { status: 400 });
-    }
+    const parsed = parseBody(batchCreateEntitySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { entities, accessToken } = parsed.data;
 
     const results = [];
     

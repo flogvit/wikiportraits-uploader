@@ -4,6 +4,7 @@ import { authOptions } from '../../auth/[...nextauth]/route';
 import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, createCategorySchema } from '@/lib/api-validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +16,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const { categoryName, parentCategory, description, teamName, additionalParents } = await request.json();
-
-    if (!categoryName) {
-      return NextResponse.json({ error: 'Category name is required' }, { status: 400 });
-    }
+    const parsed = parseBody(createCategorySchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { categoryName, parentCategory, description, teamName, additionalParents } = parsed.data;
 
     // First, check if category already exists
     const checkUrl = new URL('https://commons.wikimedia.org/w/api.php');

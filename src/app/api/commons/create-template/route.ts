@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, createTemplateSchema } from '@/lib/api-validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,14 +20,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { templateName, content, summary, templateCode } = await request.json();
+    const parsed = parseBody(createTemplateSchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { templateName, content, summary, templateCode } = parsed.data;
 
     // Support both 'content' (new) and 'templateCode' (old) parameter names
     const templateContent = content || templateCode;
 
-    if (!templateName || !templateContent) {
+    if (!templateContent) {
       return NextResponse.json(
-        { error: 'Template name and content are required' },
+        { error: 'Template content is required (provide content or templateCode)' },
         { status: 400 }
       );
     }

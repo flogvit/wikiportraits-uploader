@@ -4,11 +4,7 @@ import { authOptions } from '../../auth/[...nextauth]/route';
 import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
-
-interface Caption {
-  language: string;
-  text: string;
-}
+import { parseBody, updateCaptionsSchema } from '@/lib/api-validation';
 
 /**
  * Update captions (labels) on a Commons file's structured data
@@ -27,15 +23,9 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { pageId, captions } = body as { pageId: number; captions: Caption[] };
-
-    if (!pageId || !captions) {
-      return NextResponse.json({
-        success: false,
-        error: 'pageId and captions are required'
-      }, { status: 400 });
-    }
+    const parsed = parseBody(updateCaptionsSchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { pageId, captions } = parsed.data;
 
     // MediaInfo entity ID is M{pageId}
     const mediaInfoId = `M${pageId}`;

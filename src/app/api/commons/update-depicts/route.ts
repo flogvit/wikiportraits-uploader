@@ -4,11 +4,7 @@ import { authOptions } from '../../auth/[...nextauth]/route';
 import { fetchWithTimeout, TOKEN_TIMEOUT_MS } from '@/utils/fetch-utils';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
-
-interface DepictsItem {
-  qid: string;
-  label: string;
-}
+import { parseBody, updateDepictsSchema } from '@/lib/api-validation';
 
 /**
  * Update depicts (P180) statements on a Commons file
@@ -28,15 +24,9 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { pageId, depicts } = body as { pageId: number; depicts: DepictsItem[] };
-
-    if (!pageId || !depicts) {
-      return NextResponse.json({
-        success: false,
-        error: 'pageId and depicts are required'
-      }, { status: 400 });
-    }
+    const parsed = parseBody(updateDepictsSchema, await request.json());
+    if (!parsed.success) return parsed.response;
+    const { pageId, depicts } = parsed.data;
 
     // MediaInfo entity ID is M{pageId}
     const mediaInfoId = `M${pageId}`;

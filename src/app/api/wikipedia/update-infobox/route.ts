@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { updateInfoboxImage } from '@/utils/wikipedia-api';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
+import { parseBody, updateInfoboxSchema } from '@/lib/api-validation';
 
 export async function POST(request: NextRequest) {
   const rl = checkRateLimit(getRateLimitKey(request, 'wikipedia-update-infobox'), { limit: 30 });
@@ -13,11 +14,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { lang, title, image, summary } = await request.json();
-
-  if (!lang || !title || !image || !summary) {
-    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
-  }
+  const parsed = parseBody(updateInfoboxSchema, await request.json());
+  if (!parsed.success) return parsed.response;
+  const { lang, title, image, summary } = parsed.data;
 
   try {
     const result = await updateInfoboxImage(token.accessToken as string, lang, title, image, summary);

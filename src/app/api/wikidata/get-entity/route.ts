@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { WikidataClient, WikidataHelpers } from '@/lib/api/WikidataClient';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, wikidataGetEntitySchema } from '@/lib/api-validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,13 +10,11 @@ export async function GET(request: NextRequest) {
     if (!rl.success) return rateLimitResponse(rl);
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({
-        error: 'ID parameter is required'
-      }, { status: 400 });
-    }
+    const parsed = parseBody(wikidataGetEntitySchema, {
+      id: searchParams.get('id') || '',
+    });
+    if (!parsed.success) return parsed.response;
+    const { id } = parsed.data;
 
     // Fetch entity from Wikidata
     const entity = await WikidataClient.getEntity(id);

@@ -5,6 +5,7 @@ import { generateCommonsTemplate, generateFilename } from '@/utils/commons-templ
 import type { ImageFile } from '@/types';
 import { checkRateLimit, getRateLimitKey, rateLimitResponse } from '@/utils/rate-limit';
 import { logger } from '@/utils/logger';
+import { parseBody, uploadMetadataSchema } from '@/lib/api-validation';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const metadata = JSON.parse(formData.get('metadata') as string);
+    const rawMetadata = formData.get('metadata') as string;
 
     if (!file) {
       return NextResponse.json(
@@ -30,6 +31,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    let metadataJson: unknown;
+    try {
+      metadataJson = JSON.parse(rawMetadata);
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid metadata JSON' },
+        { status: 400 }
+      );
+    }
+
+    const parsedMeta = parseBody(uploadMetadataSchema, metadataJson);
+    if (!parsedMeta.success) return parsedMeta.response;
+    const metadata = parsedMeta.data;
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -58,12 +73,12 @@ export async function POST(request: NextRequest) {
 
     // Generate Commons page content
     const pageContent = generateCommonsTemplate({
-      description: metadata.description,
-      author: metadata.author,
-      date: metadata.date,
-      source: metadata.source,
-      license: metadata.license,
-      categories: metadata.categories || [],
+      description: metadata.description ?? '',
+      author: metadata.author ?? '',
+      date: metadata.date ?? '',
+      source: metadata.source ?? '',
+      license: metadata.license ?? '',
+      categories: metadata.categories ?? [],
       event: metadata.event,
       location: metadata.location,
     });

@@ -26,9 +26,16 @@ export async function POST(request: NextRequest) {
     const text = formData.get('text') as string;
     const comment = formData.get('comment') as string;
 
-    if (!file || !filename) {
+    if (!file) {
       return NextResponse.json(
-        { error: 'File and filename are required' },
+        { error: 'File is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!filename || typeof filename !== 'string' || filename.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'Filename is required' },
         { status: 400 }
       );
     }
