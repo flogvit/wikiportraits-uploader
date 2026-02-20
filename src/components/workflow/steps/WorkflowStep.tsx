@@ -1,5 +1,7 @@
 'use client';
 
+import { logger } from '@/utils/logger';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useWorkflow } from '../providers/WorkflowProvider';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
 import UploadTypePane from '../panes/UploadTypePane';
@@ -97,21 +99,21 @@ export default function WorkflowStep() {
       case 'categories':
         return (
           <CategoriesPane
-            onComplete={handleCategoriesComplete}
+            onCompleteAction={handleCategoriesComplete}
           />
         );
 
       case 'images':
         return (
           <ImagesPane
-            onComplete={handleImagesComplete}
+            onCompleteAction={handleImagesComplete}
           />
         );
 
       case 'wikidata':
         return (
           <WikidataPane
-            onComplete={() => console.log('Wikidata completed!')}
+            onComplete={() => logger.info('WorkflowStep', 'Wikidata step completed')}
           />
         );
 
@@ -121,7 +123,7 @@ export default function WorkflowStep() {
       case 'upload':
         return (
           <PublishPane
-            onComplete={() => console.log('Publishing completed!')}
+            onComplete={() => logger.info('WorkflowStep', 'Publishing step completed')}
           />
         );
 
@@ -133,7 +135,9 @@ export default function WorkflowStep() {
   return (
     <div className="bg-card rounded-lg p-6">
       <div className="space-y-6">
-        {renderActiveStep()}
+        <ErrorBoundary name={activeTab}>
+          {renderActiveStep()}
+        </ErrorBoundary>
       </div>
     </div>
   );
