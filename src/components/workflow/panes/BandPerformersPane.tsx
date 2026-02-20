@@ -90,8 +90,6 @@ export default function BandPerformersPane({
   const eventParticipants = eventDetails?.participants || [];
 
   const handleParticipantSelect = async (participant: any) => {
-    console.log('📍 Participant selected:', participant);
-
     // Store selected participant info
     form.setValue('workflow.selectedParticipant' as any, participant, { shouldDirty: false });
 
@@ -102,8 +100,6 @@ export default function BandPerformersPane({
         const entity = await getWikidataEntity(participant.id, 'en', 'labels|descriptions|claims');
 
         if (entity) {
-          console.log('✅ Fetched participant entity:', entity.id, entity.labels?.en?.value);
-
           // Remove existing main band if any
           const existingBandIndex = organizations.findIndex(org =>
             org.claims?.['P31']?.some(claim =>
@@ -123,7 +119,6 @@ export default function BandPerformersPane({
             setTitle(entity.labels?.en?.value || participant.name);
           }
 
-          console.log('✅ Added participant as main organization');
         }
       } catch (error) {
         console.error('Error fetching participant entity:', error);
@@ -173,6 +168,23 @@ export default function BandPerformersPane({
             console.error('Error fetching wikitext for', file.title, error);
           }
 
+          // Extract description from wikitext and unwrap from language template
+          let description = '';
+          if (wikitext) {
+            const descriptionMatch = wikitext.match(/\|description=(.+?)(?=\n\|)/s);
+            if (descriptionMatch) {
+              const rawDesc = descriptionMatch[1].trim();
+              // Extract plain text from {{en|1=...}} or {{en|...}} format
+              const enMatch = rawDesc.match(/\{\{en\|(?:1=)?(.+?)\}\}/s);
+              if (enMatch) {
+                description = enMatch[1].trim();
+              } else {
+                // If not wrapped, use as-is
+                description = rawDesc;
+              }
+            }
+          }
+
           // Extract author from wikitext - preserve original formatting (e.g., Wikidata links)
           // NEVER modify author on existing images - that would be taking credit for others' work
           let author = '';
@@ -184,18 +196,67 @@ export default function BandPerformersPane({
             }
           }
 
-          // Extract selectedBandMembers from {{Depicts}} templates in wikitext
-          const selectedBandMembers: string[] = [];
+          // Extract date and time from wikitext
+          let date = '';
+          let time = '';
           if (wikitext) {
-            const depictsMatches = wikitext.matchAll(/\{\{Depicts\|([Q\d]+)\}\}/g);
-            for (const match of depictsMatches) {
-              const qid = match[1];
-              // Exclude the band itself (check against participant.id)
-              if (qid !== participant.id) {
-                selectedBandMembers.push(qid);
+            const dateMatch = wikitext.match(/\|date=(.+?)(?=\n\|)/s);
+            if (dateMatch) {
+              const dateValue = dateMatch[1].trim();
+              // If it's a datetime string, split it
+              if (dateValue.includes(' ')) {
+                const parts = dateValue.split(' ');
+                date = parts[0]; // yyyy-MM-dd
+                time = parts[1]; // HH:mm:ss
+              } else {
+                date = dateValue;
               }
             }
-            console.log('🏷️ Extracted selectedBandMembers from Depicts templates:', selectedBandMembers);
+          }
+
+          // Extract permission from wikitext
+          let permission = '';
+          if (wikitext) {
+            const permissionMatch = wikitext.match(/\|permission=(.+?)(?=\n\|)/s);
+            if (permissionMatch) {
+              permission = permissionMatch[1].trim();
+            }
+          }
+
+          // Extract selectedBandMembers and captions from structured data (SDC)
+          const selectedBandMembers: string[] = [];
+          let captions: { language: string; text: string }[] = [];
+
+          if (file.pageid) {
+            try {
+              const { getExistingDepicts, getExistingCaptions } = await import('@/utils/commons-structured-data');
+
+              // Fetch depicts
+              const depictsStatements = await getExistingDepicts(file.pageid);
+
+              // Filter out the band itself and collect member IDs
+              for (const depicts of depictsStatements) {
+                if (depicts.entityId !== participant.id) {
+                  selectedBandMembers.push(depicts.entityId);
+                }
+              }
+
+              // Fetch captions
+              captions = await getExistingCaptions(file.pageid);
+            } catch (error) {
+              console.error('Error fetching structured data:', error);
+
+              // Fallback to wikitext parsing if structured data fails
+              if (wikitext) {
+                const depictsMatches = wikitext.matchAll(/\{\{Depicts\|([Q\d]+)\}\}/g);
+                for (const match of depictsMatches) {
+                  const qid = match[1];
+                  if (qid !== participant.id) {
+                    selectedBandMembers.push(qid);
+                  }
+                }
+              }
+            }
           }
 
           return {
@@ -208,23 +269,25 @@ export default function BandPerformersPane({
             isExisting: true,
             file: undefined,
             metadata: {
-              description: file.extmetadata?.ImageDescription?.value || '',
+              description: description || file.extmetadata?.ImageDescription?.value || '',
               categories: categories,
-              date: file.extmetadata?.DateTime?.value || file.timestamp,
+              date: date || file.extmetadata?.DateTime?.value?.substring(0, 10) || file.timestamp?.substring(0, 10) || '',
+              time: time || '',
               author: author,
               source: 'Wikimedia Commons',
               license: file.extmetadata?.LicenseShortName?.value || '',
+              permission: permission, // Extract from wikitext
               wikitext: wikitext, // Store the actual wikitext
               wikitextModified: true, // Mark as modified so it won't be auto-regenerated
-              selectedBandMembers: selectedBandMembers // Extract from Depicts templates
+              selectedBandMembers: selectedBandMembers, // Extract from Depicts templates
+              captions: captions, // Load existing captions from Commons
+              _lastPerformersKey: [...selectedBandMembers].sort().join(',') // Track initial state
             }
           };
         }));
 
         // Store existing images in the form
         form.setValue('files.existing' as any, existingImages, { shouldDirty: false });
-
-        console.log(`✅ Loaded ${existingImages.length} existing images for ${participant.name}`);
       } catch (error) {
         console.error('Error loading participant images:', error);
       }
@@ -300,15 +363,12 @@ export default function BandPerformersPane({
             
             // Clear all performers when selecting a new band
             // This ensures a clean slate for the new band's performers
-            console.log('🔄 Band changed - clearing performers. Old count:', people.length);
-            
+
             // Clear localStorage first to prevent restoration
             form.clearStorage();
             
             // Then clear all people
             form.setValue('entities.people', [], { shouldDirty: true });
-            
-            console.log('🗑️ Cleared performers and localStorage for new band:', entity.labels?.en?.value);
             
             // Wrap in WDBand and ensure it's marked as a band
             const wdBand = new WDBand(entity);

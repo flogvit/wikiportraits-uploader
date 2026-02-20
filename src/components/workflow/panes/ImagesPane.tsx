@@ -1,11 +1,8 @@
 'use client';
 
 import { ImagePlus } from 'lucide-react';
-// import { ImageFile } from '@/types';
-// import { MusicEventMetadata } from '@/types/music';
-// import { SoccerMatchMetadata, SoccerPlayer } from '@/components/forms/SoccerMatchForm';
-// import { UploadType } from '@/components/selectors/UploadTypeSelector';
 import { useUniversalForm, useUniversalFormFiles } from '@/providers/UniversalFormProvider';
+import { usePublishData } from '@/providers/PublishDataProvider';
 import { useWorkflowUI } from '../providers/WorkflowUIProvider';
 import ImageUploader from '@/components/upload/ImageUploader';
 import ImageGrid from '@/components/image/ImageGrid';
@@ -20,12 +17,14 @@ export default function ImagesPane({
   const { onExportMetadata, onBulkEdit, onScrollToImage, onImageClick } = useWorkflowUI();
   const { watch, setValue, getValues } = useUniversalForm();
   const filesForm = useUniversalFormFiles();
-  
-  // Get data from the unified form  
+  const { imageActions } = usePublishData();
+
+  // Get data from the unified form
   const workflowType = watch('workflowType');
   const uploadType: 'music' = 'music';
   const eventType = workflowType === 'music-event' ? 'festival' : 'match';
   const eventDetails = watch('eventDetails');
+  const isWikiPortraitsJob = watch('isWikiPortraitsJob');
   const organizations = watch('entities.organizations') || [];
   
   // Find the main band from organizations
@@ -47,9 +46,6 @@ export default function ImagesPane({
   // Get images from files.queue (new uploads) and files.existing (from Commons)
   const existingImages = watch('files.existing') || [];
   const newImages = filesForm.queue || [];
-
-  console.log('📦 newImages:', newImages.map((img: any) => ({ id: img.id, name: img.file?.name })));
-  console.log('📦 existingImages:', existingImages.map((img: any) => ({ id: img.id, filename: img.filename })));
 
   // Combine existing and new images for display (new images on top)
   const allImages = [
@@ -95,10 +91,6 @@ export default function ImagesPane({
   const missingDetails = getMissingEventDetails();
   const hasEventDetailsWarning = missingDetails.length > 0;
 
-  const handleCompleteStep = () => {
-    onCompleteAction?.();
-  };
-
   return (
     <div className="space-y-6">
       {/* Warning for missing event details */}
@@ -142,24 +134,33 @@ export default function ImagesPane({
                   if (e.target.checked) {
                     // Apply permission to all images
                     const permissionText = getValues('eventDetails.permissionText') || 'Permission granted by the band via messenger communication. Available upon request.';
-                    const permissionTemplate = `{{Personality rights|${permissionText}}}`;
+                    const permissionTemplate = `{{Personality rights}}`;
 
                     // Update all new images
                     const updatedQueue = (getValues('files.queue') || []).map((img: any) => {
-                      // Update wikitext permission field if exists
+                      // Update wikitext: set permission field to plain text and add template after Information block
                       let updatedWikitext = img.metadata?.wikitext || '';
                       if (updatedWikitext && !img.metadata?.permissionOverride) {
+                        // Update the permission field with plain text
                         updatedWikitext = updatedWikitext.replace(
                           /\|permission=([^\n]*)/,
-                          `|permission=${permissionTemplate}`
+                          `|permission=${permissionText}`
                         );
+                        // Add Personality rights template after Information block if not already present
+                        if (!updatedWikitext.includes('{{Personality rights}}')) {
+                          updatedWikitext = updatedWikitext.replace(
+                            /(\}\})\n(=={{int:license-header}}==)/,
+                            `$1\n${permissionTemplate}\n$2`
+                          );
+                        }
                       }
 
                       return {
                         ...img,
                         metadata: {
                           ...img.metadata,
-                          permission: img.metadata?.permissionOverride || permissionTemplate,
+                          permission: img.metadata?.permissionOverride || permissionText,
+                          personalityRightsTemplate: permissionTemplate,
                           wikitext: updatedWikitext || img.metadata?.wikitext,
                           wikitextModified: !!updatedWikitext
                         }
@@ -169,20 +170,29 @@ export default function ImagesPane({
 
                     // Update all existing images
                     const updatedExisting = (getValues('files.existing') || []).map((img: any) => {
-                      // Update wikitext permission field
+                      // Update wikitext: set permission field to plain text and add template after Information block
                       let updatedWikitext = img.metadata?.wikitext || '';
                       if (updatedWikitext && !img.metadata?.permissionOverride) {
+                        // Update the permission field with plain text
                         updatedWikitext = updatedWikitext.replace(
                           /\|permission=([^\n]*)/,
-                          `|permission=${permissionTemplate}`
+                          `|permission=${permissionText}`
                         );
+                        // Add Personality rights template after Information block if not already present
+                        if (!updatedWikitext.includes('{{Personality rights}}')) {
+                          updatedWikitext = updatedWikitext.replace(
+                            /(\}\})\n(=={{int:license-header}}==)/,
+                            `$1\n${permissionTemplate}\n$2`
+                          );
+                        }
                       }
 
                       return {
                         ...img,
                         metadata: {
                           ...img.metadata,
-                          permission: img.metadata?.permissionOverride || permissionTemplate,
+                          permission: img.metadata?.permissionOverride || permissionText,
+                          personalityRightsTemplate: permissionTemplate,
                           wikitext: updatedWikitext,
                           wikitextModified: true
                         }
@@ -363,7 +373,7 @@ export default function ImagesPane({
               // Check if this is an existing image or new image
               const isExisting = id.startsWith('existing-');
 
-              console.log('📝 Updating image:', { id, updates, isExisting });
+              console.log('📝 Image pane posting update to central data:', { id, updates, isExisting });
 
               // Check for Promise values
               Object.entries(updates).forEach(([key, value]) => {
@@ -372,15 +382,15 @@ export default function ImagesPane({
                 }
               });
 
+              // Simply POST the changes to central data (UniversalFormProvider)
+              // The provider's useEffect will handle automatic calculations
               if (isExisting) {
-                // Update existing image metadata
                 const currentExisting = getValues('files.existing') || [];
                 const updatedExisting = currentExisting.map((img: any) =>
                   img.id === id ? { ...img, metadata: { ...img.metadata, ...updates } } : img
                 );
                 setValue('files.existing', updatedExisting, { shouldDirty: true });
               } else {
-                // Update new image in queue
                 const currentQueue = getValues('files.queue') || [];
                 const updatedQueue = currentQueue.map((img: any) =>
                   img.id === id ? { ...img, metadata: { ...img.metadata, ...updates } } : img

@@ -160,7 +160,6 @@ export function UniversalFormProvider({
         }
       };
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-      console.log('💾 Saved to localStorage:', storageKey);
     } catch (error) {
       console.warn('Failed to save to localStorage:', error);
     }
@@ -170,7 +169,6 @@ export function UniversalFormProvider({
     const stored = loadFromStorage();
     if (stored) {
       form.reset(stored);
-      console.log('📂 Loaded from localStorage:', storageKey);
       return true;
     }
     return false;
@@ -180,7 +178,6 @@ export function UniversalFormProvider({
     if (typeof window === 'undefined') return;
     try {
       localStorage.removeItem(storageKey);
-      console.log('🗑️ Cleared localStorage:', storageKey);
     } catch (error) {
       console.warn('Failed to clear localStorage:', error);
     }
@@ -213,11 +210,9 @@ export function UniversalFormProvider({
                 timestamp: Date.now() + index // Preserve order
               }))
             );
-            console.log('💾 Saved images to IndexedDB');
           } else {
             // No images left - clear the cache
             await imageCache.clearImages();
-            console.log('🗑️ Cleared images from IndexedDB (no images in queue)');
           }
         } catch (error) {
           console.warn('Failed to save images to IndexedDB:', error);
@@ -254,7 +249,6 @@ export function UniversalFormProvider({
             });
 
             form.setValue('files.queue', restoredFiles);
-            console.log(`📂 Restored ${cachedImages.length} images from IndexedDB`);
           }
         }
       } catch (error) {
@@ -264,6 +258,177 @@ export function UniversalFormProvider({
 
     restoreImages();
   }, []); // Only run once on mount
+
+  // Automatic updates when image performers change
+  useEffect(() => {
+    const updateImageMetadata = async () => {
+      const filesQueue = form.watch('files.queue') || [];
+      const filesExisting = form.watch('files.existing') || [];
+      const performers = form.watch('entities.people') || [];
+      const organizations = form.watch('entities.organizations') || [];
+      const eventDetails = form.watch('eventDetails');
+      const isWikiPortraitsJob = form.watch('isWikiPortraitsJob');
+
+      // Find main band
+      const selectedBand = organizations.find((org: any) =>
+        org.claims?.['P31']?.some((claim: any) =>
+          ['Q215380', 'Q5741069'].includes(claim.mainsnak?.datavalue?.value?.id)
+        )
+      );
+
+      // Process both new and existing images
+      const allFilesArrays = [
+        { files: filesQueue, key: 'files.queue' },
+        { files: filesExisting, key: 'files.existing' }
+      ];
+
+      for (const { files, key } of allFilesArrays) {
+        if (!files || files.length === 0) continue;
+
+        let hasChanges = false;
+        const updatedFiles = await Promise.all(files.map(async (img: any) => {
+          // Track what this image had before
+          const previousPerformers = img.metadata?.performerCategories || [];
+          const currentPerformers = img.metadata?.selectedBandMembers || [];
+
+          // Create a stable key from current performers to detect actual changes
+          const currentPerformersKey = [...currentPerformers].sort().join(',');
+          const previousPerformersKey = img.metadata?._lastPerformersKey || '';
+
+          // Skip if no performers selected or nothing changed
+          if (currentPerformers.length === 0 && previousPerformers.length === 0) {
+            return img;
+          }
+
+          // Skip if the performers for THIS specific image haven't changed
+          if (currentPerformersKey === previousPerformersKey && previousPerformersKey !== '') {
+            console.log('⏭️  Skipping image (performers unchanged):', img.filename || img.id);
+            return img;
+          }
+
+          console.log('🔄 Updating image metadata:', img.filename || img.id, {
+            currentPerformersKey,
+            previousPerformersKey,
+            willUpdate: true
+          });
+
+          try {
+            const { getPerformerCategory } = await import('@/utils/performer-categories');
+            const { generateMultilingualCaptions } = await import('@/utils/caption-generator');
+            const { regenerateImageWikitext } = await import('@/utils/commons-template');
+            const { generateTemplateParameters, getYearFromDate } = await import('@/utils/wikiportraits-templates');
+
+            // Get selected performers
+            const selectedPerformers = performers.filter((p: any) => {
+              const performerId = p.id || p.entity?.id;
+              return currentPerformers.includes(performerId);
+            });
+
+            // Fetch performer categories
+            const performerCategoryPromises = selectedPerformers.map(async (performer: any) => {
+              const entity = performer.entity || performer;
+              const categoryInfo = await getPerformerCategory(entity);
+              return categoryInfo.commonsCategory;
+            });
+            const newPerformerCategories = await Promise.all(performerCategoryPromises);
+
+            // Check if performer categories actually changed
+            const categoriesChanged =
+              JSON.stringify(previousPerformers.sort()) !== JSON.stringify(newPerformerCategories.sort());
+
+            if (!categoriesChanged) {
+              return img; // No changes needed
+            }
+
+            hasChanges = true;
+
+            // Remove old performer categories, add new ones
+            const currentCategories = img.metadata?.categories || [];
+            const nonPerformerCategories = currentCategories.filter((cat: string) =>
+              !previousPerformers.includes(cat)
+            );
+            const finalCategories = [...new Set([...nonPerformerCategories, ...newPerformerCategories])];
+
+            // Generate captions
+            const formData = {
+              workflowType: 'music-event',
+              eventDetails: {
+                ...eventDetails,
+                date: img.metadata?.date || eventDetails?.date
+              },
+              entities: {
+                people: selectedPerformers.map((p: any) => ({
+                  entity: p.entity || p,
+                  roles: p.roles || [],
+                  isNew: p.isNew || false,
+                  metadata: p.metadata || {}
+                })),
+                organizations: selectedBand ? [{ entity: selectedBand }] : [],
+                locations: [],
+                events: []
+              }
+            };
+            const newCaptions = generateMultilingualCaptions(
+              formData as any,
+              eventDetails?.location,
+              eventDetails?.date
+            );
+
+            // Ensure WikiPortraits template if needed
+            let wikiportraitsTemplate = img.metadata?.wikiportraitsTemplate;
+            if (!wikiportraitsTemplate && isWikiPortraitsJob === true && eventDetails?.title) {
+              const year = eventDetails?.date ? getYearFromDate(eventDetails.date) : new Date().getFullYear().toString();
+              wikiportraitsTemplate = generateTemplateParameters(eventDetails, year);
+            }
+
+            // Build updated metadata
+            const updatedMetadata = {
+              ...img.metadata,
+              categories: finalCategories,
+              performerCategories: newPerformerCategories,
+              captions: newCaptions,
+              wikiportraitsTemplate: wikiportraitsTemplate,
+              _lastPerformersKey: currentPerformersKey // Track this to prevent unnecessary re-renders
+            };
+
+            // Regenerate wikitext with all updated data
+            const updatedImage = {
+              ...img,
+              metadata: updatedMetadata
+            };
+            const regenerated = regenerateImageWikitext(updatedImage);
+
+            return {
+              ...img,
+              metadata: {
+                ...updatedMetadata,
+                wikitext: regenerated.metadata.wikitext
+              }
+            };
+
+          } catch (error) {
+            console.error('Failed to update image metadata:', error);
+            return img;
+          }
+        }));
+
+        // Only update if there were actual changes
+        if (hasChanges) {
+          form.setValue(key as any, updatedFiles, { shouldDirty: true });
+          console.log('🔄 Auto-updated image metadata for:', key);
+        }
+      }
+    };
+
+    updateImageMetadata();
+  }, [
+    form.watch('files.queue'),
+    form.watch('files.existing'),
+    form.watch('entities.people'),
+    form.watch('entities.organizations'),
+    form.watch('eventDetails'),
+    form.watch('isWikiPortraitsJob')
+  ]);
 
   // Enhanced context value with helper methods
   const contextValue: UniversalFormContextType = {
@@ -351,8 +516,6 @@ export function useUniversalFormFiles() {
     addToQueue: (files: any) => {
       const current = form.getValues('files.queue');
       const filesToAdd = Array.isArray(files) ? files : [files];
-
-      console.log('➕ addToQueue called with:', filesToAdd.map((f: any) => ({ id: f.id, name: f.file?.name, hasFile: !!f.file })));
 
       form.setValue('files.queue', [...current, ...filesToAdd], { shouldDirty: true });
     },

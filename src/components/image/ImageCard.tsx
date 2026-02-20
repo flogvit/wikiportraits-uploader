@@ -40,8 +40,6 @@ export default function ImageCard({
   const filenameInputRef = useRef<HTMLInputElement>(null);
   const isExisting = (image as any).isExisting === true;
 
-  console.log('🖼️ ImageCard render - ID:', image.id, 'isExisting:', isExisting, 'has file:', !!image.file, 'suggestedFilename:', image.metadata?.suggestedFilename);
-
   // Get current filename - ensure it's not a Promise
   const suggestedFilename = image.metadata?.suggestedFilename;
   if (suggestedFilename && typeof suggestedFilename === 'object' && 'then' in suggestedFilename) {
@@ -113,9 +111,6 @@ export default function ImageCard({
   const handlePerformerChange = async (imageId: string, memberIds: string[]) => {
     console.log('🎭 Performer change triggered:', { imageId, memberIds, bandPerformers });
 
-    // Update selected members first
-    onUpdate(imageId, { selectedBandMembers: memberIds });
-
     // Regenerate filename and description
     try {
       const { generateCommonsFilename } = await import('@/utils/commons-filename');
@@ -166,147 +161,7 @@ export default function ImageCard({
         name: p.entity.labels.en.value
       })));
 
-      // For existing images, update selectedBandMembers, description, and wikitext with new categories
-      if (isExisting) {
-        console.log('📸 Existing image - updating selectedBandMembers, description, and adding performer categories to wikitext');
-
-        // Build formData for description generation
-        const bandOrganization = bandPerformers?.selectedBand ? [{
-          entity: {
-            id: bandPerformers.selectedBand.id,
-            labels: {
-              en: {
-                language: 'en' as const,
-                value: bandPerformers.selectedBand.name
-              }
-            }
-          }
-        }] : [];
-
-        const formData = {
-          workflowType: 'music-event',
-          eventDetails: {
-            ...eventDetails,
-            date: image.metadata?.date || eventDetails?.date
-          },
-          entities: {
-            people: selectedPerformers,
-            organizations: bandOrganization,
-            locations: [],
-            events: []
-          }
-        };
-
-        // Generate new description with performers
-        const { generateMusicEventDescription } = await import('@/utils/commons-description');
-        const newDescription = generateMusicEventDescription(formData as any);
-
-        // Get performer categories for the selected members
-        const { getPerformerCategories } = await import('@/utils/performer-categories');
-        const performerCategoryInfos = await getPerformerCategories(selectedPerformers.map((p: any) => p.entity));
-
-        // Get current wikitext
-        let currentWikitext = image.metadata?.wikitext || '';
-
-        // Update description in wikitext
-        // Match the entire description field including nested templates
-        // Pattern: |description={{...anything...}}  (handles single or double wrapping)
-        currentWikitext = currentWikitext.replace(
-          /\|description=\{\{(?:[^}]|\}(?!\}))*\}\}(?:\}\})?/s,
-          `|description=${newDescription}`
-        );
-
-        // Build separate {{Depicts}} templates for each entity with comments
-        const depictsTemplates: string[] = [];
-
-        // Add band/organization
-        if (bandOrganization.length > 0 && bandOrganization[0].entity.id) {
-          const bandName = bandOrganization[0].entity.labels?.en?.value || 'Band';
-          depictsTemplates.push(`{{Depicts|${bandOrganization[0].entity.id}}} <!-- ${bandName} -->`);
-        }
-
-        // Add each performer
-        selectedPerformers.forEach((p: any) => {
-          if (p.entity?.id) {
-            const performerName = p.entity.labels?.en?.value || 'Performer';
-            depictsTemplates.push(`{{Depicts|${p.entity.id}}} <!-- ${performerName} -->`);
-          }
-        });
-
-        // Remove existing Depicts templates
-        currentWikitext = currentWikitext.replace(/\{\{Depicts\|[^}]+\}\}[^\n]*\n?/g, '');
-
-        // Add depicts templates after Information template (before license header)
-        if (depictsTemplates.length > 0) {
-          const depictsSection = depictsTemplates.join('\n');
-
-          currentWikitext = currentWikitext.replace(
-            /(\}\})\s*(=={{int:license-header}}==)/,
-            `$1\n${depictsSection}\n\n$2`
-          );
-
-          console.log('🏷️ Added Depicts templates:', depictsTemplates);
-        }
-
-        // Extract existing categories from wikitext
-        const categoryRegex = /\[\[Category:([^\]]+)\]\]/g;
-        const existingCategoryMatches = [...currentWikitext.matchAll(categoryRegex)];
-        const existingCategories = existingCategoryMatches.map(match => match[1]);
-
-        // Get all performer categories (current selection)
-        const currentPerformerCategories = performerCategoryInfos.map(info => info.commonsCategory);
-
-        // Find categories to add and remove
-        const categoriesToAdd = currentPerformerCategories.filter(cat => !existingCategories.includes(cat));
-        const performerCategoriesToRemove = existingCategories.filter(cat => {
-          // Remove if it's a performer category that's no longer selected
-          // Keep all non-performer categories (event, band, WikiPortraits)
-          return !currentPerformerCategories.includes(cat) &&
-                 existingCategoryMatches.some(match => match[1] === cat) &&
-                 // Check if it looks like a performer category (has disambiguation or is a person name)
-                 (cat.includes('(musician)') || cat.includes('(singer)') || cat.includes('(guitarist)') ||
-                  cat.includes('(drummer)') || cat.includes('(bassist)') || cat.includes('(keyboardist)'));
-        });
-
-        // Remove performer categories that are no longer selected
-        if (performerCategoriesToRemove.length > 0) {
-          performerCategoriesToRemove.forEach(cat => {
-            currentWikitext = currentWikitext.replace(new RegExp(`\\[\\[Category:${cat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\]\\n?`, 'g'), '');
-          });
-          console.log('🗑️ Removed performer categories from wikitext:', performerCategoriesToRemove);
-        }
-
-        // Add new performer categories
-        if (categoriesToAdd.length > 0) {
-          // Find where to insert new categories (after the last category)
-          const updatedCategoryMatches = [...currentWikitext.matchAll(categoryRegex)];
-          const lastCategoryMatch = updatedCategoryMatches[updatedCategoryMatches.length - 1];
-
-          if (lastCategoryMatch && lastCategoryMatch.index !== undefined) {
-            // Insert after the last category
-            const insertPosition = lastCategoryMatch.index + lastCategoryMatch[0].length;
-            const newCategoryLines = categoriesToAdd.map(cat => `\n[[Category:${cat}]]`).join('');
-            currentWikitext = currentWikitext.slice(0, insertPosition) + newCategoryLines + currentWikitext.slice(insertPosition);
-          } else {
-            // No existing categories, add at the end
-            const newCategoryLines = categoriesToAdd.map(cat => `[[Category:${cat}]]`).join('\n');
-            currentWikitext += '\n\n' + newCategoryLines;
-          }
-
-          console.log('📋 Added performer categories to wikitext:', categoriesToAdd);
-        }
-
-        onUpdate(image.id, {
-          selectedBandMembers: memberIds,
-          description: newDescription.replace(/\{\{[^}]+\|1=([^}]+)\}\}/, '$1'), // Store plain description
-          wikitext: currentWikitext,
-          wikitextModified: true // Mark as modified by user action
-        });
-        return;
-      }
-
-      // For new images, regenerate filename and description
-      // Build organization (band) info
+      // Build formData for description generation
       const bandOrganization = bandPerformers?.selectedBand ? [{
         entity: {
           id: bandPerformers.selectedBand.id,
@@ -316,10 +171,7 @@ export default function ImageCard({
               value: bandPerformers.selectedBand.name
             }
           }
-        },
-        roles: ['band'],
-        isNew: false,
-        metadata: {}
+        }
       }] : [];
 
       const formData = {
@@ -336,103 +188,25 @@ export default function ImageCard({
         }
       };
 
-      console.log('🎭 FormData being passed to generators:', JSON.stringify({
-        peopleCount: selectedPerformers.length,
-        organizationsCount: bandOrganization.length,
-        people: selectedPerformers.map((p: any) => ({
-          entityId: p.entity?.id,
-          name: p.entity?.labels?.en?.value
-        })),
-        organizations: bandOrganization.map((o: any) => ({
-          entityId: o.entity?.id,
-          name: o.entity?.labels?.en?.value
-        }))
-      }, null, 2));
+      // Generate new description with performers
+      const newDescription = generateMusicEventDescription(formData as any);
 
-      // Regenerate filename
-      const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
+      // Prepare updates object
+      const updates: any = {
+        selectedBandMembers: memberIds,
+        description: newDescription.replace(/\{\{[^}]+\|1=([^}]+)\}\}/, '$1') // Store plain description
+      };
 
-      // Generate base description (without custom text)
-      const baseDescription = generateMusicEventDescription(formData as any);
-
-      // Check if current description has custom text added after the auto-generated part
-      const currentDescription = image.metadata?.description || '';
-      const previousBaseDescription = image.metadata?.autoGeneratedDescription || '';
-
-      // Extract any custom text the user added after the auto-generated description
-      let customText = '';
-
-      // Try to find where the auto-generated part ends and custom part begins
-      if (previousBaseDescription && currentDescription.includes(previousBaseDescription)) {
-        // We have a stored base description - extract everything after it
-        const baseEndIndex = currentDescription.indexOf(previousBaseDescription) + previousBaseDescription.length;
-        customText = currentDescription.substring(baseEndIndex).trim();
-      } else if (currentDescription) {
-        // No stored base or current doesn't contain it
-        // Try to match against common auto-generated patterns
-        // Look for patterns like "Band performing at Event in Location on Date."
-        const autoGenPatterns = [
-          /^.+? performing at .+? in .+? on .+?\./,
-          /^.+? performing at .+? on .+?\./,
-          /^.+? performing at .+?\./,
-          /^.+? at .+? on .+?\./
-        ];
-
-        let foundMatch = false;
-        for (const pattern of autoGenPatterns) {
-          const match = currentDescription.match(pattern);
-          if (match) {
-            // Extract everything after the auto-generated part
-            customText = currentDescription.substring(match[0].length).trim();
-            foundMatch = true;
-            break;
-          }
-        }
-
-        // If no pattern matched, keep entire description as custom
-        if (!foundMatch && currentDescription !== baseDescription) {
-          customText = currentDescription;
-        }
+      // For new images, also regenerate filename
+      if (!isExisting && image.file) {
+        const newFilename = await generateCommonsFilename(image.file.name, formData as any, index);
+        updates.suggestedFilename = newFilename;
       }
 
-      // Combine base description with custom text
-      const finalDescription = customText
-        ? `${baseDescription} ${customText}`
-        : baseDescription;
+      console.log('📝 Updating image:', isExisting ? 'existing' : 'new', 'with:', Object.keys(updates));
 
-      console.log('🔄 Regenerated filename and description:', {
-        newFilename,
-        baseDescription,
-        customText,
-        finalDescription,
-        imageId
-      });
-
-      // Regenerate wikitext with new description
-      const { generateCommonsWikitext } = await import('@/utils/commons-template');
-      const updatedImage = {
-        ...image,
-        metadata: {
-          ...image.metadata,
-          selectedBandMembers: memberIds,
-          suggestedFilename: newFilename,
-          description: finalDescription,
-          autoGeneratedDescription: baseDescription
-        }
-      };
-      const newWikitext = generateCommonsWikitext(updatedImage);
-
-      // Update metadata, storing the base description separately
-      const updates = {
-        selectedBandMembers: memberIds,
-        suggestedFilename: newFilename,
-        description: finalDescription,
-        autoGeneratedDescription: baseDescription,
-        wikitext: newWikitext
-      };
-
-      console.log('💾 Updating image with:', { ...updates, wikitextPreview: newWikitext.substring(0, 200) });
-      onUpdate(imageId, updates);
+      // Central data in ImagesPane will handle categories and wikitext regeneration
+      onUpdate(image.id, updates);
     } catch (error) {
       console.error('Failed to regenerate filename/description:', error);
     }

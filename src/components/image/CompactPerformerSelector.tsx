@@ -34,7 +34,6 @@ export default function CompactPerformerSelector({
   const availableMembers: Array<{ member: BandMember, variant: 'band' | 'additional' | 'new' }> = useMemo(() => {
     // Primary source: bandPerformers.performers from the new form structure
     if (bandPerformers?.performers && Array.isArray(bandPerformers.performers)) {
-      console.log('CompactPerformerSelector - Using bandPerformers.performers:', bandPerformers.performers);
       // Convert PendingWikidataEntity objects to BandMember objects with variants
       return bandPerformers.performers.map(performer => ({
         member: flattenPerformer(performer),
@@ -44,8 +43,7 @@ export default function CompactPerformerSelector({
     
     // Fallback: old musicEventData structure for backward compatibility
     if (musicEventData?.eventType === 'festival' && musicEventData.festivalData?.selectedBands) {
-      console.log('CompactPerformerSelector - Using musicEventData fallback');
-      return musicEventData.festivalData.selectedBands.flatMap(band => 
+      return musicEventData.festivalData.selectedBands.flatMap(band =>
         (band.members || []).map(member => ({
           member,
           variant: getPerformerVariant(member) as 'band' | 'additional' | 'new'
@@ -65,32 +63,10 @@ export default function CompactPerformerSelector({
       ? selectedMembers.filter(id => id !== memberId)
       : [...selectedMembers, memberId];
 
-    console.log('🎭 toggleMember called:', {
-      memberId,
-      oldSelected: selectedMembers,
-      newSelected,
-      imageId: image.id
-    });
-
     setSelectedMembers(newSelected);
     onMembersChange(image.id, newSelected);
 
-    console.log('🎭 onMembersChange called with:', image.id, newSelected);
   };
-
-  // Always show the component for debugging, even if no members available
-  console.log('🎵 CompactPerformerSelector - eventDetails:', eventDetails);
-  console.log('🎵 CompactPerformerSelector - bandPerformers:', bandPerformers);
-  console.log('🎵 CompactPerformerSelector - bandPerformers.performers:', bandPerformers?.performers);
-  console.log('🎵 CompactPerformerSelector - musicEventData:', musicEventData);
-  console.log('🎵 CompactPerformerSelector - availableMembers:', availableMembers);
-  console.log('🎵 CompactPerformerSelector - availableMembers with images:', availableMembers.map(({ member, variant }) => ({
-    id: member.id,
-    name: member.name,
-    imageUrl: member.imageUrl,
-    hasImage: !!member.imageUrl,
-    variant: variant
-  })));
 
   return (
     <div className="space-y-2">
@@ -98,7 +74,7 @@ export default function CompactPerformerSelector({
         <User className="w-3 h-3" />
         Performers in this image
         {availableMembers.length === 0 && (
-          <span className="text-red-500 ml-2">(No members available - check console)</span>
+          <span className="text-red-500 ml-2">No members available</span>
         )}
       </div>
       
@@ -107,7 +83,6 @@ export default function CompactPerformerSelector({
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {availableMembers.map(({ member, variant }) => {
             const isSelected = selectedMembers.includes(member.id);
-            console.log("Member", member)
             return (
               <PerformerCard
                 key={member.id}
