@@ -47,17 +47,25 @@ export function generateTemplateParameters(eventDetails: {
   wikidataId?: string;
   language?: string;
 }, year: string | number): string {
-  const eventName = eventDetails.title;
   const language = eventDetails.language || 'en';
 
-  // Extract Wikipedia page name if available
-  let wikipediaPage = eventName;
+  // Remove year from event name if it's at the end (e.g., "Jærnåttå 2025" -> "Jærnåttå")
+  // This allows us to pass year as a separate parameter
+  const yearStr = year.toString();
+  let eventName = eventDetails.title;
+  if (eventName.endsWith(` ${yearStr}`)) {
+    eventName = eventName.slice(0, -(yearStr.length + 1)).trim();
+  }
+
+  // Extract Wikipedia page name if available (keep the year in the page name)
+  let wikipediaPage = eventDetails.title; // Default to full title with year
   if (eventDetails.wikipediaUrl) {
     const urlParts = eventDetails.wikipediaUrl.split('/');
     wikipediaPage = decodeURIComponent(urlParts[urlParts.length - 1]);
   }
 
   // Build template usage with parameters
+  // Now we include year as a separate parameter and remove it from event name
   const params = [
     `event=${eventName}`,
     `year=${year}`,

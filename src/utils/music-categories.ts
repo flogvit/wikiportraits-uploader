@@ -94,7 +94,7 @@ function generateUnifiedEventCategories(eventData: any): string[] {
 
   // Add WikiPortraits at Event category - use "WikiPortraits at {year} {event}" format
   // Extract event name without year for WikiPortraits category
-  const eventNameWithoutYear = title; // Just the event name, no year
+  const eventNameWithoutYear = title.replace(/\s+\d{4}$/, ''); // Remove year suffix if present
   if (year) {
     // Format: "WikiPortraits at 2025 Jærnåttå" (year first)
     categories.add(`WikiPortraits at ${year} ${eventNameWithoutYear}`);

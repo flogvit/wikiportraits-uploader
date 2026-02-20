@@ -58,13 +58,22 @@ async function checkFileExistsOnCommons(filename: string): Promise<boolean> {
     );
 
     const data = await response.json();
+    console.log('🌐 Commons API response for', filename, ':', data);
+
     const pages = data.query?.pages || {};
     const page = Object.values(pages)[0] as any;
 
-    // If page.missing is present, file doesn't exist
-    return !page.missing;
+    console.log('📄 Page data:', page);
+    console.log('❓ Has missing property:', 'missing' in page);
+    console.log('❓ Missing value:', page.missing);
+
+    // If page.missing property exists, file doesn't exist
+    // The property is present (even if undefined) for non-existent files
+    const exists = !('missing' in page);
+    console.log(`✅ File ${filename} exists on Commons: ${exists}`);
+    return exists;
   } catch (error) {
-    console.error('Error checking file existence:', error);
+    console.error('❌ Error checking file existence:', error);
     return false; // Assume doesn't exist if check fails
   }
 }

@@ -35,9 +35,14 @@ export function generateCommonsTemplate(metadata: MetadataTemplate): string {
     .map(cat => `[[Category:${cat}]]`)
     .join('\n');
 
+  // Check if description is already wrapped in language template
+  const descriptionForTemplate = metadata.description?.startsWith('{{')
+    ? metadata.description // Already wrapped, use as-is
+    : `{{en|1=${metadata.description}}}`; // Not wrapped, wrap it with 1= parameter
+
   const wikitext = `=={{int:filedesc}}==
 {{Information
-|description={{en|${metadata.description}}}
+|description=${descriptionForTemplate}
 |author=${metadata.author}
 |date=${metadata.date}
 |source=${metadata.source}
@@ -74,7 +79,7 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
 
   // WikiPortraits template (if applicable) - comes before everything else
   let wikiportraitsTemplateLine = '';
-  if (isWikiPortraitsJob && metadata.wikiportraitsTemplate) {
+  if (metadata.wikiportraitsTemplate) {
     wikiportraitsTemplateLine = `${metadata.wikiportraitsTemplate}\n`;
   }
 
@@ -122,7 +127,7 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
   // Check if description is already wrapped in language template
   const descriptionForTemplate = metadata.description?.startsWith('{{')
     ? metadata.description // Already wrapped, use as-is
-    : `{{en|${metadata.description}}}`; // Not wrapped, wrap it
+    : `{{en|1=${metadata.description}}}`; // Not wrapped, wrap it with 1= parameter
 
   const wikitext = `=={{int:filedesc}}==
 {{Information
@@ -130,7 +135,7 @@ export function generateCommonsWikitext(image: ImageFile, forceRegenerate = fals
 |author=${metadata.author}
 |date=${metadata.date}${metadata.time ? ` ${metadata.time}` : ''}
 |source=${metadata.source}
-|permission=
+|permission=${metadata.permission || ''}
 |other_versions=
 }}${locationTemplate ? `\n${locationTemplate}` : ''}
 ${templateLine}
@@ -154,8 +159,18 @@ export function updateImageWikitext(image: ImageFile, wikitext: string, isUserMo
   };
 }
 
+/**
+ * Remove Depicts templates from wikitext since they should only be in structured data
+ */
+function removeDepictsTemplates(wikitext: string): string {
+  // Remove {{Depicts|Q...}} templates and any trailing newlines/whitespace
+  return wikitext.replace(/\{\{Depicts\|[^}]+\}\}[^\n]*\n?/g, '');
+}
+
 export function regenerateImageWikitext(image: ImageFile): ImageFile {
-  const wikitext = generateCommonsWikitext(image, true);
+  let wikitext = generateCommonsWikitext(image, true);
+  // Remove any Depicts templates - they belong in structured data only
+  wikitext = removeDepictsTemplates(wikitext);
   return updateImageWikitext(image, wikitext, false);
 }
 

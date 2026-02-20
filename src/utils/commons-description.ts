@@ -129,11 +129,9 @@ export function generateMusicEventDescription(
     description += '.';
   }
 
-  // Wrap in language template for proper Commons formatting
-  if (description) {
-    description = `{{${language}|1=${description}}}`;
-  } else {
-    description = `{{${language}|1=Concert photograph}}`;
+  // Return plain text - wrapping with {{en|1=...}} happens in wikitext generation
+  if (!description) {
+    description = 'Concert photograph';
   }
 
   return description;

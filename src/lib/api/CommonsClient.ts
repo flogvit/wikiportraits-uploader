@@ -561,10 +561,15 @@ export const CommonsHelpers = {
   // Generate upload description template
   generateUploadDescription: (params: CommonsUploadParams): string => {
     const categories = params.categories.map(cat => `[[Category:${cat}]]`).join('\n');
-    
+
+    // Check if description is already wrapped in language template
+    const description = params.description?.startsWith('{{')
+      ? params.description // Already wrapped, use as-is
+      : `{{en|1=${params.description}}}`; // Not wrapped, wrap it
+
     return `== {{int:filedesc}} ==
 {{Information
-|description={{en|1=${params.description}}}
+|description=${description}
 |date=${params.date || new Date().toISOString().split('T')[0]}
 |source=${params.source}
 |author=${params.author}

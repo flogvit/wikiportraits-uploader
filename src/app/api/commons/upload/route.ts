@@ -101,12 +101,38 @@ export async function POST(request: NextRequest) {
 
     // Check upload result
     if (uploadResult.upload.result === 'Success') {
+      console.log('✅ Upload successful');
+
+      const filename = uploadResult.upload.filename;
+
+      // MediaWiki upload API doesn't return pageid directly, so we need to query for it
+      const pageInfoResponse = await fetch(
+        'https://commons.wikimedia.org/w/api.php?' +
+        new URLSearchParams({
+          action: 'query',
+          titles: `File:${filename}`,
+          format: 'json'
+        }),
+        {
+          headers: {
+            'Authorization': `Bearer ${session.accessToken}`,
+            'User-Agent': 'WikiPortraits/1.0 (https://github.com/flogvit/wikiportraits)'
+          }
+        }
+      );
+
+      const pageInfoData = await pageInfoResponse.json();
+      const pages = pageInfoData.query?.pages || {};
+      const pageId = Object.keys(pages)[0]; // Get the first (and only) page ID
+
+      console.log('📄 Retrieved pageId:', pageId, 'for file:', filename);
+
       return NextResponse.json({
         success: true,
-        filename: uploadResult.upload.filename,
+        filename: filename,
         url: uploadResult.upload.imageinfo?.url,
         descriptionUrl: uploadResult.upload.imageinfo?.descriptionurl,
-        pageId: uploadResult.upload.pageid
+        pageId: parseInt(pageId, 10)
       });
     } else if (uploadResult.upload.result === 'Warning') {
       // Handle warnings (duplicate file, etc.)
