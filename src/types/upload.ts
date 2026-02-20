@@ -39,6 +39,36 @@ export interface ImageMetadata {
   templateModified?: boolean; // Track if user has manually edited template
   // WikiPortraits template (if this is a WikiPortraits job)
   wikiportraitsTemplate?: string;
+  // Suggested filename for upload
+  suggestedFilename?: string;
+  // Personality rights permission
+  permission?: string;
+  permissionOverride?: string;
+  // EXIF metadata status
+  metadataStripped?: boolean;
+  metadataWarnings?: string[];
+  // Image flags
+  setAsMainImage?: boolean;
+  // WikiPortraits year context
+  wikiportraitsYear?: string;
+}
+
+// Extended image file with optional fields used in different contexts
+export interface ExistingImageFile {
+  id: string;
+  filename: string;
+  commonsPageId: number;
+  url: string;
+  thumbUrl?: string;
+  isExisting: boolean;
+  metadata: {
+    description?: string;
+    categories?: string[];
+    date?: string;
+    author?: string;
+    source?: string;
+    license?: string;
+  };
 }
 
 export interface GPSMetadata {
