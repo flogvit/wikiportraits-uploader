@@ -105,7 +105,6 @@ function EventCard({ event, onSelect, isSelected, showDetails = false }: EventCa
                 key={participant.id}
                 entity={participant}
                 variant="additional"
-                onClick={(qid) => console.log('Participant clicked:', qid)}
               />
             ))}
             {participants.length > 5 && (

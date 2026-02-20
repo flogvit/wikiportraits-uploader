@@ -183,7 +183,6 @@ export function useWikidataPersons(
         }
       }
       
-      console.log('Fetched band members:', fetchedMembers.length);
       setPerformers(fetchedMembers);
       
     } catch (err) {
@@ -414,18 +413,8 @@ export function useWikidataPersons(
         (p.bandQID === `pending-band-${currentBandName}` && currentBandId === `pending-band-${currentBandName}`)
       ) || originalBandMembers.length > 0;
       
-      console.log('useWikidataPersons Debug:', {
-        currentBandId,
-        currentBandName,
-        performersCount: performerData.performers.length,
-        hasPerformersForThisBand,
-        performersWithBandQID: performerData.performers.filter(p => p.bandQID === currentBandId).length,
-        originalBandMembers: originalBandMembers.length
-      });
-      
       if (!hasPerformersForThisBand) {
         // No performer data for this band - fetch from Wikidata
-        console.log('No performers for this band, fetching from Wikidata');
         fetchBandMembers();
         
         // Clear search state
@@ -433,13 +422,7 @@ export function useWikidataPersons(
         setSearchTerm('');
       } else {
         // Have performer data for this band - load from localStorage
-        console.log('Loading performers from localStorage:', {
-          performersCount: performerData.performers.length,
-          forThisBand: performerData.performers.filter(p => p.bandQID === currentBandId).length,
-          additionalArtists: performerData.performers.filter(p => !p.bandQID && !p.new).length,
-          originalBandMembers: originalBandMembers.length
-        });
-        
+
         // Include: band members (with bandQID or type='band_member') + additional artists (type='additional_artist' or legacy logic)
         const bandPerformers = performerData.performers.filter(p => {
           // Use saved type if available
@@ -467,11 +450,6 @@ export function useWikidataPersons(
       const performerData: PerformerData = {
         performers: performers
       };
-      
-      console.log('Saving performer data to localStorage:', {
-        performersCount: performers.length,
-        pendingPerformers: pendingPerformers
-      });
       
       savePerformerData(performerData);
     }

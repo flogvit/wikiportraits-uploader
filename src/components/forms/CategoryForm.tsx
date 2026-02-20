@@ -14,7 +14,6 @@ export default function CategoryForm({ categories, onCategoriesChange }: Categor
   const addCategory = () => {
     if (categoryInput.trim() && !categories.includes(categoryInput.trim())) {
       const newCategories = [...categories, categoryInput.trim()];
-      console.log('📁 Adding category:', categoryInput.trim(), 'New categories:', newCategories);
       onCategoriesChange(newCategories);
       setCategoryInput('');
     }
@@ -22,11 +21,8 @@ export default function CategoryForm({ categories, onCategoriesChange }: Categor
 
   const removeCategory = (category: string) => {
     const newCategories = categories.filter(cat => cat !== category);
-    console.log('📁 Removing category:', category, 'New categories:', newCategories);
     onCategoriesChange(newCategories);
   };
-
-  console.log('📁 CategoryForm render - categories:', categories);
 
   return (
     <div>

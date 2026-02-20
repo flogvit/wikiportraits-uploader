@@ -21,22 +21,11 @@ export default function BandMemberSelector({
   
   // Work directly with WikidataEntity objects, wrap in WDPerson for convenience
   const performers = people?.map(person => new WDPerson(person)) || [];
-  
-  console.log('🎸 BandMemberSelector - performers:', performers.length);
-  console.log('🎸 BandMemberSelector - performers data:', performers.map(p => ({
-    id: p.id,
-    name: p.getLabel(),
-    instruments: p.getInstruments()
-  })));
 
   const handleRemove = (performerId: string) => {
-    console.log('🗑️ BandMemberSelector - Removing performer:', performerId);
-    console.log('🗑️ Current people count:', people.length);
     const personIndex = people.findIndex(p => p.id === performerId);
-    console.log('🗑️ Person index to remove:', personIndex);
     if (personIndex >= 0) {
       removePerson(personIndex);
-      console.log('🗑️ Called removePerson for index:', personIndex);
     }
   };
 
@@ -77,8 +66,6 @@ export default function BandMemberSelector({
           } else {
             variant = 'additional';
           }
-          
-          console.log('🎨 Performer:', performer.getLabel(), 'ID:', performerId, 'Variant:', variant, 'Band member:', isMainBandMember, 'New:', isNewPerformer);
           
           return (
             <WDPersonCard

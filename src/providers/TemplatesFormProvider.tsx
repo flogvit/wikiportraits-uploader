@@ -93,14 +93,12 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
 
     const updatedTemplates = [...templates, newTemplate];
     form.setValue(FORM_KEY, updatedTemplates);
-    console.log('📄 Added template:', newTemplate.title);
   }, [form, getTemplates]);
 
   const remove = useCallback((templateId: string) => {
     const templates = getTemplates();
     const updatedTemplates = templates.filter(tpl => tpl.id !== templateId);
     form.setValue(FORM_KEY, updatedTemplates);
-    console.log('🗑️ Removed template:', templateId);
   }, [form, getTemplates]);
 
   const generate = useCallback((type: string, data: any): Template | null => {
@@ -120,7 +118,6 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
         version: '1.0'
       };
       
-      console.log('✨ Generated template:', template.title);
       return template;
     } catch (error) {
       console.error('❌ Error generating template:', error);
@@ -156,12 +153,10 @@ export function TemplatesFormProvider({ children, config }: TemplatesFormProvide
 
   const setLanguage = useCallback((language: string) => {
     form.setValue(LANGUAGE_KEY, language);
-    console.log('🌐 Set template language:', language);
   }, [form]);
 
   const clear = useCallback(() => {
     form.setValue(FORM_KEY, []);
-    console.log('🧹 Cleared all templates');
   }, [form]);
 
   const value: TemplatesFormContextType = {

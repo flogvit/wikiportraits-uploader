@@ -48,7 +48,7 @@ export const wikidataGet = async (
     url.searchParams.append(key, value);
   });
 
-  console.log('Wikidata GET:', url.toString());
+//  console.log('Wikidata GET:', url.toString());
 
   const response = await fetch(url.toString(), {
     method: 'GET',

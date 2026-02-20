@@ -50,15 +50,8 @@ export default function ArtistSelector({
 
   // Wrapped setter with logging
   const setSearchQuery = (value: string) => {
-    console.log('🔍 setSearchQuery called with:', value, 'Stack:', new Error().stack?.split('\n')[2]);
     setSearchQueryState(value);
   };
-
-  // Debug: log when searchQuery changes
-  useEffect(() => {
-    console.log('🔍 searchQuery state changed to:', searchQuery);
-  }, [searchQuery]);
-
 
   // Handle clicking outside to close dropdown
   useEffect(() => {
@@ -77,7 +70,6 @@ export default function ArtistSelector({
   const searchArtists = useCallback(async (query: string) => {
     // Prevent concurrent searches using ref
     if (searchingRef.current) {
-      console.log('Already searching, skipping...');
       return;
     }
 
@@ -171,19 +163,15 @@ export default function ArtistSelector({
   }, []);
 
   useEffect(() => {
-    console.log('🔍 Search effect triggered. Query:', searchQuery, 'SelectedArtist:', selectedArtist?.name);
-
     const delayedSearch = setTimeout(() => {
       // Don't search if we have a selected artist and the query matches the artist name
       if (selectedArtist?.name && searchQuery === selectedArtist.name) {
-        console.log('Skipping search - matches selected artist');
         setSearchResults([]);
         setShowResults(false);
         return;
       }
 
       if (searchQuery.length >= 2) {
-        console.log('Starting search for:', searchQuery);
         searchArtists(searchQuery);
       } else {
         setSearchResults([]);

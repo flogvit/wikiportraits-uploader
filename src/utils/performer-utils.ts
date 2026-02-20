@@ -15,13 +15,6 @@ export function flattenPerformer(performer: any): BandMember {
       return instrumentId || '';
     }).filter(Boolean);
 
-    console.log('🎸 Flattening WikidataEntity:', {
-      id: performer.id,
-      name: performer.labels?.en?.value,
-      P1303Claims: instrumentClaims.length,
-      extractedInstruments: instruments
-    });
-
     return {
       id: performer.id,
       name: performer.labels?.en?.value || performer.labels?.['en']?.value || 'Unknown',

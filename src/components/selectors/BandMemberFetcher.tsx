@@ -19,8 +19,6 @@ export default function BandMemberFetcher({
   const allPerformers = entities.people || [];
   const currentBandId = bandId || `pending-band-${bandName}`;
   
-  console.log('🎸 BandMemberFetcher mounted for band:', bandName, 'ID:', bandId);
-  
   // Since we use a key to remount this component when band changes,
   // we can be more aggressive about fetching members for the new band
   // Check if we have ANY performers - if we do, they might be from the old band
@@ -35,14 +33,6 @@ export default function BandMemberFetcher({
     p.claims['P463'].some(claim => claim.mainsnak?.datavalue?.value?.id === bandId)
   );
   
-  console.log('🔍 hasAnyPerformers:', hasAnyPerformers);
-  console.log('🔍 hasExistingPerformersForThisBand:', hasExistingPerformersForThisBand);
-  
-  console.log('🎸 BandMemberFetcher - Band:', bandName, 'ID:', bandId);
-  console.log('🎸 BandMemberFetcher - Total performers:', allPerformers.length);
-  console.log('🎸 BandMemberFetcher - Performers for this band:', hasExistingPerformersForThisBand);
-  console.log('🎸 BandMemberFetcher - All performer IDs:', allPerformers.map(p => p.id));
-  
   // Only fetch if we don't have performers for this specific band yet
   const { performers, loading } = useWikidataPersons(
     hasExistingPerformersForThisBand ? undefined : bandName, 
@@ -52,14 +42,9 @@ export default function BandMemberFetcher({
   
   // Add fetched performers to form data
   useEffect(() => {
-    console.log('🎸 BandMemberFetcher useEffect triggered');
-    console.log('🎸 hasExistingPerformersForThisBand:', hasExistingPerformersForThisBand);
-    console.log('🎸 performers.length:', performers.length);
     if (!hasExistingPerformersForThisBand && performers.length > 0) {
-      console.log('🎸 BandMemberFetcher - Adding performers from Wikidata:', performers.length);
       performers.forEach(performer => {
         const alreadyExists = allPerformers.find(p => p.id === performer.id);
-        console.log('🎸 Checking performer:', performer.name, 'Already exists:', !!alreadyExists);
         if (!alreadyExists) {
           // Create base WikidataEntity
           const baseEntity = {
@@ -86,9 +71,7 @@ export default function BandMemberFetcher({
           
           // Add band membership if bandId is available
           if (bandId) {
-            console.log('🎯 Adding band membership:', bandId, 'to performer:', performer.name);
             wdPerson.addBandMembership(bandId);
-            console.log('🎯 After adding membership, P361 claims:', wdPerson.rawEntity.claims?.['P361']);
           }
           
           // Add instruments
@@ -99,12 +82,9 @@ export default function BandMemberFetcher({
             });
           }
 
-          console.log('🎸 Adding performer to entities:', performer.name);
           entities.addPerson(wdPerson.rawEntity);
         }
       });
-    } else {
-      console.log('🎸 Not adding performers - either hasExisting or no performers');
     }
   }, [performers, hasExistingPerformersForThisBand, bandId, currentBandId, entities, allPerformers]);
   

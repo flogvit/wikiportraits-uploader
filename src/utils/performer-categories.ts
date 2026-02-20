@@ -192,8 +192,6 @@ export async function getPerformerCategory(
   const existingP373 = extractCommonsCategory(entity);
 
   if (existingP373) {
-    console.log(`✅ Using P373 from ${performerQid}: ${existingP373}`);
-
     // Verify the category exists
     const exists = await CommonsClient.categoryExists(existingP373);
 
@@ -212,7 +210,6 @@ export async function getPerformerCategory(
 
   if (!baseNameExists) {
     // Base name doesn't exist - safe to use
-    console.log(`✅ Base name available for ${performerQid}: ${performerName}`);
     return {
       performerName,
       performerQid,
@@ -227,7 +224,6 @@ export async function getPerformerCategory(
   const verification = await verifyCategoryEntity(performerName, performerQid);
 
   if (verification.isCorrect) {
-    console.log(`✅ Existing category matches entity ${performerQid}: ${performerName}`);
     return {
       performerName,
       performerQid,
@@ -240,7 +236,6 @@ export async function getPerformerCategory(
 
   // If category exists but has no Wikidata link, assume it's the one we just created
   if (!verification.foundQid) {
-    console.log(`✅ Category exists with no QID - using for ${performerQid}: ${performerName}`);
     return {
       performerName,
       performerQid,
@@ -253,7 +248,6 @@ export async function getPerformerCategory(
 
   // Step 4: Need disambiguation
   const disambiguatedName = generateDisambiguatedName(performerName, entity);
-  console.log(`⚠️  Disambiguation needed for ${performerQid}: ${disambiguatedName}`);
 
   const disambigExists = await CommonsClient.categoryExists(disambiguatedName);
 
