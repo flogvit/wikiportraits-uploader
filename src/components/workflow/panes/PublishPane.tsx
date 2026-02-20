@@ -3,458 +3,160 @@
 import { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertCircle, Clock, Loader2, FolderPlus, FileText, Database, ImagePlus } from 'lucide-react';
 import { useUniversalForm } from '@/providers/UniversalFormProvider';
-import { getCategoriesToCreate, detectBandCategories } from '@/utils/music-categories';
-import { getWikidataEntitiesToCreate } from '@/utils/wikidata-entities';
-import { getAllBandCategoryStructures, flattenBandCategories } from '@/utils/band-categories';
-import { lookupCache, CacheType } from '@/utils/lookup-cache';
+import { usePublishData, PublishAction as CentralizedPublishAction, ActionStatus } from '@/providers/PublishDataProvider';
 
 interface PublishPaneProps {
   onComplete?: () => void;
 }
 
-type ActionStatus = 'pending' | 'in-progress' | 'completed' | 'error';
-
+// Legacy interface for backward compatibility
 interface PublishAction {
   id: string;
-  type: 'category' | 'template' | 'wikidata' | 'image' | 'metadata';
+  type: 'category' | 'template' | 'wikidata' | 'image' | 'metadata' | 'structured-data';
   title: string;
   description: string;
   status: ActionStatus;
   error?: string;
   canPublish: boolean;
-  dependsOn?: string; // ID of action that must complete first
-  createdEntityId?: string; // QID of created entity (set after creation)
-  preview?: string; // Blob URL for image preview
+  dependsOn?: string;
+  createdEntityId?: string;
+  preview?: string;
 }
 
 export default function PublishPane({ onComplete }: PublishPaneProps) {
   const form = useUniversalForm();
-  const [actions, setActions] = useState<PublishAction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [completedCount, setCompletedCount] = useState(0);
-  const [errorCount, setErrorCount] = useState(0);
+  const {
+    actions: centralizedActions,
+    categories,
+    wikidataActions,
+    imageActions,
+    structuredDataActions,
+    totalActions,
+    pendingActions,
+    completedActions,
+    errorActions,
+    updateActionStatus,
+    updateStructuredDataPageId,
+    reloadImageFromCommons
+  } = usePublishData();
 
-  const eventDetails = form.watch('eventDetails');
-  const existingImages = form.watch('files.existing') || [];
-  const newImages = form.watch('files.queue') || [];
-  const allCategories = form.watch('computed.categories.all') || [];
+  const [loading, setLoading] = useState(false);
+  const [actions, setActions] = useState<PublishAction[]>([]);
+  const [localCompletedCount, setLocalCompletedCount] = useState(0);
+  const [localErrorCount, setLocalErrorCount] = useState(0);
+
   const people = form.watch('entities.people') || [];
   const organizations = form.watch('entities.organizations') || [];
 
-  // Build list of publish actions
+  // Convert centralized actions to legacy format for display
   useEffect(() => {
-    const buildActions = async () => {
-      const publishActions: PublishAction[] = [];
+    const publishActions: PublishAction[] = [];
 
-      // 1. Categories that need creation
-      if (eventDetails) {
-        let categoriesToCreate = getCategoriesToCreate(eventDetails);
-
-        // Generate proper band category structures with hierarchy
-        const year = eventDetails.date ? new Date(eventDetails.date).getFullYear().toString() : '';
-        const eventName = eventDetails.commonsCategory || (year ? `${eventDetails.title} ${year}` : eventDetails.title);
-
-        if (eventName && year && organizations.length > 0) {
-          // Get bands from organizations
-          const bands = organizations
-            .filter((org: any) => org.id && !org.id.startsWith('pending-'))
-            .map((org: any) => ({
-              name: org.labels?.en?.value,
-              qid: org.id
-            }))
-            .filter((b: any) => b.name);
-
-          if (bands.length > 0) {
-            const bandStructures = await getAllBandCategoryStructures(bands, year, eventName);
-            const bandCategories = flattenBandCategories(bandStructures);
-            categoriesToCreate = [...categoriesToCreate, ...bandCategories];
-          }
-        }
-
-        // Add performer categories that need creation
-        if (people && people.length > 0) {
-          console.log('🎤 Checking performer categories for creation, count:', people.length);
-          try {
-            const { getPerformerCategories } = await import('@/utils/performer-categories');
-            const performerCategoryInfos = await getPerformerCategories(people);
-
-            for (const info of performerCategoryInfos) {
-              if (info.needsCreation) {
-                console.log('📋 Performer category needs creation:', info.commonsCategory);
-                categoriesToCreate.push({
-                  categoryName: info.commonsCategory,
-                  shouldCreate: true,
-                  description: info.description,
-                  eventName: info.performerName
-                });
-              }
-            }
-          } catch (error) {
-            console.error('Error checking performer categories:', error);
-          }
-        }
-
-        const needsCreation = categoriesToCreate.filter(cat => cat.shouldCreate);
-
-        if (needsCreation.length > 0) {
-          // Check which categories actually need creation
-          const { CommonsClient } = await import('@/lib/api/CommonsClient');
-
-          for (const cat of needsCreation) {
-            try {
-              const exists = await CommonsClient.categoryExists(cat.categoryName);
-              console.log(`Category "${cat.categoryName}" exists:`, exists);
-
-              if (!exists) {
-                publishActions.push({
-                  id: `category-${cat.categoryName}`,
-                  type: 'category',
-                  title: `Create Category: ${cat.categoryName}`,
-                  description: cat.description || `Category on Wikimedia Commons`,
-                  status: 'pending',
-                  canPublish: true
-                });
-              }
-            } catch (error) {
-              console.error(`Error checking category "${cat.categoryName}":`, error);
-              // If we can't check, assume it needs creation
-              publishActions.push({
-                id: `category-${cat.categoryName}`,
-                type: 'category',
-                title: `Create Category: ${cat.categoryName}`,
-                description: cat.description || `Category on Wikimedia Commons`,
-                status: 'pending',
-                canPublish: true
-              });
-            }
-          }
-        }
-      }
-
-      // 2. Check existing bands for missing P373 (Commons category)
-      for (const org of organizations) {
-        if (org.id && !org.id.startsWith('pending-')) {
-          const bandName = org.labels?.en?.value;
-          const hasCommonsCategory = org.claims?.P373?.length > 0;
-
-          if (!hasCommonsCategory && bandName) {
-            try {
-              // Check if disambiguation needed
-              const { checkNeedsDisambiguation } = await import('@/utils/band-categories');
-              const disambigCheck = await checkNeedsDisambiguation(bandName, org.id);
-              const mainCategoryName = disambigCheck.suggestedName;
-
-              publishActions.push({
-                id: `wikidata-claim-${org.id}-P373`,
-                type: 'wikidata',
-                title: `Add Commons category to ${bandName}`,
-                description: `Add P373 (Commons category) = "${mainCategoryName}"`,
-                status: 'pending',
-                canPublish: true
-              });
-            } catch (error) {
-              console.error('Error checking band for P373:', error);
-            }
-          }
-        }
-      }
-
-      // 2b. Check existing performers for missing P373 (Commons category)
-      for (const person of people) {
-        if (person.id && !person.id.startsWith('pending-')) {
-          const performerName = person.labels?.en?.value;
-
-          // Re-fetch fresh entity data to check for P373 (in case it was added recently)
-          const { getWikidataEntity } = await import('@/utils/wikidata');
-          let freshEntity = person;
-          try {
-            freshEntity = await getWikidataEntity(person.id, 'en', 'labels|claims');
-          } catch (error) {
-            console.warn('Could not fetch fresh entity data for', person.id);
-          }
-
-          const hasCommonsCategory = freshEntity.claims?.P373?.length > 0;
-
-          if (!hasCommonsCategory && performerName) {
-            try {
-              // Get the correct Commons category for this performer
-              const { getPerformerCategory } = await import('@/utils/performer-categories');
-              const performerInfo = await getPerformerCategory(freshEntity);
-
-              publishActions.push({
-                id: `wikidata-claim-${person.id}-P373`,
-                type: 'wikidata',
-                title: `Add Commons category to ${performerName}`,
-                description: `Add P373 (Commons category) = "${performerInfo.commonsCategory}"`,
-                status: 'pending',
-                canPublish: true
-              });
-
-              console.log('📋 Added P373 action for performer:', performerName, '->', performerInfo.commonsCategory);
-            } catch (error) {
-              console.error('Error checking performer for P373:', error);
-            }
-          } else {
-            console.log('✅ Performer already has P373:', performerName);
-          }
-        }
-      }
-
-      // 3. Wikidata entities that need creation or updating
-      if (eventDetails?.title) {
-        try {
-          const wikidataEntities = await getWikidataEntitiesToCreate(eventDetails);
-
-          // Also check for P710 (participant) claims for bands
-          const eventEdition = wikidataEntities.find(e => e.entityType === 'festival-edition' && e.exists);
-          if (eventEdition?.wikidataId && organizations.length > 0) {
-            const { getWikidataEntity } = await import('@/utils/wikidata');
-            const editionEntity = await getWikidataEntity(eventEdition.wikidataId, 'en', 'claims');
-            const existingParticipants = editionEntity.claims?.P710?.map((claim: any) =>
-              claim.mainsnak?.datavalue?.value?.id
-            ) || [];
-
-            // Check each band
-            for (const org of organizations) {
-              if (org.id && !org.id.startsWith('pending-')) {
-                const bandAlreadyLinked = existingParticipants.includes(org.id);
-
-                if (!bandAlreadyLinked) {
-                  // Find the event entity and add missing claim
-                  const eventEntityInList = wikidataEntities.find(e => e.wikidataId === eventEdition.wikidataId);
-                  if (eventEntityInList) {
-                    if (!eventEntityInList.missingClaims) {
-                      eventEntityInList.missingClaims = [];
-                    }
-                    eventEntityInList.missingClaims.push({
-                      property: 'P710',
-                      value: org.id,
-                      description: `Participant: ${org.labels?.en?.value}`
-                    });
-                  }
-                }
-              }
-            }
-          }
-
-          // Entities that need creation
-          const needsCreation = wikidataEntities.filter(entity => entity.shouldCreate);
-          needsCreation.forEach((entity, index) => {
-            publishActions.push({
-              id: `wikidata-create-${entity.entityName}`,
-              type: 'wikidata',
-              title: `Create Wikidata: ${entity.entityName}`,
-              description: entity.description || `${entity.entityType} entity`,
-              status: 'pending',
-              canPublish: true
-            });
-          });
-
-          // Existing entities that need claims added
-          const needsUpdate = wikidataEntities.filter(entity =>
-            entity.exists && entity.missingClaims && entity.missingClaims.length > 0
-          );
-          needsUpdate.forEach((entity) => {
-            entity.missingClaims?.forEach((claim, claimIndex) => {
-              publishActions.push({
-                id: `wikidata-claim-${entity.wikidataId}-${claim.property}`,
-                type: 'wikidata',
-                title: `Add ${claim.property} to ${entity.entityName}`,
-                description: claim.description,
-                status: 'pending',
-                canPublish: true
-              });
-            });
-          });
-        } catch (error) {
-          console.error('Error checking Wikidata entities:', error);
-        }
-      }
-
-      // Add manually created people/performers - but check if they exist first
-      const newPeople = people.filter((p: any) => p.new === true);
-      const { checkEntityExists } = await import('@/utils/wikidata');
-
-      for (const person of newPeople) {
-        const personName = person.labels?.en?.value || 'Unnamed Artist';
-        const personActionId = `wikidata-person-${person.id}`;
-
-        // Check if person already exists on Wikidata
-        const personCheck = await checkEntityExists(personName, ['Q5'], 'en');
-
-        // Only add creation action if person doesn't exist
-        if (!personCheck.exists) {
-          publishActions.push({
-            id: personActionId,
-            type: 'wikidata',
-            title: `Create Wikidata: ${personName}`,
-            description: person.metadata?.isBandMember ? 'band member' : 'musician',
-            status: 'pending',
-            canPublish: true
-          });
-        }
-
-        // If this person is a member of an existing band, check if P527 needs to be added
-        if (person.metadata?.bandId && !person.metadata.bandId.startsWith('pending-')) {
-          const bandId = person.metadata.bandId;
-
-          // Check if band already has P527 pointing to this person
-          const { getWikidataEntity } = await import('@/utils/wikidata');
-          const bandEntity = await getWikidataEntity(bandId, 'en', 'claims');
-          const hasParts = bandEntity.claims?.P527 || [];
-
-          // Check if this person is already linked (by QID if exists, or we'll add after creation)
-          let personAlreadyLinked = false;
-          if (personCheck.exists && personCheck.entity?.id) {
-            personAlreadyLinked = hasParts.some((claim: any) =>
-              claim.mainsnak?.datavalue?.value?.id === personCheck.entity.id
-            );
-          }
-
-          // Add action to link person to band if not already linked
-          if (!personAlreadyLinked) {
-            publishActions.push({
-              id: `wikidata-claim-${bandId}-P527-for-${personName.replace(/\s+/g, '_')}`,
-              type: 'wikidata',
-              title: `Link ${personName} to band`,
-              description: `Add P527 (has part) to band ${bandId}`,
-              status: 'pending',
-              canPublish: personCheck.exists, // Can publish immediately if person already exists
-              dependsOn: personCheck.exists ? undefined : personActionId // Only depends on creation if person doesn't exist yet
-            });
-          }
-        }
-      }
-
-      // 3. Existing images - metadata updates
-      if (existingImages.length > 0) {
-        const { getPerformerCategories } = await import('@/utils/performer-categories');
-
-        for (const img of existingImages) {
-          const currentCategories = img.metadata?.categories || [];
-          const categoriesToAdd: string[] = [];
-
-          // Get the "Band at Event" category (the specific performance category)
-          const year = eventDetails?.date ? new Date(eventDetails.date).getFullYear().toString() : '';
-          const eventName = eventDetails?.commonsCategory || (year ? `${eventDetails.title} ${year}` : eventDetails?.title);
-
-          if (organizations.length > 0 && eventName) {
-            const bandName = organizations[0].labels?.en?.value;
-            if (bandName) {
-              const bandAtEventCat = `${bandName} at ${eventName}`;
-              if (!currentCategories.includes(bandAtEventCat)) {
-                categoriesToAdd.push(bandAtEventCat);
-              }
-            }
-          }
-
-          // Only add performer categories for performers tagged in THIS specific image
-          const selectedMemberIds = img.metadata?.selectedBandMembers || [];
-          if (selectedMemberIds.length > 0) {
-            try {
-              // Get only the selected performers
-              const selectedPerformers = people.filter((p: any) =>
-                selectedMemberIds.includes(p.id)
-              );
-
-              if (selectedPerformers.length > 0) {
-                // Get their Commons categories
-                const performerCategoryInfos = await getPerformerCategories(selectedPerformers);
-
-                performerCategoryInfos.forEach(info => {
-                  if (!currentCategories.includes(info.commonsCategory)) {
-                    categoriesToAdd.push(info.commonsCategory);
-                  }
-                });
-              }
-            } catch (error) {
-              console.error('Error getting performer categories:', error);
-            }
-          }
-
-          // Build depicts count
-          const depictsCount = (organizations.length > 0 ? 1 : 0) + selectedMemberIds.length;
-
-          // Only create action if there are categories to add or depicts to update
-          if (categoriesToAdd.length > 0 || depictsCount > 0) {
-            const updates = [];
-
-            if (categoriesToAdd.length > 0) {
-              const categoryList = categoriesToAdd
-                .map(cat => `• ${cat}`)
-                .join('\n');
-              updates.push(`Add ${categoriesToAdd.length} categor${categoriesToAdd.length === 1 ? 'y' : 'ies'}:\n${categoryList}`);
-            }
-
-            if (depictsCount > 0) {
-              const depictsEntities = [];
-              if (organizations.length > 0) {
-                depictsEntities.push(organizations[0].labels?.en?.value || 'Band');
-              }
-              const selectedPerformers = people.filter((p: any) => selectedMemberIds.includes(p.id));
-              selectedPerformers.forEach((p: any) => {
-                depictsEntities.push(p.labels?.en?.value || p.id);
-              });
-
-              updates.push(`Update depicts (P180) structured data:\n${depictsEntities.map(e => `• ${e}`).join('\n')}`);
-            }
-
-            const summary = updates.join('\n\n');
-
-            publishActions.push({
-              id: `metadata-${img.id}`,
-              type: 'metadata',
-              title: `Update Metadata: ${img.filename}`,
-              description: summary,
-              status: 'pending',
-              canPublish: true
-            });
-          }
-        }
-      }
-
-      // 4. New images - uploads
-      if (newImages.length > 0) {
-        newImages.forEach((img: any, index: number) => {
-          const suggestedFilename = img.metadata?.suggestedFilename || img.file?.name || 'Unnamed';
-          const description = img.metadata?.description || '';
-          const performers = img.metadata?.selectedBandMembers || [];
-          const categories = img.metadata?.categories || [];
-
-          // Build description preview (remove language template wrapper for display)
-          let descPreview = description.replace(/{{en\|1=/g, '').replace(/}}/g, '');
-          descPreview = descPreview.length > 80
-            ? descPreview.substring(0, 80) + '...'
-            : descPreview;
-
-          // Add performer info
-          let performerInfo = '';
-          if (performers.length > 0) {
-            performerInfo = ` • ${performers.length} performer${performers.length > 1 ? 's' : ''}`;
-          }
-
-          // Add category count
-          const categoryInfo = categories.length > 0 ? ` • ${categories.length} cat${categories.length > 1 ? 's' : ''}` : '';
-          const preview = img.preview; // Blob URL for thumbnail
-
-          publishActions.push({
-            id: `image-${index}`,
-            type: 'image',
-            title: `Upload: ${suggestedFilename}`,
-            description: `${descPreview}${performerInfo}${categoryInfo}`,
-            status: 'pending',
-            canPublish: !!img.metadata?.description && !!img.metadata?.author,
-            preview
-          });
+    // Convert category actions
+    categories.forEach(cat => {
+      if (cat.shouldCreate) {
+        publishActions.push({
+          id: `category-${cat.categoryName}`,
+          type: 'category',
+          title: `Create Category: ${cat.categoryName}`,
+          description: cat.description || 'Category on Wikimedia Commons',
+          status: cat.status,
+          error: cat.error,
+          canPublish: !cat.exists
         });
       }
+    });
 
-      setActions(publishActions);
-      setLoading(false);
-    };
+    // Convert wikidata actions
+    wikidataActions.forEach(wd => {
+      publishActions.push({
+        id: `wikidata-${wd.entityId}`,
+        type: 'wikidata',
+        title: wd.action === 'create' ? `Create ${wd.entityType}: ${wd.entityLabel}` : `Update ${wd.entityLabel}`,
+        description: wd.changes?.map(c => `${c.property}: ${c.newValue}`).join(', ') || 'Wikidata update',
+        status: wd.status,
+        error: wd.error,
+        canPublish: true,
+        createdEntityId: wd.entityId.startsWith('new') ? undefined : wd.entityId
+      });
+    });
 
-    buildActions();
-  }, [eventDetails, newImages, allCategories, people, organizations]);
+    // Convert image actions
+    imageActions.forEach(img => {
+      publishActions.push({
+        id: `image-${img.imageId}`,
+        type: 'image',
+        title: img.action === 'upload' ? `Upload: ${img.filename}` : `Update: ${img.filename}`,
+        description: img.metadata?.description || 'Image file',
+        status: img.status,
+        error: img.error,
+        canPublish: true,
+        preview: img.thumbnail
+      });
+    });
+
+    // Convert structured data actions (skip completed ones)
+    structuredDataActions.forEach(sd => {
+      const needsUpdateProps = sd.properties.filter(p => p.needsUpdate);
+      if (needsUpdateProps.length > 0 && sd.status !== 'completed') {
+        // Find the image (could be in new images or existing images)
+        const newImage = form.watch('files.queue')?.find((img: any) => img.id === sd.imageId);
+        const existingImage = form.watch('files.existing')?.find((img: any) => img.id === sd.imageId);
+        const image = newImage || existingImage;
+
+        // Build a more descriptive property list with actual names
+        const propDescriptions: string[] = [];
+
+        needsUpdateProps.forEach(p => {
+          if (p.property === 'labels') {
+            const captions = Array.isArray(p.value) ? p.value : [];
+            propDescriptions.push(`captions in ${captions.length} language${captions.length !== 1 ? 's' : ''}`);
+          } else if (p.property === 'P180') {
+            const depicts = Array.isArray(p.value) ? p.value : [];
+            // Get the actual entity names from people and organizations
+            const entityNames: string[] = [];
+            depicts.forEach((qid: string) => {
+              const person = people.find((p: any) => p.id === qid);
+              const org = organizations.find((o: any) => o.id === qid);
+              if (person) {
+                entityNames.push(person.labels?.en?.value || qid);
+              } else if (org) {
+                entityNames.push(org.labels?.en?.value || qid);
+              } else {
+                entityNames.push(qid);
+              }
+            });
+            if (entityNames.length > 0) {
+              propDescriptions.push(`depicts: ${entityNames.join(', ')}`);
+            }
+          } else if (p.property === 'P571') {
+            propDescriptions.push('date taken');
+          } else if (p.property === 'P1259') {
+            propDescriptions.push('GPS coordinates');
+          } else {
+            propDescriptions.push(p.property);
+          }
+        });
+
+        const filename = image?.filename || image?.metadata?.suggestedFilename || image?.file?.name || 'Unknown';
+
+        publishActions.push({
+          id: `sdc-${sd.imageId}`,
+          type: 'structured-data',
+          title: `Add structured data: ${filename}`,
+          description: propDescriptions.join(', '),
+          status: sd.status,
+          error: sd.error,
+          canPublish: true,
+          preview: image?.preview || image?.url
+        });
+      }
+    });
+
+    setActions(publishActions);
+    setLocalCompletedCount(completedActions);
+    setLocalErrorCount(errorActions);
+  }, [centralizedActions, categories, wikidataActions, imageActions, structuredDataActions, completedActions, errorActions, people, organizations, form]);
 
   const handlePublish = async (actionId: string) => {
     const action = actions.find(a => a.id === actionId);
@@ -475,9 +177,11 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       } else if (action.type === 'wikidata') {
         await publishWikidata(action);
       } else if (action.type === 'image') {
-        await publishImage(action);
+        await handleImageAction(action);
       } else if (action.type === 'metadata') {
         await publishMetadataUpdate(action);
+      } else if (action.type === 'structured-data') {
+        await publishStructuredData(action);
       }
 
       // Store the created entity ID if applicable (for dependent actions)
@@ -487,6 +191,12 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         // For now, we'll need to get this from the createPersonEntity response
         // TODO: Return the QID from createPersonEntity
       }
+
+      // Update centralized action status (this also updates the original state ref)
+      updateActionStatus(actionId, 'completed');
+
+      // Small delay to ensure state updates propagate
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Remove completed actions from list and increment counter
       setActions(prev => {
@@ -500,7 +210,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
             return a;
           });
       });
-      setCompletedCount(prev => prev + 1);
+      setLocalCompletedCount(prev => prev + 1);
     } catch (error) {
       // Keep action in list but mark as error
       setActions(prev =>
@@ -514,7 +224,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
             : a
         )
       );
-      setErrorCount(prev => prev + 1);
+      setLocalErrorCount(prev => prev + 1);
     }
   };
 
@@ -699,39 +409,124 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
   };
 
   const publishImage = async (action: PublishAction) => {
-    // Extract image index from action ID
-    const imageIndex = parseInt(action.id.replace('image-', ''));
-    const imageData = newImages[imageIndex];
+    // Extract image ID from action ID
+    const imageId = action.id.replace('image-', '');
 
-    if (!imageData || !imageData.file) {
-      throw new Error('Image file not found');
+    // Find image in either new images or existing images
+    const newImages = form.watch('files.queue') || [];
+    const existingImages = form.watch('files.existing') || [];
+    const imageData = [...newImages, ...existingImages].find((img: any) => img.id === imageId);
+
+    if (!imageData) {
+      throw new Error('Image not found');
     }
 
-    // Use suggested filename or fall back to original
-    const filename = imageData.metadata?.suggestedFilename || imageData.file.name;
     const wikitext = imageData.metadata?.wikitext || '';
 
-    // Upload via API
-    const formData = new FormData();
-    formData.append('file', imageData.file);
-    formData.append('filename', filename);
-    formData.append('text', wikitext);
-    formData.append('comment', `Uploaded via WikiPortraits uploader`);
+    // Check if this is an existing image (update) or new image (upload)
+    if (imageData.isExisting) {
+      // Update existing Commons file page
+      const filename = imageData.filename;
 
-    const response = await fetch('/api/commons/upload', {
-      method: 'POST',
-      body: formData
-    });
+      const response = await fetch('/api/commons/edit-page', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: filename,
+          wikitext: wikitext,
+          summary: 'Updated file description and metadata via WikiPortraits'
+        })
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to upload image');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update image');
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update image');
+      }
+
+      // Use existing page ID
+      const pageId = imageData.commonsPageId;
+
+      return { pageId, isUpdate: true };
+    } else {
+      // Upload new image
+      if (!imageData.file) {
+        throw new Error('Image file not found for upload');
+      }
+
+      const filename = imageData.metadata?.suggestedFilename || imageData.file.name;
+
+      // Upload via API
+      const formData = new FormData();
+      formData.append('file', imageData.file);
+      formData.append('filename', filename);
+      formData.append('text', wikitext);
+      formData.append('comment', `Uploaded via WikiPortraits uploader`);
+
+      const response = await fetch('/api/commons/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to upload image');
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to upload image');
+      }
+
+      // Get the page ID from the upload result
+      const pageId = result.pageId || result.data?.imageinfo?.pageid;
+
+      console.log('📤 Upload completed. PageId:', pageId, 'Full result:', result);
+
+      return { pageId, isUpdate: false };
+    }
+  };
+
+  const handleImageAction = async (action: PublishAction) => {
+    const { pageId, isUpdate } = await publishImage(action);
+
+    // Extract image ID from action ID
+    const imageId = action.id.replace('image-', '');
+    const newImages = form.watch('files.queue') || [];
+    const existingImages = form.watch('files.existing') || [];
+    const imageData = [...newImages, ...existingImages].find((img: any) => img.id === imageId);
+
+    // If this was a new upload, update any structured data actions with the pageId
+    if (!isUpdate && pageId) {
+      updateActionStatus(action.id, 'completed');
+
+      // Find and update structured data actions for this image
+      const sdActionsForImage = structuredDataActions.filter(sd => sd.imageId === imageId);
+
+      if (sdActionsForImage.length > 0) {
+        console.log(`🔄 Updating structured data actions for image ${imageId} with pageId:`, pageId);
+        console.log('📊 Current structured data actions:', sdActionsForImage);
+
+        // Update the pageId in the centralized state
+        updateStructuredDataPageId(imageId, pageId);
+
+        // Enable the structured data action now that we have a pageId
+        setActions(prev => prev.map(a =>
+          a.id === `sdc-${imageId}` ? { ...a, canPublish: true } : a
+        ));
+
+        console.log(`✅ Updated ${sdActionsForImage.length} structured data actions with pageId:`, pageId);
+      } else {
+        console.log(`⚠️ No structured data actions found for image ${imageId}`);
+      }
     }
 
-    const result = await response.json();
-    if (!result.success) {
-      throw new Error(result.message || 'Failed to upload image');
-    }
+    // Depicts are now handled by the structured data action
+    // No need to update them here separately
 
     // If image should be set as main image (P18), add that claim
     if (imageData.metadata?.setAsMainImage) {
@@ -761,8 +556,6 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         }
       }
     }
-
-    return result;
   };
 
   const publishMetadataUpdate = async (action: PublishAction) => {
@@ -802,90 +595,13 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
 
     console.log('✅ Page content updated for:', img.filename);
 
-    // Update depicts statements via structured data API
-    const selectedMemberIds = img.metadata?.selectedBandMembers || [];
-    if (selectedMemberIds.length > 0 || organizations.length > 0) {
-      try {
-        // Build depicts list from wikitext and metadata
-        const depictsList = [];
-
-        // Add band
-        if (organizations.length > 0) {
-          depictsList.push({
-            qid: organizations[0].id,
-            label: organizations[0].labels?.en?.value || 'Band'
-          });
-        }
-
-        // Add performers
-        const selectedPerformers = people.filter((p: any) => selectedMemberIds.includes(p.id));
-        selectedPerformers.forEach((p: any) => {
-          depictsList.push({
-            qid: p.id,
-            label: p.labels?.en?.value || 'Performer'
-          });
-        });
-
-        console.log('🏷️ Checking structured data depicts...');
-
-        // Check existing depicts via API
-        const checkResponse = await fetch(
-          `https://commons.wikimedia.org/w/api.php?` +
-          new URLSearchParams({
-            action: 'wbgetentities',
-            ids: `M${img.commonsPageId}`,
-            format: 'json',
-            origin: '*'
-          })
-        );
-
-        const checkData = await checkResponse.json();
-        const mediaEntity = checkData.entities?.[`M${img.commonsPageId}`];
-        const existingDepicts = mediaEntity?.statements?.P180 || [];
-        const existingQids = existingDepicts.map((s: any) => s.mainsnak?.datavalue?.value?.id).filter(Boolean);
-
-        // Compare with what we want
-        const desiredQids = depictsList.map(d => d.qid).sort();
-        const currentQids = existingQids.sort();
-        const needsUpdate = JSON.stringify(desiredQids) !== JSON.stringify(currentQids);
-
-        console.log('📊 Depicts comparison:', {
-          desired: desiredQids,
-          current: currentQids,
-          needsUpdate
-        });
-
-        if (needsUpdate) {
-          console.log('🏷️ Updating structured data depicts for:', depictsList.map(d => d.label).join(', '));
-
-          // Call API to update depicts
-          const depictsResponse = await fetch('/api/commons/update-depicts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              pageId: img.commonsPageId,
-              depicts: depictsList
-            })
-          });
-
-          const depictsResult = await depictsResponse.json();
-
-          if (depictsResult.success) {
-            console.log('✅ Updated depicts statements:', depictsResult.message);
-          } else {
-            console.warn('⚠️  Failed to update depicts:', depictsResult.error);
-            // Don't fail the whole update if depicts fails
-          }
-        } else {
-          console.log('✅ Depicts statements already correct - no update needed');
-        }
-      } catch (error) {
-        console.error('Error updating depicts statements:', error);
-        // Don't fail the whole update if depicts fails
-      }
-    }
+    // Depicts are now handled by the structured data action
+    // No need to update them here separately
 
     console.log('✅ Metadata update completed for:', img.filename);
+
+    // Reload image from Commons to update originalState
+    await reloadImageFromCommons(img.id);
   };
 
   const createPersonEntity = async (action: PublishAction) => {
@@ -1104,6 +820,92 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
     console.log('🗑️ Invalidated Wikidata cache for entity:', entityId);
   };
 
+  const publishStructuredData = async (action: PublishAction) => {
+    // Extract structured data action info
+    const sdActionId = action.id.replace('sdc-', '');
+    const sdAction = structuredDataActions.find(sd => sd.imageId === sdActionId);
+
+    console.log('🔍 Looking for structured data action with imageId:', sdActionId);
+    console.log('📋 All structured data actions:', structuredDataActions.map(sd => ({ imageId: sd.imageId, pageId: sd.commonsPageId })));
+    console.log('🎯 Found action:', sdAction);
+
+    if (!sdAction) {
+      throw new Error('Structured data action not found');
+    }
+
+    if (!sdAction.commonsPageId || sdAction.commonsPageId === 0) {
+      console.error('❌ PageId is missing or 0. Action details:', sdAction);
+      throw new Error('Image must be uploaded before adding structured data. pageId is missing.');
+    }
+
+    console.log('📝 Publishing structured data for image:', sdAction.imageId, 'pageId:', sdAction.commonsPageId);
+
+    // Process each property that needs updating
+    for (const prop of sdAction.properties.filter(p => p.needsUpdate)) {
+      if (prop.property === 'labels') {
+        // Update captions
+        const captions = Array.isArray(prop.value) ? prop.value : [];
+        console.log('🏷️ Updating captions:', captions);
+
+        const response = await fetch('/api/commons/update-captions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageId: sdAction.commonsPageId,
+            captions
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update captions');
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to update captions');
+        }
+
+        console.log('✅ Updated captions for page ID:', sdAction.commonsPageId);
+      } else if (prop.property === 'P180') {
+        // Update depicts
+        const depicts = Array.isArray(prop.value) ? prop.value : [];
+        console.log('🏷️ Updating depicts:', depicts);
+
+        const depictsList = depicts.map(qid => ({
+          qid,
+          label: qid // We'd need to fetch the label, but for now use QID
+        }));
+
+        const response = await fetch('/api/commons/update-depicts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pageId: sdAction.commonsPageId,
+            depicts: depictsList
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update depicts');
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          throw new Error(result.message || 'Failed to update depicts');
+        }
+
+        console.log('✅ Updated depicts for page ID:', sdAction.commonsPageId);
+      }
+    }
+
+    console.log('✅ Structured data publish completed for:', sdAction.imageId);
+
+    // Reload image from Commons to update originalState
+    await reloadImageFromCommons(sdAction.imageId);
+  };
+
   const handlePublishAll = async () => {
     // Process actions sequentially, checking for newly enabled actions after each
     let remainingActions = actions.filter(a => a.status === 'pending');
@@ -1134,6 +936,10 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         return ImagePlus;
       case 'metadata':
         return FileText;
+      case 'structured-data':
+        return Database;
+      default:
+        return FileText;
     }
   };
 
@@ -1147,6 +953,12 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         return CheckCircle;
       case 'error':
         return AlertCircle;
+      case 'ready':
+        return CheckCircle;
+      case 'skipped':
+        return CheckCircle;
+      default:
+        return Clock;
     }
   };
 
@@ -1160,6 +972,12 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
         return 'text-green-500';
       case 'error':
         return 'text-red-500';
+      case 'ready':
+        return 'text-blue-500';
+      case 'skipped':
+        return 'text-gray-400';
+      default:
+        return 'text-gray-500';
     }
   };
 
@@ -1202,7 +1020,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
           <div>
             <h3 className="font-semibold text-gray-900">Publish Summary</h3>
             <div className="text-sm text-gray-600 mt-1">
-              {pendingCount} pending • {completedCount} completed • {errorCount} errors
+              {pendingCount} pending • {localCompletedCount} completed • {localErrorCount} errors
             </div>
           </div>
           {pendingCount > 0 && (
@@ -1240,8 +1058,8 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
             >
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-3 flex-1">
-                  {/* Show thumbnail for images */}
-                  {action.type === 'image' && action.preview ? (
+                  {/* Show thumbnail for images and structured data (which is image-related) */}
+                  {(action.type === 'image' || action.type === 'structured-data') && action.preview ? (
                     <img
                       src={action.preview}
                       alt="Preview"
@@ -1293,7 +1111,7 @@ export default function PublishPane({ onComplete }: PublishPaneProps) {
       </div>
 
       {/* Complete Button */}
-      {completedCount === actions.length && actions.length > 0 && (
+      {localCompletedCount === actions.length && actions.length > 0 && (
         <div className="text-center">
           <button
             onClick={onComplete}

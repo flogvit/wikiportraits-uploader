@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ImageFile } from '@/types';
 import { UniversalFormProvider, useUniversalForm } from '@/providers/UniversalFormProvider';
+import { PublishDataProvider } from '@/providers/PublishDataProvider';
 import { WorkflowUIProvider } from '../providers/WorkflowUIProvider';
 import ExportModal from '@/components/modals/ExportModal';
 import BulkEditModal from '@/components/modals/BulkEditModal';
@@ -128,11 +129,11 @@ function WorkflowRouter() {
 
 export default function WikimediaWorkflow(props: WikimediaWorkflowProps) {
   // No default workflowType - this will be selected in the upload-type step
-  
+
   return (
-    <UniversalFormProvider 
+    <UniversalFormProvider
       sessionId={`workflow-universal`}
-      defaultValues={{ 
+      defaultValues={{
         eventDetails: {
           title: '',
           language: 'en'
@@ -140,7 +141,9 @@ export default function WikimediaWorkflow(props: WikimediaWorkflowProps) {
       }}
       autoSave={true}
     >
-      <WorkflowWithModals />
+      <PublishDataProvider>
+        <WorkflowWithModals />
+      </PublishDataProvider>
     </UniversalFormProvider>
   );
 }

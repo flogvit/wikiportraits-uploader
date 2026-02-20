@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Database, User, Users, Edit3, Trash2, CheckCircle, AlertCircle, ExternalLink, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { Database, User, Users, Edit3, Trash2, CheckCircle, AlertCircle, ExternalLink, Calendar, RefreshCw } from 'lucide-react';
 import { useUniversalForm, useUniversalFormEntities } from '@/providers/UniversalFormProvider';
-import { PendingWikidataEntity, PendingBandMemberData, PendingBandData } from '@/types/music';
-import { getWikidataEntitiesToCreate, WikidataEntityCreationInfo } from '@/utils/wikidata-entities';
-import { lookupCache, CacheType } from '@/utils/lookup-cache';
+import { usePublishData } from '@/providers/PublishDataProvider';
 
 interface WikidataPaneProps {
   onComplete?: () => void;
@@ -16,13 +14,34 @@ export default function WikidataPane({
 }: WikidataPaneProps) {
   const form = useUniversalForm();
   const { people, organizations, removePerson, removeOrganization } = useUniversalFormEntities();
-  const [wikidataEntitiesToCreate, setWikidataEntitiesToCreate] = useState<WikidataEntityCreationInfo[]>([]);
-  const [loadingEntities, setLoadingEntities] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const {
+    wikidataActions,
+    isCalculating,
+    refresh
+  } = usePublishData();
 
   const eventDetails = form.watch('eventDetails');
 
-  // Check what Wikidata entities need to be created
+  // Convert centralized actions to display format
+  const wikidataEntitiesToCreate = wikidataActions.map(action => ({
+    entityName: action.entityLabel,
+    entityType: action.entityType,
+    shouldCreate: action.action === 'create',
+    exists: action.action !== 'create',
+    wikidataId: action.entityId.startsWith('new') ? undefined : action.entityId,
+    wikidataUrl: action.entityId.startsWith('new') ? undefined : `https://www.wikidata.org/wiki/${action.entityId}`,
+    description: '',
+    instanceOf: [],
+    claims: {},
+    missingClaims: action.changes?.map(c => ({
+      property: c.property,
+      value: c.newValue,
+      description: `${c.property}: ${c.newValue}`
+    })) || []
+  }));
+
+  // Legacy code - should be removed but keeping for now
+  /*
   useEffect(() => {
     console.log('🔄 WikidataPane useEffect triggered - refreshKey:', refreshKey);
 
@@ -323,6 +342,7 @@ export default function WikidataPane({
 
     checkEntities();
   }, [eventDetails?.title, eventDetails?.date, eventDetails?.participants, people, organizations, refreshKey]);
+  */
 
   // Convert UniversalForm entities to old format for compatibility
   const pendingWikidataEntities = [
@@ -444,35 +464,171 @@ export default function WikidataPane({
     e.entityType === 'band' || e.entityType === 'performer'
   );
 
+  // Show all organizations and people (both new and existing)
+  const allOrganizations = organizations || [];
+  const allPeople = people || [];
+  const totalEntities = allOrganizations.length + allPeople.length + wikidataActions.length;
+
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <Database className="w-12 h-12 mx-auto mb-4 text-primary" />
-        <h2 className="text-2xl font-bold text-card-foreground mb-2">Wikidata Entities</h2>
-        <p className="text-muted-foreground">
-          Review and configure entities to be created in Wikidata
-        </p>
-        <button
-          onClick={() => setRefreshKey(prev => prev + 1)}
-          disabled={loadingEntities}
-          className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50"
-        >
-          <svg className={`w-4 h-4 ${loadingEntities ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Refresh Status
-        </button>
-      </div>
 
       {/* Loading State */}
-      {loadingEntities && (
+      {isCalculating && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <p className="text-sm text-blue-800">Checking Wikidata for existing entities...</p>
         </div>
       )}
 
+      {/* Organizations/Bands Section */}
+      {!isCalculating && allOrganizations.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Organizations ({allOrganizations.length})
+          </h3>
+          <div className="space-y-3">
+            {allOrganizations.map((org: any, index: number) => {
+              const orgName = org.labels?.en?.value || org.entity?.labels?.en?.value || 'Unknown';
+              const orgId = org.id || org.entity?.id;
+              const isNew = org.isNew || false;
+
+              // Check if centralized provider says P373 is missing
+              const needsP373Action = wikidataActions.find(
+                action => action.entityId === orgId &&
+                         action.changes?.some(c => c.property === 'P373')
+              );
+              const missingP373 = !!needsP373Action;
+
+              return (
+                <div key={orgId || index} className="flex items-start justify-between p-4 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-card-foreground">{orgName}</h4>
+                      {isNew && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">NEW</span>
+                      )}
+                      {!isNew && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">EXISTS</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Type: Organization/Band
+                      {orgId && <span className="ml-2">• ID: {orgId}</span>}
+                      {missingP373 && <span className="ml-2 text-orange-600">• Missing P373 (Commons category)</span>}
+                    </p>
+                  </div>
+                  {orgId && !isNew && (
+                    <a
+                      href={`https://www.wikidata.org/wiki/${orgId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 ml-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* People/Performers Section */}
+      {!isCalculating && allPeople.length > 0 && (
+        <div className="bg-card rounded-lg border border-border p-6">
+          <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
+            <User className="w-5 h-5" />
+            People ({allPeople.length})
+          </h3>
+          <div className="space-y-3">
+            {allPeople.map((person: any, index: number) => {
+              const personName = person.labels?.en?.value || person.entity?.labels?.en?.value || 'Unknown';
+              const personId = person.id || person.entity?.id;
+              const isNew = person.isNew || false;
+
+              // Check if centralized provider says P373 is missing
+              const needsP373Action = wikidataActions.find(
+                action => action.entityId === personId &&
+                         action.changes?.some(c => c.property === 'P373')
+              );
+              const missingP373 = !!needsP373Action;
+
+              return (
+                <div key={personId || index} className="flex items-start justify-between p-4 bg-muted rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-card-foreground">{personName}</h4>
+                      {isNew && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">NEW</span>
+                      )}
+                      {!isNew && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">EXISTS</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Type: Person
+                      {personId && <span className="ml-2">• ID: {personId}</span>}
+                      {missingP373 && <span className="ml-2 text-orange-600">• Missing P373 (Commons category)</span>}
+                    </p>
+                  </div>
+                  {personId && !isNew && (
+                    <a
+                      href={`https://www.wikidata.org/wiki/${personId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 ml-2"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Wikidata Actions (from centralized provider) */}
+      {!isCalculating && wikidataActions.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600" />
+            Actions Needed ({wikidataActions.length})
+          </h3>
+          <div className="space-y-3">
+            {wikidataActions.map((action, index) => (
+              <div key={index} className="flex items-start justify-between p-4 bg-white rounded-lg border border-amber-300">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-medium text-gray-900">{action.entityLabel}</h4>
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      action.action === 'create' ? 'bg-green-100 text-green-700' :
+                      action.action === 'update' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {action.action.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">
+                    {action.entityType} • {action.changes?.length || 0} changes needed
+                  </p>
+                  {action.changes && action.changes.length > 0 && (
+                    <ul className="text-xs text-gray-500 mt-2 space-y-1">
+                      {action.changes.map((change, cIndex) => (
+                        <li key={cIndex}>• {change.property}: {JSON.stringify(change.newValue)}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Event Entities */}
-      {!loadingEntities && eventEntities.length > 0 && (
+      {!isCalculating && eventEntities.length > 0 && (
         <div className="bg-card rounded-lg border border-border p-6">
           <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -604,7 +760,7 @@ export default function WikidataPane({
       )}
 
       {/* Performer/Band Entities */}
-      {!loadingEntities && performerEntities.length > 0 && (
+      {!isCalculating && performerEntities.length > 0 && (
         <div className="bg-card rounded-lg border border-border p-6">
           <h3 className="text-lg font-semibold text-card-foreground mb-4 flex items-center gap-2">
             <Users className="w-5 h-5" />
@@ -746,13 +902,13 @@ export default function WikidataPane({
         </div>
       )}
 
-      {/* Legacy: Band Members to Create (from old flow) */}
-      {pendingWikidataEntities.length === 0 && !loadingEntities && wikidataEntitiesToCreate.length === 0 && (
+      {/* No entities message */}
+      {pendingWikidataEntities.length === 0 && !isCalculating && wikidataEntitiesToCreate.length === 0 && allPeople.length === 0 && allOrganizations.length === 0 && wikidataActions.length === 0 && (
         <div className="text-center py-8">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Entities</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Entities Yet</h3>
           <p className="text-gray-500">
-            All events, bands and members are already in Wikidata, or you haven't added any custom members yet.
+            Select event participants, bands, and performers to see them here.
           </p>
         </div>
       )}
